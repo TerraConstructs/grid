@@ -1,0 +1,14 @@
+go 1.24.4
+
+use (
+	./api
+	./cmd/gridapi
+	./cmd/gridctl
+	./pkg/sdk
+	./tests
+)
+
+replace (
+	github.com/terraconstructs/grid/api v0.0.0 => ./api
+	github.com/terraconstructs/grid/pkg/sdk v0.0.0 => ./pkg/sdk
+)

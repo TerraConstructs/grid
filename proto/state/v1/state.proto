@@ -1,0 +1,112 @@
+syntax = "proto3";
+
+package state.v1;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/terraconstructs/grid/api/state/v1;statev1";
+
+// StateService provides remote state management for Terraform/OpenTofu clients.
+service StateService {
+  // CreateState creates a new state with client-generated GUID and logic ID.
+  rpc CreateState(CreateStateRequest) returns (CreateStateResponse);
+
+  // ListStates returns all states with summary information.
+  rpc ListStates(ListStatesRequest) returns (ListStatesResponse);
+
+  // GetStateConfig retrieves backend configuration for an existing state by logic ID.
+  rpc GetStateConfig(GetStateConfigRequest) returns (GetStateConfigResponse);
+
+  // GetStateLock inspects the current lock metadata for a state by GUID.
+  rpc GetStateLock(GetStateLockRequest) returns (GetStateLockResponse);
+
+  // UnlockState releases a lock using the lock ID provided by Terraform/OpenTofu.
+  rpc UnlockState(UnlockStateRequest) returns (UnlockStateResponse);
+}
+
+// CreateStateRequest creates a new state using a client-generated GUID.
+message CreateStateRequest {
+  string guid = 1;
+  string logic_id = 2;
+}
+
+// CreateStateResponse confirms creation and returns backend config.
+message CreateStateResponse {
+  string guid = 1;
+  string logic_id = 2;
+  BackendConfig backend_config = 3;
+}
+
+// ListStatesRequest requests all states.
+message ListStatesRequest {}
+
+// ListStatesResponse returns all states with basic info.
+message ListStatesResponse {
+  repeated StateInfo states = 1;
+}
+
+// StateInfo is summary information for a state.
+message StateInfo {
+  string guid = 1;
+  string logic_id = 2;
+  bool locked = 3;
+  google.protobuf.Timestamp created_at = 4;
+  google.protobuf.Timestamp updated_at = 5;
+  int64 size_bytes = 6;
+}
+
+// BackendConfig contains Terraform backend configuration URLs.
+message BackendConfig {
+  string address = 1;
+  string lock_address = 2;
+  string unlock_address = 3;
+}
+
+// GetStateConfigRequest retrieves backend config for existing state.
+message GetStateConfigRequest {
+  string logic_id = 1;
+}
+
+// GetStateConfigResponse returns backend config.
+message GetStateConfigResponse {
+  string guid = 1;
+  BackendConfig backend_config = 2;
+}
+
+// GetStateLockRequest fetches current lock metadata by GUID.
+message GetStateLockRequest {
+  string guid = 1;
+}
+
+// LockInfo mirrors Terraform's lock payload.
+message LockInfo {
+  string id = 1;
+  string operation = 2;
+  string info = 3;
+  string who = 4;
+  string version = 5;
+  google.protobuf.Timestamp created = 6;
+  string path = 7;
+}
+
+// StateLock response wrapper indicating lock state plus metadata when present.
+message StateLock {
+  bool locked = 1;
+  LockInfo info = 2;
+}
+
+// GetStateLockResponse returns current lock status.
+message GetStateLockResponse {
+  StateLock lock = 1;
+}
+
+// UnlockStateRequest releases a lock given the current lock ID.
+message UnlockStateRequest {
+  string guid = 1;
+  string lock_id = 2;
+}
+
+// UnlockStateResponse mirrors GetStateLockResponse after unlock attempt.
+message UnlockStateResponse {
+  StateLock lock = 1;
+}

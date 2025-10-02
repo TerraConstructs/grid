@@ -1,0 +1,106 @@
+// State Service Contract - Connect RPC API
+// Feature: 001-develop-the-grid
+// Location: proto/state/v1/state.proto
+
+syntax = "proto3";
+
+package state.v1;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/terraconstructs/grid/api/state/v1;statev1";
+
+// StateService manages Terraform state lifecycle
+service StateService {
+  // CreateState creates a new state with client-generated GUID and user-provided logic_id
+  // Client generates UUIDv7, server persists and returns backend configuration
+  rpc CreateState(CreateStateRequest) returns (CreateStateResponse);
+
+  // ListStates returns all states with metadata
+  rpc ListStates(ListStatesRequest) returns (ListStatesResponse);
+
+  // GetStateConfig retrieves backend configuration for existing state
+  rpc GetStateConfig(GetStateConfigRequest) returns (GetStateConfigResponse);
+}
+
+// CreateStateRequest
+message CreateStateRequest {
+  // guid is the client-generated UUIDv7 for this state (immutable)
+  // Format: RFC 9562 UUIDv7 (e.g., "018e8c5e-7890-7000-8000-123456789abc")
+  string guid = 1;
+
+  // logic_id is a human-readable identifier (e.g., "production-us-east")
+  // Must be globally unique, 1-128 characters, alphanumeric + hyphens/underscores
+  string logic_id = 2;
+}
+
+// CreateStateResponse
+message CreateStateResponse {
+  // guid echoes the client-provided UUID
+  string guid = 1;
+
+  // logic_id echoes the requested logic_id
+  string logic_id = 2;
+
+  // backend_config contains Terraform HTTP backend endpoints
+  BackendConfig backend_config = 3;
+}
+
+// ListStatesRequest
+message ListStatesRequest {
+  // No parameters - lists all states
+}
+
+// ListStatesResponse
+message ListStatesResponse {
+  // states contains all state summaries
+  repeated StateInfo states = 1;
+}
+
+// StateInfo provides state metadata
+message StateInfo {
+  // guid is the unique identifier
+  string guid = 1;
+
+  // logic_id is the human-readable name
+  string logic_id = 2;
+
+  // locked indicates if state is currently locked
+  bool locked = 3;
+
+  // created_at is the state creation timestamp
+  google.protobuf.Timestamp created_at = 4;
+
+  // updated_at is the last state content update timestamp
+  google.protobuf.Timestamp updated_at = 5;
+
+  // size_bytes is the state content size (0 if never initialized)
+  int64 size_bytes = 6;
+}
+
+// GetStateConfigRequest
+message GetStateConfigRequest {
+  // logic_id identifies the state
+  string logic_id = 1;
+}
+
+// GetStateConfigResponse
+message GetStateConfigResponse {
+  // guid of the state
+  string guid = 1;
+
+  // backend_config contains Terraform HTTP backend endpoints
+  BackendConfig backend_config = 2;
+}
+
+// BackendConfig provides Terraform backend configuration
+message BackendConfig {
+  // address is the state retrieval/update endpoint
+  string address = 1;
+
+  // lock_address is the lock acquisition endpoint
+  string lock_address = 2;
+
+  // unlock_address is the lock release endpoint
+  string unlock_address = 3;
+}

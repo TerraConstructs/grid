@@ -1,0 +1,7 @@
+terraform {
+  backend "http" {
+    address        = "{{.Address}}"
+    lock_address   = "{{.LockAddress}}"
+    unlock_address = "{{.UnlockAddress}}"
+  }
+}

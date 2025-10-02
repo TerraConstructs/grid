@@ -1,0 +1,54 @@
+# Binaries and build artifacts
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+bin/
+
+# Test binaries and coverage
+*.test
+*.out
+coverage/
+
+# Integration test artifacts
+tests/**/tmp_*
+tests/**/.terraform/
+tests/**/.terraform.lock.hcl
+tests/**/terraform.tfstate*
+tests/**/backend.tf
+
+# Go workspace files
+go.work.sum
+
+# Dependency directories
+vendor/
+node_modules/
+
+# JS/TS build artifacts
+js/sdk/lib/
+js/sdk/dist/
+js/sdk/build/
+js/sdk/.turbo/
+*.tsbuildinfo
+
+# IDE/editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS-specific files
+.DS_Store
+Thumbs.db
+
+# Environment/config overrides
+.env
+.env.local
+
+# Docker/Postgres volumes
+postgres_data/
+
+# Temporary files
+/tmp/

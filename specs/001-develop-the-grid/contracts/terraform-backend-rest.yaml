@@ -1,0 +1,311 @@
+openapi: 3.0.3
+info:
+  title: Grid Terraform HTTP Backend API
+  description: |
+    REST API implementing the Terraform HTTP Backend protocol.
+    This API is consumed directly by Terraform/OpenTofu CLI and is NOT
+    reflected in protobuf definitions or SDKs (constitutional exception).
+
+    Reference: https://developer.hashicorp.com/terraform/language/settings/backends/http
+
+    **IMPORTANT - HTTP Methods**:
+    - Terraform defaults to **LOCK** and **UNLOCK** custom HTTP methods (not PUT)
+    - OpenAPI 3.0 cannot document custom methods, so PUT is shown as equivalent
+    - Server implementation MUST handle: GET, POST, LOCK, UNLOCK methods
+    - Terraform allows method configuration via lock_method/unlock_method/update_method
+
+    **Authentication**:
+    - Initial version: No authentication (open access)
+    - Future: HTTP Basic Auth, custom headers, mTLS support
+
+  version: 1.0.0
+  contact:
+    name: Grid API
+
+servers:
+  - url: http://localhost:8080
+    description: Development server
+
+paths:
+  /tfstate/{guid}:
+    parameters:
+      - name: guid
+        in: path
+        required: true
+        description: UUID of the state
+        schema:
+          type: string
+          format: uuid
+        example: "550e8400-e29b-41d4-a716-446655440000"
+
+    get:
+      summary: Get current state
+      description: Retrieves the current Terraform state content
+      operationId: getState
+      responses:
+        '200':
+          description: State retrieved successfully
+          headers:
+            X-Grid-State-Size-Warning:
+              description: Present if state size exceeds 10MB threshold
+              schema:
+                type: string
+                enum: [exceeds-threshold]
+          content:
+            application/json:
+              schema:
+                type: object
+                description: Raw Terraform state JSON
+        '404':
+          description: State not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    post:
+      summary: Update state
+      description: Updates the Terraform state content
+      operationId: updateState
+      parameters:
+        - name: ID
+          in: query
+          required: false
+          description: Optional lock ID for verification
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              description: Raw Terraform state JSON
+      responses:
+        '200':
+          description: State updated successfully
+          headers:
+            X-Grid-State-Size-Warning:
+              description: Present if state size exceeds 10MB threshold
+              schema:
+                type: string
+                enum: [exceeds-threshold]
+        '404':
+          description: State not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '423':
+          description: State is locked
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LockInfo'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /tfstate/{guid}/lock:
+    parameters:
+      - name: guid
+        in: path
+        required: true
+        description: UUID of the state
+        schema:
+          type: string
+          format: uuid
+
+    put:
+      summary: Acquire lock (LOCK method in practice)
+      description: |
+        **Actual HTTP Method**: LOCK (Terraform default)
+        **OpenAPI Limitation**: Custom methods not supported, PUT shown for documentation
+
+        Attempts to acquire a lock on the state. Returns 423 if already locked.
+        Terraform will retry automatically on 423 responses.
+
+        The server MUST accept both:
+        - LOCK /tfstate/{guid}/lock (Terraform default)
+        - PUT /tfstate/{guid}/lock (if user configures lock_method="PUT")
+      operationId: lockState
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LockRequest'
+      responses:
+        '200':
+          description: Lock acquired successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LockInfo'
+        '404':
+          description: State not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '423':
+          description: State already locked
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LockInfo'
+              example:
+                ID: "a1b2c3d4-e5f6-4789-a012-3456789abcde"
+                Operation: "apply"
+                Info: ""
+                Who: "user@hostname"
+                Version: "1.5.0"
+                Created: "2025-09-30T10:00:00Z"
+                Path: "production-us-east"
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /tfstate/{guid}/unlock:
+    parameters:
+      - name: guid
+        in: path
+        required: true
+        description: UUID of the state
+        schema:
+          type: string
+          format: uuid
+
+    put:
+      summary: Release lock (UNLOCK method in practice)
+      description: |
+        **Actual HTTP Method**: UNLOCK (Terraform default)
+        **OpenAPI Limitation**: Custom methods not supported, PUT shown for documentation
+
+        Releases the lock on the state. Verifies lock ID matches.
+
+        The server MUST accept both:
+        - UNLOCK /tfstate/{guid}/unlock (Terraform default)
+        - PUT /tfstate/{guid}/unlock (if user configures unlock_method="PUT")
+      operationId: unlockState
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LockInfo'
+      responses:
+        '200':
+          description: Lock released successfully
+        '400':
+          description: Lock ID mismatch
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: State not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+components:
+  schemas:
+    LockRequest:
+      type: object
+      required:
+        - ID
+        - Operation
+        - Created
+        - Path
+      properties:
+        ID:
+          type: string
+          format: uuid
+          description: Unique lock identifier
+        Operation:
+          type: string
+          description: Terraform operation (e.g., "apply", "plan")
+          example: "apply"
+        Info:
+          type: string
+          description: Additional information
+        Who:
+          type: string
+          description: User and hostname
+          example: "user@hostname"
+        Version:
+          type: string
+          description: Terraform version
+          example: "1.5.0"
+        Created:
+          type: string
+          format: date-time
+          description: Lock creation timestamp
+        Path:
+          type: string
+          description: State path/name
+          example: "production-us-east"
+
+    LockInfo:
+      type: object
+      required:
+        - ID
+        - Operation
+        - Created
+        - Path
+      properties:
+        ID:
+          type: string
+          format: uuid
+          description: Unique lock identifier
+        Operation:
+          type: string
+          description: Terraform operation
+        Info:
+          type: string
+          description: Additional information
+        Who:
+          type: string
+          description: User and hostname
+        Version:
+          type: string
+          description: Terraform version
+        Created:
+          type: string
+          format: date-time
+          description: Lock creation timestamp
+        Path:
+          type: string
+          description: State path/name
+
+    Error:
+      type: object
+      required:
+        - error
+      properties:
+        error:
+          type: string
+          description: Error message
+        details:
+          type: string
+          description: Additional error details
