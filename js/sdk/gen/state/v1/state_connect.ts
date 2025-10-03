@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { CreateStateRequest, CreateStateResponse, GetStateConfigRequest, GetStateConfigResponse, GetStateLockRequest, GetStateLockResponse, ListStatesRequest, ListStatesResponse, UnlockStateRequest, UnlockStateResponse } from "./state_pb.js";
+import { AddDependencyRequest, AddDependencyResponse, CreateStateRequest, CreateStateResponse, GetDependencyGraphRequest, GetDependencyGraphResponse, GetStateConfigRequest, GetStateConfigResponse, GetStateLockRequest, GetStateLockResponse, GetStateStatusRequest, GetStateStatusResponse, GetTopologicalOrderRequest, GetTopologicalOrderResponse, ListDependenciesRequest, ListDependenciesResponse, ListDependentsRequest, ListDependentsResponse, ListStatesRequest, ListStatesResponse, RemoveDependencyRequest, RemoveDependencyResponse, SearchByOutputRequest, SearchByOutputResponse, UnlockStateRequest, UnlockStateResponse } from "./state_pb.js";
 import { MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -67,6 +67,95 @@ export const StateService = {
       name: "UnlockState",
       I: UnlockStateRequest,
       O: UnlockStateResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * AddDependency declares a dependency edge from producer output to consumer state.
+     * Returns existing edge if duplicate (idempotent). Rejects if would create cycle.
+     *
+     * @generated from rpc state.v1.StateService.AddDependency
+     */
+    addDependency: {
+      name: "AddDependency",
+      I: AddDependencyRequest,
+      O: AddDependencyResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * RemoveDependency deletes a dependency edge by ID.
+     *
+     * @generated from rpc state.v1.StateService.RemoveDependency
+     */
+    removeDependency: {
+      name: "RemoveDependency",
+      I: RemoveDependencyRequest,
+      O: RemoveDependencyResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * ListDependencies returns all edges where the given state is the consumer (incoming deps).
+     *
+     * @generated from rpc state.v1.StateService.ListDependencies
+     */
+    listDependencies: {
+      name: "ListDependencies",
+      I: ListDependenciesRequest,
+      O: ListDependenciesResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * ListDependents returns all edges where the given state is the producer (outgoing deps).
+     *
+     * @generated from rpc state.v1.StateService.ListDependents
+     */
+    listDependents: {
+      name: "ListDependents",
+      I: ListDependentsRequest,
+      O: ListDependentsResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * SearchByOutput finds all edges that reference a specific output key (by name).
+     *
+     * @generated from rpc state.v1.StateService.SearchByOutput
+     */
+    searchByOutput: {
+      name: "SearchByOutput",
+      I: SearchByOutputRequest,
+      O: SearchByOutputResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * GetTopologicalOrder computes layered ordering of states rooted at given state.
+     *
+     * @generated from rpc state.v1.StateService.GetTopologicalOrder
+     */
+    getTopologicalOrder: {
+      name: "GetTopologicalOrder",
+      I: GetTopologicalOrderRequest,
+      O: GetTopologicalOrderResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * GetStateStatus computes on-demand status for a state based on its incoming edges.
+     *
+     * @generated from rpc state.v1.StateService.GetStateStatus
+     */
+    getStateStatus: {
+      name: "GetStateStatus",
+      I: GetStateStatusRequest,
+      O: GetStateStatusResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * GetDependencyGraph returns full dependency graph data for client-side HCL generation.
+     *
+     * @generated from rpc state.v1.StateService.GetDependencyGraph
+     */
+    getDependencyGraph: {
+      name: "GetDependencyGraph",
+      I: GetDependencyGraphRequest,
+      O: GetDependencyGraphResponse,
       kind: MethodKind.Unary,
     },
   }

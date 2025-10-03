@@ -47,6 +47,30 @@ const (
 	// StateServiceUnlockStateProcedure is the fully-qualified name of the StateService's UnlockState
 	// RPC.
 	StateServiceUnlockStateProcedure = "/state.v1.StateService/UnlockState"
+	// StateServiceAddDependencyProcedure is the fully-qualified name of the StateService's
+	// AddDependency RPC.
+	StateServiceAddDependencyProcedure = "/state.v1.StateService/AddDependency"
+	// StateServiceRemoveDependencyProcedure is the fully-qualified name of the StateService's
+	// RemoveDependency RPC.
+	StateServiceRemoveDependencyProcedure = "/state.v1.StateService/RemoveDependency"
+	// StateServiceListDependenciesProcedure is the fully-qualified name of the StateService's
+	// ListDependencies RPC.
+	StateServiceListDependenciesProcedure = "/state.v1.StateService/ListDependencies"
+	// StateServiceListDependentsProcedure is the fully-qualified name of the StateService's
+	// ListDependents RPC.
+	StateServiceListDependentsProcedure = "/state.v1.StateService/ListDependents"
+	// StateServiceSearchByOutputProcedure is the fully-qualified name of the StateService's
+	// SearchByOutput RPC.
+	StateServiceSearchByOutputProcedure = "/state.v1.StateService/SearchByOutput"
+	// StateServiceGetTopologicalOrderProcedure is the fully-qualified name of the StateService's
+	// GetTopologicalOrder RPC.
+	StateServiceGetTopologicalOrderProcedure = "/state.v1.StateService/GetTopologicalOrder"
+	// StateServiceGetStateStatusProcedure is the fully-qualified name of the StateService's
+	// GetStateStatus RPC.
+	StateServiceGetStateStatusProcedure = "/state.v1.StateService/GetStateStatus"
+	// StateServiceGetDependencyGraphProcedure is the fully-qualified name of the StateService's
+	// GetDependencyGraph RPC.
+	StateServiceGetDependencyGraphProcedure = "/state.v1.StateService/GetDependencyGraph"
 )
 
 // StateServiceClient is a client for the state.v1.StateService service.
@@ -61,6 +85,23 @@ type StateServiceClient interface {
 	GetStateLock(context.Context, *connect.Request[v1.GetStateLockRequest]) (*connect.Response[v1.GetStateLockResponse], error)
 	// UnlockState releases a lock using the lock ID provided by Terraform/OpenTofu.
 	UnlockState(context.Context, *connect.Request[v1.UnlockStateRequest]) (*connect.Response[v1.UnlockStateResponse], error)
+	// AddDependency declares a dependency edge from producer output to consumer state.
+	// Returns existing edge if duplicate (idempotent). Rejects if would create cycle.
+	AddDependency(context.Context, *connect.Request[v1.AddDependencyRequest]) (*connect.Response[v1.AddDependencyResponse], error)
+	// RemoveDependency deletes a dependency edge by ID.
+	RemoveDependency(context.Context, *connect.Request[v1.RemoveDependencyRequest]) (*connect.Response[v1.RemoveDependencyResponse], error)
+	// ListDependencies returns all edges where the given state is the consumer (incoming deps).
+	ListDependencies(context.Context, *connect.Request[v1.ListDependenciesRequest]) (*connect.Response[v1.ListDependenciesResponse], error)
+	// ListDependents returns all edges where the given state is the producer (outgoing deps).
+	ListDependents(context.Context, *connect.Request[v1.ListDependentsRequest]) (*connect.Response[v1.ListDependentsResponse], error)
+	// SearchByOutput finds all edges that reference a specific output key (by name).
+	SearchByOutput(context.Context, *connect.Request[v1.SearchByOutputRequest]) (*connect.Response[v1.SearchByOutputResponse], error)
+	// GetTopologicalOrder computes layered ordering of states rooted at given state.
+	GetTopologicalOrder(context.Context, *connect.Request[v1.GetTopologicalOrderRequest]) (*connect.Response[v1.GetTopologicalOrderResponse], error)
+	// GetStateStatus computes on-demand status for a state based on its incoming edges.
+	GetStateStatus(context.Context, *connect.Request[v1.GetStateStatusRequest]) (*connect.Response[v1.GetStateStatusResponse], error)
+	// GetDependencyGraph returns full dependency graph data for client-side HCL generation.
+	GetDependencyGraph(context.Context, *connect.Request[v1.GetDependencyGraphRequest]) (*connect.Response[v1.GetDependencyGraphResponse], error)
 }
 
 // NewStateServiceClient constructs a client for the state.v1.StateService service. By default, it
@@ -104,16 +145,72 @@ func NewStateServiceClient(httpClient connect.HTTPClient, baseURL string, opts .
 			connect.WithSchema(stateServiceMethods.ByName("UnlockState")),
 			connect.WithClientOptions(opts...),
 		),
+		addDependency: connect.NewClient[v1.AddDependencyRequest, v1.AddDependencyResponse](
+			httpClient,
+			baseURL+StateServiceAddDependencyProcedure,
+			connect.WithSchema(stateServiceMethods.ByName("AddDependency")),
+			connect.WithClientOptions(opts...),
+		),
+		removeDependency: connect.NewClient[v1.RemoveDependencyRequest, v1.RemoveDependencyResponse](
+			httpClient,
+			baseURL+StateServiceRemoveDependencyProcedure,
+			connect.WithSchema(stateServiceMethods.ByName("RemoveDependency")),
+			connect.WithClientOptions(opts...),
+		),
+		listDependencies: connect.NewClient[v1.ListDependenciesRequest, v1.ListDependenciesResponse](
+			httpClient,
+			baseURL+StateServiceListDependenciesProcedure,
+			connect.WithSchema(stateServiceMethods.ByName("ListDependencies")),
+			connect.WithClientOptions(opts...),
+		),
+		listDependents: connect.NewClient[v1.ListDependentsRequest, v1.ListDependentsResponse](
+			httpClient,
+			baseURL+StateServiceListDependentsProcedure,
+			connect.WithSchema(stateServiceMethods.ByName("ListDependents")),
+			connect.WithClientOptions(opts...),
+		),
+		searchByOutput: connect.NewClient[v1.SearchByOutputRequest, v1.SearchByOutputResponse](
+			httpClient,
+			baseURL+StateServiceSearchByOutputProcedure,
+			connect.WithSchema(stateServiceMethods.ByName("SearchByOutput")),
+			connect.WithClientOptions(opts...),
+		),
+		getTopologicalOrder: connect.NewClient[v1.GetTopologicalOrderRequest, v1.GetTopologicalOrderResponse](
+			httpClient,
+			baseURL+StateServiceGetTopologicalOrderProcedure,
+			connect.WithSchema(stateServiceMethods.ByName("GetTopologicalOrder")),
+			connect.WithClientOptions(opts...),
+		),
+		getStateStatus: connect.NewClient[v1.GetStateStatusRequest, v1.GetStateStatusResponse](
+			httpClient,
+			baseURL+StateServiceGetStateStatusProcedure,
+			connect.WithSchema(stateServiceMethods.ByName("GetStateStatus")),
+			connect.WithClientOptions(opts...),
+		),
+		getDependencyGraph: connect.NewClient[v1.GetDependencyGraphRequest, v1.GetDependencyGraphResponse](
+			httpClient,
+			baseURL+StateServiceGetDependencyGraphProcedure,
+			connect.WithSchema(stateServiceMethods.ByName("GetDependencyGraph")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
 // stateServiceClient implements StateServiceClient.
 type stateServiceClient struct {
-	createState    *connect.Client[v1.CreateStateRequest, v1.CreateStateResponse]
-	listStates     *connect.Client[v1.ListStatesRequest, v1.ListStatesResponse]
-	getStateConfig *connect.Client[v1.GetStateConfigRequest, v1.GetStateConfigResponse]
-	getStateLock   *connect.Client[v1.GetStateLockRequest, v1.GetStateLockResponse]
-	unlockState    *connect.Client[v1.UnlockStateRequest, v1.UnlockStateResponse]
+	createState         *connect.Client[v1.CreateStateRequest, v1.CreateStateResponse]
+	listStates          *connect.Client[v1.ListStatesRequest, v1.ListStatesResponse]
+	getStateConfig      *connect.Client[v1.GetStateConfigRequest, v1.GetStateConfigResponse]
+	getStateLock        *connect.Client[v1.GetStateLockRequest, v1.GetStateLockResponse]
+	unlockState         *connect.Client[v1.UnlockStateRequest, v1.UnlockStateResponse]
+	addDependency       *connect.Client[v1.AddDependencyRequest, v1.AddDependencyResponse]
+	removeDependency    *connect.Client[v1.RemoveDependencyRequest, v1.RemoveDependencyResponse]
+	listDependencies    *connect.Client[v1.ListDependenciesRequest, v1.ListDependenciesResponse]
+	listDependents      *connect.Client[v1.ListDependentsRequest, v1.ListDependentsResponse]
+	searchByOutput      *connect.Client[v1.SearchByOutputRequest, v1.SearchByOutputResponse]
+	getTopologicalOrder *connect.Client[v1.GetTopologicalOrderRequest, v1.GetTopologicalOrderResponse]
+	getStateStatus      *connect.Client[v1.GetStateStatusRequest, v1.GetStateStatusResponse]
+	getDependencyGraph  *connect.Client[v1.GetDependencyGraphRequest, v1.GetDependencyGraphResponse]
 }
 
 // CreateState calls state.v1.StateService.CreateState.
@@ -141,6 +238,46 @@ func (c *stateServiceClient) UnlockState(ctx context.Context, req *connect.Reque
 	return c.unlockState.CallUnary(ctx, req)
 }
 
+// AddDependency calls state.v1.StateService.AddDependency.
+func (c *stateServiceClient) AddDependency(ctx context.Context, req *connect.Request[v1.AddDependencyRequest]) (*connect.Response[v1.AddDependencyResponse], error) {
+	return c.addDependency.CallUnary(ctx, req)
+}
+
+// RemoveDependency calls state.v1.StateService.RemoveDependency.
+func (c *stateServiceClient) RemoveDependency(ctx context.Context, req *connect.Request[v1.RemoveDependencyRequest]) (*connect.Response[v1.RemoveDependencyResponse], error) {
+	return c.removeDependency.CallUnary(ctx, req)
+}
+
+// ListDependencies calls state.v1.StateService.ListDependencies.
+func (c *stateServiceClient) ListDependencies(ctx context.Context, req *connect.Request[v1.ListDependenciesRequest]) (*connect.Response[v1.ListDependenciesResponse], error) {
+	return c.listDependencies.CallUnary(ctx, req)
+}
+
+// ListDependents calls state.v1.StateService.ListDependents.
+func (c *stateServiceClient) ListDependents(ctx context.Context, req *connect.Request[v1.ListDependentsRequest]) (*connect.Response[v1.ListDependentsResponse], error) {
+	return c.listDependents.CallUnary(ctx, req)
+}
+
+// SearchByOutput calls state.v1.StateService.SearchByOutput.
+func (c *stateServiceClient) SearchByOutput(ctx context.Context, req *connect.Request[v1.SearchByOutputRequest]) (*connect.Response[v1.SearchByOutputResponse], error) {
+	return c.searchByOutput.CallUnary(ctx, req)
+}
+
+// GetTopologicalOrder calls state.v1.StateService.GetTopologicalOrder.
+func (c *stateServiceClient) GetTopologicalOrder(ctx context.Context, req *connect.Request[v1.GetTopologicalOrderRequest]) (*connect.Response[v1.GetTopologicalOrderResponse], error) {
+	return c.getTopologicalOrder.CallUnary(ctx, req)
+}
+
+// GetStateStatus calls state.v1.StateService.GetStateStatus.
+func (c *stateServiceClient) GetStateStatus(ctx context.Context, req *connect.Request[v1.GetStateStatusRequest]) (*connect.Response[v1.GetStateStatusResponse], error) {
+	return c.getStateStatus.CallUnary(ctx, req)
+}
+
+// GetDependencyGraph calls state.v1.StateService.GetDependencyGraph.
+func (c *stateServiceClient) GetDependencyGraph(ctx context.Context, req *connect.Request[v1.GetDependencyGraphRequest]) (*connect.Response[v1.GetDependencyGraphResponse], error) {
+	return c.getDependencyGraph.CallUnary(ctx, req)
+}
+
 // StateServiceHandler is an implementation of the state.v1.StateService service.
 type StateServiceHandler interface {
 	// CreateState creates a new state with client-generated GUID and logic ID.
@@ -153,6 +290,23 @@ type StateServiceHandler interface {
 	GetStateLock(context.Context, *connect.Request[v1.GetStateLockRequest]) (*connect.Response[v1.GetStateLockResponse], error)
 	// UnlockState releases a lock using the lock ID provided by Terraform/OpenTofu.
 	UnlockState(context.Context, *connect.Request[v1.UnlockStateRequest]) (*connect.Response[v1.UnlockStateResponse], error)
+	// AddDependency declares a dependency edge from producer output to consumer state.
+	// Returns existing edge if duplicate (idempotent). Rejects if would create cycle.
+	AddDependency(context.Context, *connect.Request[v1.AddDependencyRequest]) (*connect.Response[v1.AddDependencyResponse], error)
+	// RemoveDependency deletes a dependency edge by ID.
+	RemoveDependency(context.Context, *connect.Request[v1.RemoveDependencyRequest]) (*connect.Response[v1.RemoveDependencyResponse], error)
+	// ListDependencies returns all edges where the given state is the consumer (incoming deps).
+	ListDependencies(context.Context, *connect.Request[v1.ListDependenciesRequest]) (*connect.Response[v1.ListDependenciesResponse], error)
+	// ListDependents returns all edges where the given state is the producer (outgoing deps).
+	ListDependents(context.Context, *connect.Request[v1.ListDependentsRequest]) (*connect.Response[v1.ListDependentsResponse], error)
+	// SearchByOutput finds all edges that reference a specific output key (by name).
+	SearchByOutput(context.Context, *connect.Request[v1.SearchByOutputRequest]) (*connect.Response[v1.SearchByOutputResponse], error)
+	// GetTopologicalOrder computes layered ordering of states rooted at given state.
+	GetTopologicalOrder(context.Context, *connect.Request[v1.GetTopologicalOrderRequest]) (*connect.Response[v1.GetTopologicalOrderResponse], error)
+	// GetStateStatus computes on-demand status for a state based on its incoming edges.
+	GetStateStatus(context.Context, *connect.Request[v1.GetStateStatusRequest]) (*connect.Response[v1.GetStateStatusResponse], error)
+	// GetDependencyGraph returns full dependency graph data for client-side HCL generation.
+	GetDependencyGraph(context.Context, *connect.Request[v1.GetDependencyGraphRequest]) (*connect.Response[v1.GetDependencyGraphResponse], error)
 }
 
 // NewStateServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -192,6 +346,54 @@ func NewStateServiceHandler(svc StateServiceHandler, opts ...connect.HandlerOpti
 		connect.WithSchema(stateServiceMethods.ByName("UnlockState")),
 		connect.WithHandlerOptions(opts...),
 	)
+	stateServiceAddDependencyHandler := connect.NewUnaryHandler(
+		StateServiceAddDependencyProcedure,
+		svc.AddDependency,
+		connect.WithSchema(stateServiceMethods.ByName("AddDependency")),
+		connect.WithHandlerOptions(opts...),
+	)
+	stateServiceRemoveDependencyHandler := connect.NewUnaryHandler(
+		StateServiceRemoveDependencyProcedure,
+		svc.RemoveDependency,
+		connect.WithSchema(stateServiceMethods.ByName("RemoveDependency")),
+		connect.WithHandlerOptions(opts...),
+	)
+	stateServiceListDependenciesHandler := connect.NewUnaryHandler(
+		StateServiceListDependenciesProcedure,
+		svc.ListDependencies,
+		connect.WithSchema(stateServiceMethods.ByName("ListDependencies")),
+		connect.WithHandlerOptions(opts...),
+	)
+	stateServiceListDependentsHandler := connect.NewUnaryHandler(
+		StateServiceListDependentsProcedure,
+		svc.ListDependents,
+		connect.WithSchema(stateServiceMethods.ByName("ListDependents")),
+		connect.WithHandlerOptions(opts...),
+	)
+	stateServiceSearchByOutputHandler := connect.NewUnaryHandler(
+		StateServiceSearchByOutputProcedure,
+		svc.SearchByOutput,
+		connect.WithSchema(stateServiceMethods.ByName("SearchByOutput")),
+		connect.WithHandlerOptions(opts...),
+	)
+	stateServiceGetTopologicalOrderHandler := connect.NewUnaryHandler(
+		StateServiceGetTopologicalOrderProcedure,
+		svc.GetTopologicalOrder,
+		connect.WithSchema(stateServiceMethods.ByName("GetTopologicalOrder")),
+		connect.WithHandlerOptions(opts...),
+	)
+	stateServiceGetStateStatusHandler := connect.NewUnaryHandler(
+		StateServiceGetStateStatusProcedure,
+		svc.GetStateStatus,
+		connect.WithSchema(stateServiceMethods.ByName("GetStateStatus")),
+		connect.WithHandlerOptions(opts...),
+	)
+	stateServiceGetDependencyGraphHandler := connect.NewUnaryHandler(
+		StateServiceGetDependencyGraphProcedure,
+		svc.GetDependencyGraph,
+		connect.WithSchema(stateServiceMethods.ByName("GetDependencyGraph")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/state.v1.StateService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case StateServiceCreateStateProcedure:
@@ -204,6 +406,22 @@ func NewStateServiceHandler(svc StateServiceHandler, opts ...connect.HandlerOpti
 			stateServiceGetStateLockHandler.ServeHTTP(w, r)
 		case StateServiceUnlockStateProcedure:
 			stateServiceUnlockStateHandler.ServeHTTP(w, r)
+		case StateServiceAddDependencyProcedure:
+			stateServiceAddDependencyHandler.ServeHTTP(w, r)
+		case StateServiceRemoveDependencyProcedure:
+			stateServiceRemoveDependencyHandler.ServeHTTP(w, r)
+		case StateServiceListDependenciesProcedure:
+			stateServiceListDependenciesHandler.ServeHTTP(w, r)
+		case StateServiceListDependentsProcedure:
+			stateServiceListDependentsHandler.ServeHTTP(w, r)
+		case StateServiceSearchByOutputProcedure:
+			stateServiceSearchByOutputHandler.ServeHTTP(w, r)
+		case StateServiceGetTopologicalOrderProcedure:
+			stateServiceGetTopologicalOrderHandler.ServeHTTP(w, r)
+		case StateServiceGetStateStatusProcedure:
+			stateServiceGetStateStatusHandler.ServeHTTP(w, r)
+		case StateServiceGetDependencyGraphProcedure:
+			stateServiceGetDependencyGraphHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -231,4 +449,36 @@ func (UnimplementedStateServiceHandler) GetStateLock(context.Context, *connect.R
 
 func (UnimplementedStateServiceHandler) UnlockState(context.Context, *connect.Request[v1.UnlockStateRequest]) (*connect.Response[v1.UnlockStateResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("state.v1.StateService.UnlockState is not implemented"))
+}
+
+func (UnimplementedStateServiceHandler) AddDependency(context.Context, *connect.Request[v1.AddDependencyRequest]) (*connect.Response[v1.AddDependencyResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("state.v1.StateService.AddDependency is not implemented"))
+}
+
+func (UnimplementedStateServiceHandler) RemoveDependency(context.Context, *connect.Request[v1.RemoveDependencyRequest]) (*connect.Response[v1.RemoveDependencyResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("state.v1.StateService.RemoveDependency is not implemented"))
+}
+
+func (UnimplementedStateServiceHandler) ListDependencies(context.Context, *connect.Request[v1.ListDependenciesRequest]) (*connect.Response[v1.ListDependenciesResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("state.v1.StateService.ListDependencies is not implemented"))
+}
+
+func (UnimplementedStateServiceHandler) ListDependents(context.Context, *connect.Request[v1.ListDependentsRequest]) (*connect.Response[v1.ListDependentsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("state.v1.StateService.ListDependents is not implemented"))
+}
+
+func (UnimplementedStateServiceHandler) SearchByOutput(context.Context, *connect.Request[v1.SearchByOutputRequest]) (*connect.Response[v1.SearchByOutputResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("state.v1.StateService.SearchByOutput is not implemented"))
+}
+
+func (UnimplementedStateServiceHandler) GetTopologicalOrder(context.Context, *connect.Request[v1.GetTopologicalOrderRequest]) (*connect.Response[v1.GetTopologicalOrderResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("state.v1.StateService.GetTopologicalOrder is not implemented"))
+}
+
+func (UnimplementedStateServiceHandler) GetStateStatus(context.Context, *connect.Request[v1.GetStateStatusRequest]) (*connect.Response[v1.GetStateStatusResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("state.v1.StateService.GetStateStatus is not implemented"))
+}
+
+func (UnimplementedStateServiceHandler) GetDependencyGraph(context.Context, *connect.Request[v1.GetDependencyGraphRequest]) (*connect.Response[v1.GetDependencyGraphResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("state.v1.StateService.GetDependencyGraph is not implemented"))
 }

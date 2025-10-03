@@ -20,6 +20,7 @@ func init() {
 	// Add subcommands (defined in separate files)
 	StateCmd.AddCommand(createCmd)
 	StateCmd.AddCommand(listCmd)
+	StateCmd.AddCommand(getCmd)
 	StateCmd.AddCommand(initCmd)
 }
 

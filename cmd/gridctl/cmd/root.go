@@ -5,6 +5,7 @@ import (
 	"os"
 
 	"github.com/spf13/cobra"
+	"github.com/terraconstructs/grid/cmd/gridctl/cmd/deps"
 	"github.com/terraconstructs/grid/cmd/gridctl/cmd/state"
 )
 
@@ -18,8 +19,9 @@ var rootCmd = &cobra.Command{
 	Long: `gridctl is the command-line interface for Grid, a remote state management
 system for Terraform and OpenTofu. Use it to create, list, and initialize states.`,
 	PersistentPreRun: func(cmd *cobra.Command, args []string) {
-		// Propagate serverURL to state subcommands
+		// Propagate serverURL to subcommands
 		state.SetServerURL(serverURL)
+		deps.SetServerURL(serverURL)
 	},
 }
 
@@ -34,4 +36,5 @@ func Execute() {
 func init() {
 	rootCmd.PersistentFlags().StringVar(&serverURL, "server", "http://localhost:8080", "Grid API server URL")
 	rootCmd.AddCommand(state.StateCmd)
+	rootCmd.AddCommand(deps.DepsCmd)
 }

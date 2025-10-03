@@ -5,7 +5,6 @@ import (
 	"context"
 	_ "embed"
 	"fmt"
-	"net/http"
 	"os"
 	"strings"
 	"text/template"
@@ -28,13 +27,13 @@ the Terraform HTTP backend configuration. Prompts before overwriting existing fi
 		logicID := args[0]
 
 		// Create SDK client
-		client := sdk.NewClient(http.DefaultClient, ServerURL)
+		client := sdk.NewClient(ServerURL)
 
-		// Call GetStateConfig to lookup by logic_id
+		// Lookup state by logic ID
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
 
-		resp, err := client.GetStateConfig(ctx, logicID)
+		state, err := client.GetState(ctx, sdk.StateReference{LogicID: logicID})
 		if err != nil {
 			return fmt.Errorf("failed to get state config: %w", err)
 		}
@@ -69,20 +68,20 @@ the Terraform HTTP backend configuration. Prompts before overwriting existing fi
 		defer f.Close()
 
 		data := struct {
-			Address        string
-			LockAddress    string
-			UnlockAddress  string
+			Address       string
+			LockAddress   string
+			UnlockAddress string
 		}{
-			Address:        resp.BackendConfig.Address,
-			LockAddress:    resp.BackendConfig.LockAddress,
-			UnlockAddress:  resp.BackendConfig.UnlockAddress,
+			Address:       state.BackendConfig.Address,
+			LockAddress:   state.BackendConfig.LockAddress,
+			UnlockAddress: state.BackendConfig.UnlockAddress,
 		}
 
 		if err := tmpl.Execute(f, data); err != nil {
 			return fmt.Errorf("failed to render template: %w", err)
 		}
 
-		fmt.Printf("Created %s for state %s\n", filename, resp.Guid)
+		fmt.Printf("Created %s for state %s\n", filename, state.GUID)
 		fmt.Println("Run 'terraform init' or 'tofu init' to initialize the backend.")
 
 		return nil

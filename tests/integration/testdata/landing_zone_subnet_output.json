@@ -1,0 +1,17 @@
+{
+  "version": 4,
+  "terraform_version": "1.5.0",
+  "serial": 2,
+  "lineage": "test-lineage-subnet",
+  "outputs": {
+    "subnet_ids": {
+      "value": ["subnet-111", "subnet-222", "subnet-333"],
+      "type": ["list", "string"]
+    },
+    "availability_zones": {
+      "value": ["us-east-1a", "us-east-1b", "us-east-1c"],
+      "type": ["list", "string"]
+    }
+  },
+  "resources": []
+}

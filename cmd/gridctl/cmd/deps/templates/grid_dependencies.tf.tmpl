@@ -1,0 +1,28 @@
+# BEGIN GRID MANAGED BLOCK - DO NOT EDIT
+# Generated: {{.Timestamp}}
+# Consumer: {{.ConsumerLogicID}} ({{.ConsumerGUID}})
+
+{{- range .Producers }}
+
+# Producer: {{.LogicID}} ({{.GUID}})
+data "terraform_remote_state" "{{.SafeLogicID}}" {
+  backend = "http"
+  config = {
+    address        = "{{.BackendConfig.Address}}"
+    lock_address   = "{{.BackendConfig.LockAddress}}"
+    unlock_address = "{{.BackendConfig.UnlockAddress}}"
+  }
+}
+{{- end }}
+
+locals {
+{{- if .Dependencies }}
+{{- range .Dependencies }}
+  {{.ToInputName}} = data.terraform_remote_state.{{.ProducerSlug}}.outputs.{{.FromOutput}}
+{{- end }}
+{{- else }}
+  # No active dependencies declared.
+{{- end }}
+}
+
+# END GRID MANAGED BLOCK

@@ -1,0 +1,17 @@
+{
+  "version": 4,
+  "terraform_version": "1.5.0",
+  "serial": 1,
+  "lineage": "test-lineage-iam",
+  "outputs": {
+    "cluster_role_arn": {
+      "value": "arn:aws:iam::123456789012:role/eks-cluster-role",
+      "type": "string"
+    },
+    "worker_role_arn": {
+      "value": "arn:aws:iam::123456789012:role/eks-worker-role",
+      "type": "string"
+    }
+  },
+  "resources": []
+}

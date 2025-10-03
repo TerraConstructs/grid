@@ -3,7 +3,10 @@ package state
 import (
 	"context"
 	"fmt"
-	"net/http"
+	"os"
+	"sort"
+	"strings"
+	"text/tabwriter"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -13,24 +16,40 @@ import (
 var listCmd = &cobra.Command{
 	Use:   "list",
 	Short: "List all Terraform states",
-	Long:  `Lists all Terraform states in tab-delimited format (GUID -> logic_id).`,
+	Long:  `Lists all Terraform states with status and dependency information.`,
 	RunE: func(cobraCmd *cobra.Command, args []string) error {
 		// Create SDK client
-		client := sdk.NewClient(http.DefaultClient, ServerURL)
+		client := sdk.NewClient(ServerURL)
 
 		// Call ListStates
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
 
-		resp, err := client.ListStates(ctx)
+		states, err := client.ListStates(ctx)
 		if err != nil {
 			return fmt.Errorf("failed to list states: %w", err)
 		}
 
-		// Print tab-delimited output
-		for _, state := range resp.States {
-			fmt.Printf("%s\t%s\n", state.Guid, state.LogicId)
+		w := tabwriter.NewWriter(os.Stdout, 0, 4, 2, ' ', 0)
+		fmt.Fprintln(w, "LOGIC_ID\tGUID\tCOMPUTED_STATUS\tDEPENDENCIES")
+
+		for _, state := range states {
+			status := "-"
+			if state.ComputedStatus != "" {
+				status = state.ComputedStatus
+			}
+
+			deps := "-"
+			if len(state.DependencyLogicIDs) > 0 {
+				logicIDs := append([]string(nil), state.DependencyLogicIDs...)
+				sort.Strings(logicIDs)
+				deps = strings.Join(logicIDs, ", ")
+			}
+
+			fmt.Fprintf(w, "%s\t%s\t%s\t%s\n", state.LogicID, state.GUID, status, deps)
 		}
+
+		w.Flush()
 
 		return nil
 	},

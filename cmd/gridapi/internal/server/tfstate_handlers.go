@@ -24,12 +24,16 @@ type StateService interface {
 
 // TerraformHandlers wires the Terraform HTTP Backend REST endpoints
 type TerraformHandlers struct {
-	service StateService
+	service     StateService
+	edgeUpdater *EdgeUpdateJob
 }
 
 // NewTerraformHandlers creates a new handler set for Terraform backend operations
-func NewTerraformHandlers(service *statepkg.Service) *TerraformHandlers {
-	return &TerraformHandlers{service: service}
+func NewTerraformHandlers(service *statepkg.Service, edgeUpdater *EdgeUpdateJob) *TerraformHandlers {
+	return &TerraformHandlers{
+		service:     service,
+		edgeUpdater: edgeUpdater,
+	}
 }
 
 // GetState handles GET /tfstate/{guid} - retrieve current state
@@ -113,6 +117,11 @@ func (h *TerraformHandlers) UpdateState(w http.ResponseWriter, r *http.Request) 
 			http.Error(w, fmt.Sprintf("failed to update state: %v", err), http.StatusInternalServerError)
 		}
 		return
+	}
+
+	// Trigger EdgeUpdateJob asynchronously (best effort, fire-and-forget)
+	if h.edgeUpdater != nil {
+		go h.edgeUpdater.UpdateEdges(context.Background(), guid, body)
 	}
 
 	// Check if size threshold exceeded (10MB warning)

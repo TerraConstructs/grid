@@ -14,6 +14,7 @@ import (
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/spf13/cobra"
 	"github.com/terraconstructs/grid/cmd/gridapi/internal/db/bunx"
+	"github.com/terraconstructs/grid/cmd/gridapi/internal/dependency"
 	"github.com/terraconstructs/grid/cmd/gridapi/internal/repository"
 	"github.com/terraconstructs/grid/cmd/gridapi/internal/server"
 	"github.com/terraconstructs/grid/cmd/gridapi/internal/state"
@@ -33,9 +34,14 @@ var serveCmd = &cobra.Command{
 
 		log.Printf("Connected to database")
 
-		// Initialize repository and service
-		repo := repository.NewBunStateRepository(db)
-		svc := state.NewService(repo, cfg.ServerURL)
+		// Initialize repositories
+		stateRepo := repository.NewBunStateRepository(db)
+		edgeRepo := repository.NewBunEdgeRepository(db)
+
+		// Initialize services
+		svc := state.NewService(stateRepo, cfg.ServerURL)
+		depService := dependency.NewService(edgeRepo, stateRepo)
+		edgeUpdater := server.NewEdgeUpdateJob(edgeRepo, stateRepo)
 
 		// Create Chi router
 		r := chi.NewRouter()
@@ -48,10 +54,10 @@ var serveCmd = &cobra.Command{
 		r.Use(middleware.Timeout(60 * time.Second))
 
 		// Mount Connect RPC handlers
-		server.MountConnectHandlers(r, svc)
+		server.MountConnectHandlers(r, svc, depService)
 
 		// Mount Terraform HTTP Backend handlers
-		server.MountTerraformBackend(r, svc)
+		server.MountTerraformBackend(r, svc, edgeUpdater)
 
 		// Health check endpoint
 		r.Get("/health", func(w http.ResponseWriter, r *http.Request) {

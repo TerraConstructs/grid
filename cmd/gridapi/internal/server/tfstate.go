@@ -15,8 +15,8 @@ func init() {
 
 // MountTerraformBackend registers Terraform HTTP Backend handlers on the router
 // with proper method whitelisting for LOCK/UNLOCK custom methods
-func MountTerraformBackend(r chi.Router, service *statepkg.Service) {
-	handlers := NewTerraformHandlers(service)
+func MountTerraformBackend(r chi.Router, service *statepkg.Service, edgeUpdater *EdgeUpdateJob) {
+	handlers := NewTerraformHandlers(service, edgeUpdater)
 
 	// GET /tfstate/{guid} - retrieve state
 	r.Get("/tfstate/{guid}", handlers.GetState)

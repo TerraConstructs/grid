@@ -3,7 +3,6 @@ package sdk_test
 import (
 	"context"
 	"net/http"
-	"net/http/httptest"
 	"testing"
 
 	"connectrpc.com/connect"
@@ -16,11 +15,11 @@ import (
 // mockStateServiceHandler implements a test handler for StateService
 type mockStateServiceHandler struct {
 	statev1connect.UnimplementedStateServiceHandler
-	createStateFunc     func(context.Context, *connect.Request[statev1.CreateStateRequest]) (*connect.Response[statev1.CreateStateResponse], error)
-	listStatesFunc      func(context.Context, *connect.Request[statev1.ListStatesRequest]) (*connect.Response[statev1.ListStatesResponse], error)
-	getStateConfigFunc  func(context.Context, *connect.Request[statev1.GetStateConfigRequest]) (*connect.Response[statev1.GetStateConfigResponse], error)
-	getStateLockFunc    func(context.Context, *connect.Request[statev1.GetStateLockRequest]) (*connect.Response[statev1.GetStateLockResponse], error)
-	unlockStateFunc     func(context.Context, *connect.Request[statev1.UnlockStateRequest]) (*connect.Response[statev1.UnlockStateResponse], error)
+	createStateFunc    func(context.Context, *connect.Request[statev1.CreateStateRequest]) (*connect.Response[statev1.CreateStateResponse], error)
+	listStatesFunc     func(context.Context, *connect.Request[statev1.ListStatesRequest]) (*connect.Response[statev1.ListStatesResponse], error)
+	getStateConfigFunc func(context.Context, *connect.Request[statev1.GetStateConfigRequest]) (*connect.Response[statev1.GetStateConfigResponse], error)
+	getStateLockFunc   func(context.Context, *connect.Request[statev1.GetStateLockRequest]) (*connect.Response[statev1.GetStateLockResponse], error)
+	unlockStateFunc    func(context.Context, *connect.Request[statev1.UnlockStateRequest]) (*connect.Response[statev1.UnlockStateResponse], error)
 }
 
 func (m *mockStateServiceHandler) CreateState(ctx context.Context, req *connect.Request[statev1.CreateStateRequest]) (*connect.Response[statev1.CreateStateResponse], error) {
@@ -118,14 +117,14 @@ func TestClient_CreateState(t *testing.T) {
 			mux := http.NewServeMux()
 			path, handlerFunc := statev1connect.NewStateServiceHandler(handler)
 			mux.Handle(path, handlerFunc)
-			server := httptest.NewServer(mux)
-			defer server.Close()
 
-			// Create client
-			client := sdk.NewClient(server.Client(), server.URL)
+			client := newSDKClient(mux, "http://example.com")
 
 			// Execute test
-			resp, err := client.CreateState(context.Background(), tt.guid, tt.logicID)
+			state, err := client.CreateState(context.Background(), sdk.CreateStateInput{
+				GUID:    tt.guid,
+				LogicID: tt.logicID,
+			})
 
 			if (err != nil) != tt.wantErr {
 				t.Errorf("CreateState() error = %v, wantErr %v", err, tt.wantErr)
@@ -133,14 +132,14 @@ func TestClient_CreateState(t *testing.T) {
 			}
 
 			if !tt.wantErr {
-				if resp.Guid != tt.wantGUID {
-					t.Errorf("CreateState() GUID = %v, want %v", resp.Guid, tt.wantGUID)
+				if state.GUID != tt.wantGUID {
+					t.Errorf("CreateState() GUID = %v, want %v", state.GUID, tt.wantGUID)
 				}
-				if resp.LogicId != tt.wantLogic {
-					t.Errorf("CreateState() LogicID = %v, want %v", resp.LogicId, tt.wantLogic)
+				if state.LogicID != tt.wantLogic {
+					t.Errorf("CreateState() LogicID = %v, want %v", state.LogicID, tt.wantLogic)
 				}
-				if resp.BackendConfig == nil {
-					t.Error("CreateState() BackendConfig is nil")
+				if state.BackendConfig.Address == "" {
+					t.Error("CreateState() BackendConfig address is empty")
 				}
 			}
 		})
@@ -202,25 +201,23 @@ func TestClient_ListStates(t *testing.T) {
 			mux := http.NewServeMux()
 			path, handlerFunc := statev1connect.NewStateServiceHandler(handler)
 			mux.Handle(path, handlerFunc)
-			server := httptest.NewServer(mux)
-			defer server.Close()
 
-			client := sdk.NewClient(server.Client(), server.URL)
-			resp, err := client.ListStates(context.Background())
+			client := newSDKClient(mux, "http://example.com")
+			states, err := client.ListStates(context.Background())
 
 			if (err != nil) != tt.wantErr {
 				t.Errorf("ListStates() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 
-			if !tt.wantErr && len(resp.States) != tt.wantCount {
-				t.Errorf("ListStates() count = %v, want %v", len(resp.States), tt.wantCount)
+			if !tt.wantErr && len(states) != tt.wantCount {
+				t.Errorf("ListStates() count = %v, want %v", len(states), tt.wantCount)
 			}
 		})
 	}
 }
 
-func TestClient_GetStateConfig(t *testing.T) {
+func TestClient_GetState(t *testing.T) {
 	tests := []struct {
 		name     string
 		logicID  string
@@ -263,19 +260,17 @@ func TestClient_GetStateConfig(t *testing.T) {
 			mux := http.NewServeMux()
 			path, handlerFunc := statev1connect.NewStateServiceHandler(handler)
 			mux.Handle(path, handlerFunc)
-			server := httptest.NewServer(mux)
-			defer server.Close()
 
-			client := sdk.NewClient(server.Client(), server.URL)
-			resp, err := client.GetStateConfig(context.Background(), tt.logicID)
+			client := newSDKClient(mux, "http://example.com")
+			state, err := client.GetState(context.Background(), sdk.StateReference{LogicID: tt.logicID})
 
 			if (err != nil) != tt.wantErr {
 				t.Errorf("GetStateConfig() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 
-			if !tt.wantErr && resp.Guid != tt.wantGUID {
-				t.Errorf("GetStateConfig() GUID = %v, want %v", resp.Guid, tt.wantGUID)
+			if !tt.wantErr && state.GUID != tt.wantGUID {
+				t.Errorf("GetState() GUID = %v, want %v", state.GUID, tt.wantGUID)
 			}
 		})
 	}
@@ -340,19 +335,17 @@ func TestClient_GetStateLock(t *testing.T) {
 			mux := http.NewServeMux()
 			path, handlerFunc := statev1connect.NewStateServiceHandler(handler)
 			mux.Handle(path, handlerFunc)
-			server := httptest.NewServer(mux)
-			defer server.Close()
 
-			client := sdk.NewClient(server.Client(), server.URL)
-			resp, err := client.GetStateLock(context.Background(), tt.guid)
+			client := newSDKClient(mux, "http://example.com")
+			lock, err := client.GetStateLock(context.Background(), tt.guid)
 
 			if (err != nil) != tt.wantErr {
 				t.Errorf("GetStateLock() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 
-			if !tt.wantErr && resp.Lock.Locked != tt.wantLocked {
-				t.Errorf("GetStateLock() Locked = %v, want %v", resp.Lock.Locked, tt.wantLocked)
+			if !tt.wantErr && lock.Locked != tt.wantLocked {
+				t.Errorf("GetStateLock() Locked = %v, want %v", lock.Locked, tt.wantLocked)
 			}
 		})
 	}
@@ -408,18 +401,16 @@ func TestClient_UnlockState(t *testing.T) {
 			mux := http.NewServeMux()
 			path, handlerFunc := statev1connect.NewStateServiceHandler(handler)
 			mux.Handle(path, handlerFunc)
-			server := httptest.NewServer(mux)
-			defer server.Close()
 
-			client := sdk.NewClient(server.Client(), server.URL)
-			resp, err := client.UnlockState(context.Background(), tt.guid, tt.lockID)
+			client := newSDKClient(mux, "http://example.com")
+			lock, err := client.UnlockState(context.Background(), tt.guid, tt.lockID)
 
 			if (err != nil) != tt.wantErr {
 				t.Errorf("UnlockState() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 
-			if !tt.wantErr && resp.Lock.Locked {
+			if !tt.wantErr && lock.Locked {
 				t.Error("UnlockState() state is still locked after unlock")
 			}
 		})

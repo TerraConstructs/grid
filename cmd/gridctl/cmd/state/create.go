@@ -3,7 +3,6 @@ package state
 import (
 	"context"
 	"fmt"
-	"net/http"
 	"time"
 
 	"github.com/google/uuid"
@@ -24,24 +23,27 @@ A client-generated UUID (v7) is used as the immutable state identifier.`,
 		guid := uuid.Must(uuid.NewV7()).String()
 
 		// Create SDK client
-		client := sdk.NewClient(http.DefaultClient, ServerURL)
+		client := sdk.NewClient(ServerURL)
 
 		// Call CreateState
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
 
-		resp, err := client.CreateState(ctx, guid, logicID)
+		state, err := client.CreateState(ctx, sdk.CreateStateInput{
+			GUID:    guid,
+			LogicID: logicID,
+		})
 		if err != nil {
 			return fmt.Errorf("failed to create state: %w", err)
 		}
 
 		// Print success with GUID and backend config endpoints
-		fmt.Printf("Created state: %s\n", resp.Guid)
-		fmt.Printf("Logic ID: %s\n", resp.LogicId)
+		fmt.Printf("Created state: %s\n", state.GUID)
+		fmt.Printf("Logic ID: %s\n", state.LogicID)
 		fmt.Printf("\nTerraform HTTP Backend endpoints:\n")
-		fmt.Printf("  Address: %s\n", resp.BackendConfig.Address)
-		fmt.Printf("  Lock:    %s\n", resp.BackendConfig.LockAddress)
-		fmt.Printf("  Unlock:  %s\n", resp.BackendConfig.UnlockAddress)
+		fmt.Printf("  Address: %s\n", state.BackendConfig.Address)
+		fmt.Printf("  Lock:    %s\n", state.BackendConfig.LockAddress)
+		fmt.Printf("  Unlock:  %s\n", state.BackendConfig.UnlockAddress)
 
 		return nil
 	},

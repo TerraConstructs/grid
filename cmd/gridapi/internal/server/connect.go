@@ -4,6 +4,7 @@ import (
 	"net/http"
 
 	"github.com/terraconstructs/grid/api/state/v1/statev1connect"
+	"github.com/terraconstructs/grid/cmd/gridapi/internal/dependency"
 	statepkg "github.com/terraconstructs/grid/cmd/gridapi/internal/state"
 
 	"github.com/go-chi/chi/v5"
@@ -37,8 +38,9 @@ func NewHTTPServer(service *statepkg.Service) http.Handler {
 }
 
 // MountConnectHandlers mounts Connect RPC handlers on the provided router
-func MountConnectHandlers(r chi.Router, service *statepkg.Service) {
+func MountConnectHandlers(r chi.Router, service *statepkg.Service, depService *dependency.Service) {
 	stateHandler := NewStateServiceHandler(service)
+	stateHandler.depService = depService
 	path, handler := statev1connect.NewStateServiceHandler(stateHandler)
 	r.Mount(path, handler)
 }

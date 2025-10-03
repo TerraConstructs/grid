@@ -6,6 +6,7 @@ toolchain go1.24.4
 
 require (
 	connectrpc.com/connect v1.19.0
+	github.com/btcsuite/btcutil v1.0.2
 	github.com/go-chi/chi/v5 v5.2.3
 	github.com/google/uuid v1.6.0
 	github.com/spf13/cobra v1.10.1
@@ -15,6 +16,7 @@ require (
 	github.com/uptrace/bun/dialect/pgdialect v1.2.15
 	github.com/uptrace/bun/driver/pgdriver v1.2.15
 	golang.org/x/net v0.44.0
+	gonum.org/v1/gonum v0.16.0
 	google.golang.org/protobuf v1.36.9
 )
 

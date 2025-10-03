@@ -12,7 +12,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file state/v1/state.proto.
  */
 export const file_state_v1_state: GenFile = /*@__PURE__*/
-  fileDesc("ChRzdGF0ZS92MS9zdGF0ZS5wcm90bxIIc3RhdGUudjEiNAoSQ3JlYXRlU3RhdGVSZXF1ZXN0EgwKBGd1aWQYASABKAkSEAoIbG9naWNfaWQYAiABKAkiZgoTQ3JlYXRlU3RhdGVSZXNwb25zZRIMCgRndWlkGAEgASgJEhAKCGxvZ2ljX2lkGAIgASgJEi8KDmJhY2tlbmRfY29uZmlnGAMgASgLMhcuc3RhdGUudjEuQmFja2VuZENvbmZpZyITChFMaXN0U3RhdGVzUmVxdWVzdCI5ChJMaXN0U3RhdGVzUmVzcG9uc2USIwoGc3RhdGVzGAEgAygLMhMuc3RhdGUudjEuU3RhdGVJbmZvIq8BCglTdGF0ZUluZm8SDAoEZ3VpZBgBIAEoCRIQCghsb2dpY19pZBgCIAEoCRIOCgZsb2NrZWQYAyABKAgSLgoKY3JlYXRlZF9hdBgEIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASLgoKdXBkYXRlZF9hdBgFIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASEgoKc2l6ZV9ieXRlcxgGIAEoAyJOCg1CYWNrZW5kQ29uZmlnEg8KB2FkZHJlc3MYASABKAkSFAoMbG9ja19hZGRyZXNzGAIgASgJEhYKDnVubG9ja19hZGRyZXNzGAMgASgJIikKFUdldFN0YXRlQ29uZmlnUmVxdWVzdBIQCghsb2dpY19pZBgBIAEoCSJXChZHZXRTdGF0ZUNvbmZpZ1Jlc3BvbnNlEgwKBGd1aWQYASABKAkSLwoOYmFja2VuZF9jb25maWcYAiABKAsyFy5zdGF0ZS52MS5CYWNrZW5kQ29uZmlnIiMKE0dldFN0YXRlTG9ja1JlcXVlc3QSDAoEZ3VpZBgBIAEoCSKQAQoITG9ja0luZm8SCgoCaWQYASABKAkSEQoJb3BlcmF0aW9uGAIgASgJEgwKBGluZm8YAyABKAkSCwoDd2hvGAQgASgJEg8KB3ZlcnNpb24YBSABKAkSKwoHY3JlYXRlZBgGIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASDAoEcGF0aBgHIAEoCSI9CglTdGF0ZUxvY2sSDgoGbG9ja2VkGAEgASgIEiAKBGluZm8YAiABKAsyEi5zdGF0ZS52MS5Mb2NrSW5mbyI5ChRHZXRTdGF0ZUxvY2tSZXNwb25zZRIhCgRsb2NrGAEgASgLMhMuc3RhdGUudjEuU3RhdGVMb2NrIjMKElVubG9ja1N0YXRlUmVxdWVzdBIMCgRndWlkGAEgASgJEg8KB2xvY2tfaWQYAiABKAkiOAoTVW5sb2NrU3RhdGVSZXNwb25zZRIhCgRsb2NrGAEgASgLMhMuc3RhdGUudjEuU3RhdGVMb2NrMpMDCgxTdGF0ZVNlcnZpY2USSgoLQ3JlYXRlU3RhdGUSHC5zdGF0ZS52MS5DcmVhdGVTdGF0ZVJlcXVlc3QaHS5zdGF0ZS52MS5DcmVhdGVTdGF0ZVJlc3BvbnNlEkcKCkxpc3RTdGF0ZXMSGy5zdGF0ZS52MS5MaXN0U3RhdGVzUmVxdWVzdBocLnN0YXRlLnYxLkxpc3RTdGF0ZXNSZXNwb25zZRJTCg5HZXRTdGF0ZUNvbmZpZxIfLnN0YXRlLnYxLkdldFN0YXRlQ29uZmlnUmVxdWVzdBogLnN0YXRlLnYxLkdldFN0YXRlQ29uZmlnUmVzcG9uc2USTQoMR2V0U3RhdGVMb2NrEh0uc3RhdGUudjEuR2V0U3RhdGVMb2NrUmVxdWVzdBoeLnN0YXRlLnYxLkdldFN0YXRlTG9ja1Jlc3BvbnNlEkoKC1VubG9ja1N0YXRlEhwuc3RhdGUudjEuVW5sb2NrU3RhdGVSZXF1ZXN0Gh0uc3RhdGUudjEuVW5sb2NrU3RhdGVSZXNwb25zZUI2WjRnaXRodWIuY29tL3RlcnJhY29uc3RydWN0cy9ncmlkL2FwaS9zdGF0ZS92MTtzdGF0ZXYxYgZwcm90bzM", [file_google_protobuf_timestamp]);
+  fileDesc("ChRzdGF0ZS92MS9zdGF0ZS5wcm90bxIIc3RhdGUudjEiNAoSQ3JlYXRlU3RhdGVSZXF1ZXN0EgwKBGd1aWQYASABKAkSEAoIbG9naWNfaWQYAiABKAkiZgoTQ3JlYXRlU3RhdGVSZXNwb25zZRIMCgRndWlkGAEgASgJEhAKCGxvZ2ljX2lkGAIgASgJEi8KDmJhY2tlbmRfY29uZmlnGAMgASgLMhcuc3RhdGUudjEuQmFja2VuZENvbmZpZyITChFMaXN0U3RhdGVzUmVxdWVzdCI5ChJMaXN0U3RhdGVzUmVzcG9uc2USIwoGc3RhdGVzGAEgAygLMhMuc3RhdGUudjEuU3RhdGVJbmZvIv8BCglTdGF0ZUluZm8SDAoEZ3VpZBgBIAEoCRIQCghsb2dpY19pZBgCIAEoCRIOCgZsb2NrZWQYAyABKAgSLgoKY3JlYXRlZF9hdBgEIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASLgoKdXBkYXRlZF9hdBgFIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASEgoKc2l6ZV9ieXRlcxgGIAEoAxIcCg9jb21wdXRlZF9zdGF0dXMYByABKAlIAIgBARIcChRkZXBlbmRlbmN5X2xvZ2ljX2lkcxgIIAMoCUISChBfY29tcHV0ZWRfc3RhdHVzIk4KDUJhY2tlbmRDb25maWcSDwoHYWRkcmVzcxgBIAEoCRIUCgxsb2NrX2FkZHJlc3MYAiABKAkSFgoOdW5sb2NrX2FkZHJlc3MYAyABKAkiKQoVR2V0U3RhdGVDb25maWdSZXF1ZXN0EhAKCGxvZ2ljX2lkGAEgASgJIlcKFkdldFN0YXRlQ29uZmlnUmVzcG9uc2USDAoEZ3VpZBgBIAEoCRIvCg5iYWNrZW5kX2NvbmZpZxgCIAEoCzIXLnN0YXRlLnYxLkJhY2tlbmRDb25maWciIwoTR2V0U3RhdGVMb2NrUmVxdWVzdBIMCgRndWlkGAEgASgJIpABCghMb2NrSW5mbxIKCgJpZBgBIAEoCRIRCglvcGVyYXRpb24YAiABKAkSDAoEaW5mbxgDIAEoCRILCgN3aG8YBCABKAkSDwoHdmVyc2lvbhgFIAEoCRIrCgdjcmVhdGVkGAYgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIMCgRwYXRoGAcgASgJIj0KCVN0YXRlTG9jaxIOCgZsb2NrZWQYASABKAgSIAoEaW5mbxgCIAEoCzISLnN0YXRlLnYxLkxvY2tJbmZvIjkKFEdldFN0YXRlTG9ja1Jlc3BvbnNlEiEKBGxvY2sYASABKAsyEy5zdGF0ZS52MS5TdGF0ZUxvY2siMwoSVW5sb2NrU3RhdGVSZXF1ZXN0EgwKBGd1aWQYASABKAkSDwoHbG9ja19pZBgCIAEoCSI4ChNVbmxvY2tTdGF0ZVJlc3BvbnNlEiEKBGxvY2sYASABKAsyEy5zdGF0ZS52MS5TdGF0ZUxvY2si/QEKFEFkZERlcGVuZGVuY3lSZXF1ZXN0EhcKDWZyb21fbG9naWNfaWQYASABKAlIABITCglmcm9tX2d1aWQYAiABKAlIABITCgtmcm9tX291dHB1dBgDIAEoCRIVCgt0b19sb2dpY19pZBgEIAEoCUgBEhEKB3RvX2d1aWQYBSABKAlIARIaCg10b19pbnB1dF9uYW1lGAYgASgJSAKIAQESHAoPbW9ja192YWx1ZV9qc29uGAcgASgJSAOIAQFCDAoKZnJvbV9zdGF0ZUIKCgh0b19zdGF0ZUIQCg5fdG9faW5wdXRfbmFtZUISChBfbW9ja192YWx1ZV9qc29uIlcKFUFkZERlcGVuZGVuY3lSZXNwb25zZRImCgRlZGdlGAEgASgLMhguc3RhdGUudjEuRGVwZW5kZW5jeUVkZ2USFgoOYWxyZWFkeV9leGlzdHMYAiABKAgiKgoXUmVtb3ZlRGVwZW5kZW5jeVJlcXVlc3QSDwoHZWRnZV9pZBgBIAEoAyIrChhSZW1vdmVEZXBlbmRlbmN5UmVzcG9uc2USDwoHc3VjY2VzcxgBIAEoCCJGChdMaXN0RGVwZW5kZW5jaWVzUmVxdWVzdBISCghsb2dpY19pZBgBIAEoCUgAEg4KBGd1aWQYAiABKAlIAEIHCgVzdGF0ZSJDChhMaXN0RGVwZW5kZW5jaWVzUmVzcG9uc2USJwoFZWRnZXMYASADKAsyGC5zdGF0ZS52MS5EZXBlbmRlbmN5RWRnZSJEChVMaXN0RGVwZW5kZW50c1JlcXVlc3QSEgoIbG9naWNfaWQYASABKAlIABIOCgRndWlkGAIgASgJSABCBwoFc3RhdGUiQQoWTGlzdERlcGVuZGVudHNSZXNwb25zZRInCgVlZGdlcxgBIAMoCzIYLnN0YXRlLnYxLkRlcGVuZGVuY3lFZGdlIisKFVNlYXJjaEJ5T3V0cHV0UmVxdWVzdBISCgpvdXRwdXRfa2V5GAEgASgJIkEKFlNlYXJjaEJ5T3V0cHV0UmVzcG9uc2USJwoFZWRnZXMYASADKAsyGC5zdGF0ZS52MS5EZXBlbmRlbmN5RWRnZSJvChpHZXRUb3BvbG9naWNhbE9yZGVyUmVxdWVzdBISCghsb2dpY19pZBgBIAEoCUgAEg4KBGd1aWQYAiABKAlIABIWCglkaXJlY3Rpb24YAyABKAlIAYgBAUIHCgVzdGF0ZUIMCgpfZGlyZWN0aW9uIj4KG0dldFRvcG9sb2dpY2FsT3JkZXJSZXNwb25zZRIfCgZsYXllcnMYASADKAsyDy5zdGF0ZS52MS5MYXllciI6CgVMYXllchINCgVsZXZlbBgBIAEoBRIiCgZzdGF0ZXMYAiADKAsyEi5zdGF0ZS52MS5TdGF0ZVJlZiIqCghTdGF0ZVJlZhIMCgRndWlkGAEgASgJEhAKCGxvZ2ljX2lkGAIgASgJIkQKFUdldFN0YXRlU3RhdHVzUmVxdWVzdBISCghsb2dpY19pZBgBIAEoCUgAEg4KBGd1aWQYAiABKAlIAEIHCgVzdGF0ZSKgAQoWR2V0U3RhdGVTdGF0dXNSZXNwb25zZRIMCgRndWlkGAEgASgJEhAKCGxvZ2ljX2lkGAIgASgJEg4KBnN0YXR1cxgDIAEoCRIsCghpbmNvbWluZxgEIAMoCzIaLnN0YXRlLnYxLkluY29taW5nRWRnZVZpZXcSKAoHc3VtbWFyeRgFIAEoCzIXLnN0YXRlLnYxLlN0YXR1c1N1bW1hcnkiygIKEEluY29taW5nRWRnZVZpZXcSDwoHZWRnZV9pZBgBIAEoAxIRCglmcm9tX2d1aWQYAiABKAkSFQoNZnJvbV9sb2dpY19pZBgDIAEoCRITCgtmcm9tX291dHB1dBgEIAEoCRIOCgZzdGF0dXMYBSABKAkSFgoJaW5fZGlnZXN0GAYgASgJSACIAQESFwoKb3V0X2RpZ2VzdBgHIAEoCUgBiAEBEjMKCmxhc3RfaW5fYXQYCCABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wSAKIAQESNAoLbGFzdF9vdXRfYXQYCSABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wSAOIAQFCDAoKX2luX2RpZ2VzdEINCgtfb3V0X2RpZ2VzdEINCgtfbGFzdF9pbl9hdEIOCgxfbGFzdF9vdXRfYXQicwoNU3RhdHVzU3VtbWFyeRIWCg5pbmNvbWluZ19jbGVhbhgBIAEoBRIWCg5pbmNvbWluZ19kaXJ0eRgCIAEoBRIYChBpbmNvbWluZ19wZW5kaW5nGAMgASgFEhgKEGluY29taW5nX3Vua25vd24YBCABKAUiSAoZR2V0RGVwZW5kZW5jeUdyYXBoUmVxdWVzdBISCghsb2dpY19pZBgBIAEoCUgAEg4KBGd1aWQYAiABKAlIAEIHCgVzdGF0ZSKjAQoaR2V0RGVwZW5kZW5jeUdyYXBoUmVzcG9uc2USFQoNY29uc3VtZXJfZ3VpZBgBIAEoCRIZChFjb25zdW1lcl9sb2dpY19pZBgCIAEoCRIqCglwcm9kdWNlcnMYAyADKAsyFy5zdGF0ZS52MS5Qcm9kdWNlclN0YXRlEicKBWVkZ2VzGAQgAygLMhguc3RhdGUudjEuRGVwZW5kZW5jeUVkZ2UiYAoNUHJvZHVjZXJTdGF0ZRIMCgRndWlkGAEgASgJEhAKCGxvZ2ljX2lkGAIgASgJEi8KDmJhY2tlbmRfY29uZmlnGAMgASgLMhcuc3RhdGUudjEuQmFja2VuZENvbmZpZyKpBAoORGVwZW5kZW5jeUVkZ2USCgoCaWQYASABKAMSEQoJZnJvbV9ndWlkGAIgASgJEhUKDWZyb21fbG9naWNfaWQYAyABKAkSEwoLZnJvbV9vdXRwdXQYBCABKAkSDwoHdG9fZ3VpZBgFIAEoCRITCgt0b19sb2dpY19pZBgGIAEoCRIaCg10b19pbnB1dF9uYW1lGAcgASgJSACIAQESDgoGc3RhdHVzGAggASgJEhYKCWluX2RpZ2VzdBgJIAEoCUgBiAEBEhcKCm91dF9kaWdlc3QYCiABKAlIAogBARIcCg9tb2NrX3ZhbHVlX2pzb24YCyABKAlIA4gBARIzCgpsYXN0X2luX2F0GAwgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcEgEiAEBEjQKC2xhc3Rfb3V0X2F0GA0gASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcEgFiAEBEi4KCmNyZWF0ZWRfYXQYDiABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEi4KCnVwZGF0ZWRfYXQYDyABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wQhAKDl90b19pbnB1dF9uYW1lQgwKCl9pbl9kaWdlc3RCDQoLX291dF9kaWdlc3RCEgoQX21vY2tfdmFsdWVfanNvbkINCgtfbGFzdF9pbl9hdEIOCgxfbGFzdF9vdXRfYXQy3wgKDFN0YXRlU2VydmljZRJKCgtDcmVhdGVTdGF0ZRIcLnN0YXRlLnYxLkNyZWF0ZVN0YXRlUmVxdWVzdBodLnN0YXRlLnYxLkNyZWF0ZVN0YXRlUmVzcG9uc2USRwoKTGlzdFN0YXRlcxIbLnN0YXRlLnYxLkxpc3RTdGF0ZXNSZXF1ZXN0Ghwuc3RhdGUudjEuTGlzdFN0YXRlc1Jlc3BvbnNlElMKDkdldFN0YXRlQ29uZmlnEh8uc3RhdGUudjEuR2V0U3RhdGVDb25maWdSZXF1ZXN0GiAuc3RhdGUudjEuR2V0U3RhdGVDb25maWdSZXNwb25zZRJNCgxHZXRTdGF0ZUxvY2sSHS5zdGF0ZS52MS5HZXRTdGF0ZUxvY2tSZXF1ZXN0Gh4uc3RhdGUudjEuR2V0U3RhdGVMb2NrUmVzcG9uc2USSgoLVW5sb2NrU3RhdGUSHC5zdGF0ZS52MS5VbmxvY2tTdGF0ZVJlcXVlc3QaHS5zdGF0ZS52MS5VbmxvY2tTdGF0ZVJlc3BvbnNlElAKDUFkZERlcGVuZGVuY3kSHi5zdGF0ZS52MS5BZGREZXBlbmRlbmN5UmVxdWVzdBofLnN0YXRlLnYxLkFkZERlcGVuZGVuY3lSZXNwb25zZRJZChBSZW1vdmVEZXBlbmRlbmN5EiEuc3RhdGUudjEuUmVtb3ZlRGVwZW5kZW5jeVJlcXVlc3QaIi5zdGF0ZS52MS5SZW1vdmVEZXBlbmRlbmN5UmVzcG9uc2USWQoQTGlzdERlcGVuZGVuY2llcxIhLnN0YXRlLnYxLkxpc3REZXBlbmRlbmNpZXNSZXF1ZXN0GiIuc3RhdGUudjEuTGlzdERlcGVuZGVuY2llc1Jlc3BvbnNlElMKDkxpc3REZXBlbmRlbnRzEh8uc3RhdGUudjEuTGlzdERlcGVuZGVudHNSZXF1ZXN0GiAuc3RhdGUudjEuTGlzdERlcGVuZGVudHNSZXNwb25zZRJTCg5TZWFyY2hCeU91dHB1dBIfLnN0YXRlLnYxLlNlYXJjaEJ5T3V0cHV0UmVxdWVzdBogLnN0YXRlLnYxLlNlYXJjaEJ5T3V0cHV0UmVzcG9uc2USYgoTR2V0VG9wb2xvZ2ljYWxPcmRlchIkLnN0YXRlLnYxLkdldFRvcG9sb2dpY2FsT3JkZXJSZXF1ZXN0GiUuc3RhdGUudjEuR2V0VG9wb2xvZ2ljYWxPcmRlclJlc3BvbnNlElMKDkdldFN0YXRlU3RhdHVzEh8uc3RhdGUudjEuR2V0U3RhdGVTdGF0dXNSZXF1ZXN0GiAuc3RhdGUudjEuR2V0U3RhdGVTdGF0dXNSZXNwb25zZRJfChJHZXREZXBlbmRlbmN5R3JhcGgSIy5zdGF0ZS52MS5HZXREZXBlbmRlbmN5R3JhcGhSZXF1ZXN0GiQuc3RhdGUudjEuR2V0RGVwZW5kZW5jeUdyYXBoUmVzcG9uc2VCNlo0Z2l0aHViLmNvbS90ZXJyYWNvbnN0cnVjdHMvZ3JpZC9hcGkvc3RhdGUvdjE7c3RhdGV2MWIGcHJvdG8z", [file_google_protobuf_timestamp]);
 
 /**
  * CreateStateRequest creates a new state using a client-generated GUID.
@@ -136,6 +136,22 @@ export type StateInfo = Message<"state.v1.StateInfo"> & {
    * @generated from field: int64 size_bytes = 6;
    */
   sizeBytes: bigint;
+
+  /**
+   * NEW: Derived status fields for quick indicators
+   *
+   * "clean", "stale", "potentially-stale"
+   *
+   * @generated from field: optional string computed_status = 7;
+   */
+  computedStatus?: string;
+
+  /**
+   * Unique set of producer logic_ids (incoming edges)
+   *
+   * @generated from field: repeated string dependency_logic_ids = 8;
+   */
+  dependencyLogicIds: string[];
 };
 
 /**
@@ -372,6 +388,749 @@ export const UnlockStateResponseSchema: GenMessage<UnlockStateResponse> = /*@__P
   messageDesc(file_state_v1_state, 13);
 
 /**
+ * AddDependencyRequest creates a new dependency edge.
+ *
+ * @generated from message state.v1.AddDependencyRequest
+ */
+export type AddDependencyRequest = Message<"state.v1.AddDependencyRequest"> & {
+  /**
+   * Producer state reference (logic_id or GUID, prefer logic_id for UX)
+   *
+   * @generated from oneof state.v1.AddDependencyRequest.from_state
+   */
+  fromState: {
+    /**
+     * @generated from field: string from_logic_id = 1;
+     */
+    value: string;
+    case: "fromLogicId";
+  } | {
+    /**
+     * @generated from field: string from_guid = 2;
+     */
+    value: string;
+    case: "fromGuid";
+  } | { case: undefined; value?: undefined };
+
+  /**
+   * Output key from producer state
+   *
+   * @generated from field: string from_output = 3;
+   */
+  fromOutput: string;
+
+  /**
+   * Consumer state reference (logic_id or GUID)
+   *
+   * @generated from oneof state.v1.AddDependencyRequest.to_state
+   */
+  toState: {
+    /**
+     * @generated from field: string to_logic_id = 4;
+     */
+    value: string;
+    case: "toLogicId";
+  } | {
+    /**
+     * @generated from field: string to_guid = 5;
+     */
+    value: string;
+    case: "toGuid";
+  } | { case: undefined; value?: undefined };
+
+  /**
+   * Optional override for generated HCL local variable name
+   *
+   * @generated from field: optional string to_input_name = 6;
+   */
+  toInputName?: string;
+
+  /**
+   * Optional mock value for ahead-of-time dependency declaration
+   * (JSON-encoded value, used when producer output doesn't exist yet)
+   *
+   * @generated from field: optional string mock_value_json = 7;
+   */
+  mockValueJson?: string;
+};
+
+/**
+ * Describes the message state.v1.AddDependencyRequest.
+ * Use `create(AddDependencyRequestSchema)` to create a new message.
+ */
+export const AddDependencyRequestSchema: GenMessage<AddDependencyRequest> = /*@__PURE__*/
+  messageDesc(file_state_v1_state, 14);
+
+/**
+ * AddDependencyResponse returns the created or existing edge.
+ *
+ * @generated from message state.v1.AddDependencyResponse
+ */
+export type AddDependencyResponse = Message<"state.v1.AddDependencyResponse"> & {
+  /**
+   * @generated from field: state.v1.DependencyEdge edge = 1;
+   */
+  edge?: DependencyEdge;
+
+  /**
+   * True if edge already existed (idempotent)
+   *
+   * @generated from field: bool already_exists = 2;
+   */
+  alreadyExists: boolean;
+};
+
+/**
+ * Describes the message state.v1.AddDependencyResponse.
+ * Use `create(AddDependencyResponseSchema)` to create a new message.
+ */
+export const AddDependencyResponseSchema: GenMessage<AddDependencyResponse> = /*@__PURE__*/
+  messageDesc(file_state_v1_state, 15);
+
+/**
+ * RemoveDependencyRequest deletes an edge by ID.
+ *
+ * @generated from message state.v1.RemoveDependencyRequest
+ */
+export type RemoveDependencyRequest = Message<"state.v1.RemoveDependencyRequest"> & {
+  /**
+   * @generated from field: int64 edge_id = 1;
+   */
+  edgeId: bigint;
+};
+
+/**
+ * Describes the message state.v1.RemoveDependencyRequest.
+ * Use `create(RemoveDependencyRequestSchema)` to create a new message.
+ */
+export const RemoveDependencyRequestSchema: GenMessage<RemoveDependencyRequest> = /*@__PURE__*/
+  messageDesc(file_state_v1_state, 16);
+
+/**
+ * RemoveDependencyResponse confirms deletion.
+ *
+ * @generated from message state.v1.RemoveDependencyResponse
+ */
+export type RemoveDependencyResponse = Message<"state.v1.RemoveDependencyResponse"> & {
+  /**
+   * @generated from field: bool success = 1;
+   */
+  success: boolean;
+};
+
+/**
+ * Describes the message state.v1.RemoveDependencyResponse.
+ * Use `create(RemoveDependencyResponseSchema)` to create a new message.
+ */
+export const RemoveDependencyResponseSchema: GenMessage<RemoveDependencyResponse> = /*@__PURE__*/
+  messageDesc(file_state_v1_state, 17);
+
+/**
+ * ListDependenciesRequest fetches incoming edges for a consumer state.
+ *
+ * @generated from message state.v1.ListDependenciesRequest
+ */
+export type ListDependenciesRequest = Message<"state.v1.ListDependenciesRequest"> & {
+  /**
+   * Consumer state reference (logic_id or GUID)
+   *
+   * @generated from oneof state.v1.ListDependenciesRequest.state
+   */
+  state: {
+    /**
+     * @generated from field: string logic_id = 1;
+     */
+    value: string;
+    case: "logicId";
+  } | {
+    /**
+     * @generated from field: string guid = 2;
+     */
+    value: string;
+    case: "guid";
+  } | { case: undefined; value?: undefined };
+};
+
+/**
+ * Describes the message state.v1.ListDependenciesRequest.
+ * Use `create(ListDependenciesRequestSchema)` to create a new message.
+ */
+export const ListDependenciesRequestSchema: GenMessage<ListDependenciesRequest> = /*@__PURE__*/
+  messageDesc(file_state_v1_state, 18);
+
+/**
+ * ListDependenciesResponse returns all incoming edges.
+ *
+ * @generated from message state.v1.ListDependenciesResponse
+ */
+export type ListDependenciesResponse = Message<"state.v1.ListDependenciesResponse"> & {
+  /**
+   * @generated from field: repeated state.v1.DependencyEdge edges = 1;
+   */
+  edges: DependencyEdge[];
+};
+
+/**
+ * Describes the message state.v1.ListDependenciesResponse.
+ * Use `create(ListDependenciesResponseSchema)` to create a new message.
+ */
+export const ListDependenciesResponseSchema: GenMessage<ListDependenciesResponse> = /*@__PURE__*/
+  messageDesc(file_state_v1_state, 19);
+
+/**
+ * ListDependentsRequest fetches outgoing edges for a producer state.
+ *
+ * @generated from message state.v1.ListDependentsRequest
+ */
+export type ListDependentsRequest = Message<"state.v1.ListDependentsRequest"> & {
+  /**
+   * Producer state reference (logic_id or GUID)
+   *
+   * @generated from oneof state.v1.ListDependentsRequest.state
+   */
+  state: {
+    /**
+     * @generated from field: string logic_id = 1;
+     */
+    value: string;
+    case: "logicId";
+  } | {
+    /**
+     * @generated from field: string guid = 2;
+     */
+    value: string;
+    case: "guid";
+  } | { case: undefined; value?: undefined };
+};
+
+/**
+ * Describes the message state.v1.ListDependentsRequest.
+ * Use `create(ListDependentsRequestSchema)` to create a new message.
+ */
+export const ListDependentsRequestSchema: GenMessage<ListDependentsRequest> = /*@__PURE__*/
+  messageDesc(file_state_v1_state, 20);
+
+/**
+ * ListDependentsResponse returns all outgoing edges.
+ *
+ * @generated from message state.v1.ListDependentsResponse
+ */
+export type ListDependentsResponse = Message<"state.v1.ListDependentsResponse"> & {
+  /**
+   * @generated from field: repeated state.v1.DependencyEdge edges = 1;
+   */
+  edges: DependencyEdge[];
+};
+
+/**
+ * Describes the message state.v1.ListDependentsResponse.
+ * Use `create(ListDependentsResponseSchema)` to create a new message.
+ */
+export const ListDependentsResponseSchema: GenMessage<ListDependentsResponse> = /*@__PURE__*/
+  messageDesc(file_state_v1_state, 21);
+
+/**
+ * SearchByOutputRequest finds edges by output key name.
+ *
+ * @generated from message state.v1.SearchByOutputRequest
+ */
+export type SearchByOutputRequest = Message<"state.v1.SearchByOutputRequest"> & {
+  /**
+   * @generated from field: string output_key = 1;
+   */
+  outputKey: string;
+};
+
+/**
+ * Describes the message state.v1.SearchByOutputRequest.
+ * Use `create(SearchByOutputRequestSchema)` to create a new message.
+ */
+export const SearchByOutputRequestSchema: GenMessage<SearchByOutputRequest> = /*@__PURE__*/
+  messageDesc(file_state_v1_state, 22);
+
+/**
+ * SearchByOutputResponse returns matching edges.
+ *
+ * @generated from message state.v1.SearchByOutputResponse
+ */
+export type SearchByOutputResponse = Message<"state.v1.SearchByOutputResponse"> & {
+  /**
+   * @generated from field: repeated state.v1.DependencyEdge edges = 1;
+   */
+  edges: DependencyEdge[];
+};
+
+/**
+ * Describes the message state.v1.SearchByOutputResponse.
+ * Use `create(SearchByOutputResponseSchema)` to create a new message.
+ */
+export const SearchByOutputResponseSchema: GenMessage<SearchByOutputResponse> = /*@__PURE__*/
+  messageDesc(file_state_v1_state, 23);
+
+/**
+ * GetTopologicalOrderRequest computes layered ordering rooted at a state.
+ *
+ * @generated from message state.v1.GetTopologicalOrderRequest
+ */
+export type GetTopologicalOrderRequest = Message<"state.v1.GetTopologicalOrderRequest"> & {
+  /**
+   * Root state reference (logic_id or GUID)
+   *
+   * @generated from oneof state.v1.GetTopologicalOrderRequest.state
+   */
+  state: {
+    /**
+     * @generated from field: string logic_id = 1;
+     */
+    value: string;
+    case: "logicId";
+  } | {
+    /**
+     * @generated from field: string guid = 2;
+     */
+    value: string;
+    case: "guid";
+  } | { case: undefined; value?: undefined };
+
+  /**
+   * Direction: "downstream" (default) or "upstream"
+   *
+   * @generated from field: optional string direction = 3;
+   */
+  direction?: string;
+};
+
+/**
+ * Describes the message state.v1.GetTopologicalOrderRequest.
+ * Use `create(GetTopologicalOrderRequestSchema)` to create a new message.
+ */
+export const GetTopologicalOrderRequestSchema: GenMessage<GetTopologicalOrderRequest> = /*@__PURE__*/
+  messageDesc(file_state_v1_state, 24);
+
+/**
+ * GetTopologicalOrderResponse returns layered state ordering.
+ *
+ * @generated from message state.v1.GetTopologicalOrderResponse
+ */
+export type GetTopologicalOrderResponse = Message<"state.v1.GetTopologicalOrderResponse"> & {
+  /**
+   * @generated from field: repeated state.v1.Layer layers = 1;
+   */
+  layers: Layer[];
+};
+
+/**
+ * Describes the message state.v1.GetTopologicalOrderResponse.
+ * Use `create(GetTopologicalOrderResponseSchema)` to create a new message.
+ */
+export const GetTopologicalOrderResponseSchema: GenMessage<GetTopologicalOrderResponse> = /*@__PURE__*/
+  messageDesc(file_state_v1_state, 25);
+
+/**
+ * Layer represents a level in the topological ordering.
+ *
+ * @generated from message state.v1.Layer
+ */
+export type Layer = Message<"state.v1.Layer"> & {
+  /**
+   * @generated from field: int32 level = 1;
+   */
+  level: number;
+
+  /**
+   * @generated from field: repeated state.v1.StateRef states = 2;
+   */
+  states: StateRef[];
+};
+
+/**
+ * Describes the message state.v1.Layer.
+ * Use `create(LayerSchema)` to create a new message.
+ */
+export const LayerSchema: GenMessage<Layer> = /*@__PURE__*/
+  messageDesc(file_state_v1_state, 26);
+
+/**
+ * StateRef is a minimal state reference.
+ *
+ * @generated from message state.v1.StateRef
+ */
+export type StateRef = Message<"state.v1.StateRef"> & {
+  /**
+   * @generated from field: string guid = 1;
+   */
+  guid: string;
+
+  /**
+   * @generated from field: string logic_id = 2;
+   */
+  logicId: string;
+};
+
+/**
+ * Describes the message state.v1.StateRef.
+ * Use `create(StateRefSchema)` to create a new message.
+ */
+export const StateRefSchema: GenMessage<StateRef> = /*@__PURE__*/
+  messageDesc(file_state_v1_state, 27);
+
+/**
+ * GetStateStatusRequest computes on-demand status for a state.
+ *
+ * @generated from message state.v1.GetStateStatusRequest
+ */
+export type GetStateStatusRequest = Message<"state.v1.GetStateStatusRequest"> & {
+  /**
+   * State reference (logic_id or GUID)
+   *
+   * @generated from oneof state.v1.GetStateStatusRequest.state
+   */
+  state: {
+    /**
+     * @generated from field: string logic_id = 1;
+     */
+    value: string;
+    case: "logicId";
+  } | {
+    /**
+     * @generated from field: string guid = 2;
+     */
+    value: string;
+    case: "guid";
+  } | { case: undefined; value?: undefined };
+};
+
+/**
+ * Describes the message state.v1.GetStateStatusRequest.
+ * Use `create(GetStateStatusRequestSchema)` to create a new message.
+ */
+export const GetStateStatusRequestSchema: GenMessage<GetStateStatusRequest> = /*@__PURE__*/
+  messageDesc(file_state_v1_state, 28);
+
+/**
+ * GetStateStatusResponse returns computed status with incoming edges.
+ *
+ * @generated from message state.v1.GetStateStatusResponse
+ */
+export type GetStateStatusResponse = Message<"state.v1.GetStateStatusResponse"> & {
+  /**
+   * @generated from field: string guid = 1;
+   */
+  guid: string;
+
+  /**
+   * @generated from field: string logic_id = 2;
+   */
+  logicId: string;
+
+  /**
+   * "clean", "stale", "potentially-stale"
+   *
+   * @generated from field: string status = 3;
+   */
+  status: string;
+
+  /**
+   * @generated from field: repeated state.v1.IncomingEdgeView incoming = 4;
+   */
+  incoming: IncomingEdgeView[];
+
+  /**
+   * @generated from field: state.v1.StatusSummary summary = 5;
+   */
+  summary?: StatusSummary;
+};
+
+/**
+ * Describes the message state.v1.GetStateStatusResponse.
+ * Use `create(GetStateStatusResponseSchema)` to create a new message.
+ */
+export const GetStateStatusResponseSchema: GenMessage<GetStateStatusResponse> = /*@__PURE__*/
+  messageDesc(file_state_v1_state, 29);
+
+/**
+ * IncomingEdgeView shows incoming edge details for status computation.
+ *
+ * @generated from message state.v1.IncomingEdgeView
+ */
+export type IncomingEdgeView = Message<"state.v1.IncomingEdgeView"> & {
+  /**
+   * @generated from field: int64 edge_id = 1;
+   */
+  edgeId: bigint;
+
+  /**
+   * @generated from field: string from_guid = 2;
+   */
+  fromGuid: string;
+
+  /**
+   * @generated from field: string from_logic_id = 3;
+   */
+  fromLogicId: string;
+
+  /**
+   * @generated from field: string from_output = 4;
+   */
+  fromOutput: string;
+
+  /**
+   * Edge status: "clean", "dirty", "pending", etc.
+   *
+   * @generated from field: string status = 5;
+   */
+  status: string;
+
+  /**
+   * @generated from field: optional string in_digest = 6;
+   */
+  inDigest?: string;
+
+  /**
+   * @generated from field: optional string out_digest = 7;
+   */
+  outDigest?: string;
+
+  /**
+   * @generated from field: optional google.protobuf.Timestamp last_in_at = 8;
+   */
+  lastInAt?: Timestamp;
+
+  /**
+   * @generated from field: optional google.protobuf.Timestamp last_out_at = 9;
+   */
+  lastOutAt?: Timestamp;
+};
+
+/**
+ * Describes the message state.v1.IncomingEdgeView.
+ * Use `create(IncomingEdgeViewSchema)` to create a new message.
+ */
+export const IncomingEdgeViewSchema: GenMessage<IncomingEdgeView> = /*@__PURE__*/
+  messageDesc(file_state_v1_state, 30);
+
+/**
+ * StatusSummary aggregates incoming edge counts.
+ *
+ * @generated from message state.v1.StatusSummary
+ */
+export type StatusSummary = Message<"state.v1.StatusSummary"> & {
+  /**
+   * @generated from field: int32 incoming_clean = 1;
+   */
+  incomingClean: number;
+
+  /**
+   * @generated from field: int32 incoming_dirty = 2;
+   */
+  incomingDirty: number;
+
+  /**
+   * @generated from field: int32 incoming_pending = 3;
+   */
+  incomingPending: number;
+
+  /**
+   * @generated from field: int32 incoming_unknown = 4;
+   */
+  incomingUnknown: number;
+};
+
+/**
+ * Describes the message state.v1.StatusSummary.
+ * Use `create(StatusSummarySchema)` to create a new message.
+ */
+export const StatusSummarySchema: GenMessage<StatusSummary> = /*@__PURE__*/
+  messageDesc(file_state_v1_state, 31);
+
+/**
+ * GetDependencyGraphRequest fetches graph data for consumer state HCL generation.
+ *
+ * @generated from message state.v1.GetDependencyGraphRequest
+ */
+export type GetDependencyGraphRequest = Message<"state.v1.GetDependencyGraphRequest"> & {
+  /**
+   * Consumer state reference (logic_id or GUID)
+   *
+   * @generated from oneof state.v1.GetDependencyGraphRequest.state
+   */
+  state: {
+    /**
+     * @generated from field: string logic_id = 1;
+     */
+    value: string;
+    case: "logicId";
+  } | {
+    /**
+     * @generated from field: string guid = 2;
+     */
+    value: string;
+    case: "guid";
+  } | { case: undefined; value?: undefined };
+};
+
+/**
+ * Describes the message state.v1.GetDependencyGraphRequest.
+ * Use `create(GetDependencyGraphRequestSchema)` to create a new message.
+ */
+export const GetDependencyGraphRequestSchema: GenMessage<GetDependencyGraphRequest> = /*@__PURE__*/
+  messageDesc(file_state_v1_state, 32);
+
+/**
+ * GetDependencyGraphResponse returns data needed for grid_dependencies.tf generation.
+ *
+ * @generated from message state.v1.GetDependencyGraphResponse
+ */
+export type GetDependencyGraphResponse = Message<"state.v1.GetDependencyGraphResponse"> & {
+  /**
+   * @generated from field: string consumer_guid = 1;
+   */
+  consumerGuid: string;
+
+  /**
+   * @generated from field: string consumer_logic_id = 2;
+   */
+  consumerLogicId: string;
+
+  /**
+   * @generated from field: repeated state.v1.ProducerState producers = 3;
+   */
+  producers: ProducerState[];
+
+  /**
+   * @generated from field: repeated state.v1.DependencyEdge edges = 4;
+   */
+  edges: DependencyEdge[];
+};
+
+/**
+ * Describes the message state.v1.GetDependencyGraphResponse.
+ * Use `create(GetDependencyGraphResponseSchema)` to create a new message.
+ */
+export const GetDependencyGraphResponseSchema: GenMessage<GetDependencyGraphResponse> = /*@__PURE__*/
+  messageDesc(file_state_v1_state, 33);
+
+/**
+ * ProducerState represents a unique producer state in the graph.
+ *
+ * @generated from message state.v1.ProducerState
+ */
+export type ProducerState = Message<"state.v1.ProducerState"> & {
+  /**
+   * @generated from field: string guid = 1;
+   */
+  guid: string;
+
+  /**
+   * @generated from field: string logic_id = 2;
+   */
+  logicId: string;
+
+  /**
+   * @generated from field: state.v1.BackendConfig backend_config = 3;
+   */
+  backendConfig?: BackendConfig;
+};
+
+/**
+ * Describes the message state.v1.ProducerState.
+ * Use `create(ProducerStateSchema)` to create a new message.
+ */
+export const ProducerStateSchema: GenMessage<ProducerState> = /*@__PURE__*/
+  messageDesc(file_state_v1_state, 34);
+
+/**
+ * DependencyEdge represents a directed dependency edge.
+ *
+ * @generated from message state.v1.DependencyEdge
+ */
+export type DependencyEdge = Message<"state.v1.DependencyEdge"> & {
+  /**
+   * @generated from field: int64 id = 1;
+   */
+  id: bigint;
+
+  /**
+   * @generated from field: string from_guid = 2;
+   */
+  fromGuid: string;
+
+  /**
+   * @generated from field: string from_logic_id = 3;
+   */
+  fromLogicId: string;
+
+  /**
+   * @generated from field: string from_output = 4;
+   */
+  fromOutput: string;
+
+  /**
+   * @generated from field: string to_guid = 5;
+   */
+  toGuid: string;
+
+  /**
+   * @generated from field: string to_logic_id = 6;
+   */
+  toLogicId: string;
+
+  /**
+   * @generated from field: optional string to_input_name = 7;
+   */
+  toInputName?: string;
+
+  /**
+   * "pending", "clean", "dirty", "potentially-stale", "mock", "missing-output"
+   *
+   * @generated from field: string status = 8;
+   */
+  status: string;
+
+  /**
+   * @generated from field: optional string in_digest = 9;
+   */
+  inDigest?: string;
+
+  /**
+   * @generated from field: optional string out_digest = 10;
+   */
+  outDigest?: string;
+
+  /**
+   * @generated from field: optional string mock_value_json = 11;
+   */
+  mockValueJson?: string;
+
+  /**
+   * @generated from field: optional google.protobuf.Timestamp last_in_at = 12;
+   */
+  lastInAt?: Timestamp;
+
+  /**
+   * @generated from field: optional google.protobuf.Timestamp last_out_at = 13;
+   */
+  lastOutAt?: Timestamp;
+
+  /**
+   * @generated from field: google.protobuf.Timestamp created_at = 14;
+   */
+  createdAt?: Timestamp;
+
+  /**
+   * @generated from field: google.protobuf.Timestamp updated_at = 15;
+   */
+  updatedAt?: Timestamp;
+};
+
+/**
+ * Describes the message state.v1.DependencyEdge.
+ * Use `create(DependencyEdgeSchema)` to create a new message.
+ */
+export const DependencyEdgeSchema: GenMessage<DependencyEdge> = /*@__PURE__*/
+  messageDesc(file_state_v1_state, 35);
+
+/**
  * StateService provides remote state management for Terraform/OpenTofu clients.
  *
  * @generated from service state.v1.StateService
@@ -426,6 +1185,87 @@ export const StateService: GenService<{
     methodKind: "unary";
     input: typeof UnlockStateRequestSchema;
     output: typeof UnlockStateResponseSchema;
+  },
+  /**
+   * AddDependency declares a dependency edge from producer output to consumer state.
+   * Returns existing edge if duplicate (idempotent). Rejects if would create cycle.
+   *
+   * @generated from rpc state.v1.StateService.AddDependency
+   */
+  addDependency: {
+    methodKind: "unary";
+    input: typeof AddDependencyRequestSchema;
+    output: typeof AddDependencyResponseSchema;
+  },
+  /**
+   * RemoveDependency deletes a dependency edge by ID.
+   *
+   * @generated from rpc state.v1.StateService.RemoveDependency
+   */
+  removeDependency: {
+    methodKind: "unary";
+    input: typeof RemoveDependencyRequestSchema;
+    output: typeof RemoveDependencyResponseSchema;
+  },
+  /**
+   * ListDependencies returns all edges where the given state is the consumer (incoming deps).
+   *
+   * @generated from rpc state.v1.StateService.ListDependencies
+   */
+  listDependencies: {
+    methodKind: "unary";
+    input: typeof ListDependenciesRequestSchema;
+    output: typeof ListDependenciesResponseSchema;
+  },
+  /**
+   * ListDependents returns all edges where the given state is the producer (outgoing deps).
+   *
+   * @generated from rpc state.v1.StateService.ListDependents
+   */
+  listDependents: {
+    methodKind: "unary";
+    input: typeof ListDependentsRequestSchema;
+    output: typeof ListDependentsResponseSchema;
+  },
+  /**
+   * SearchByOutput finds all edges that reference a specific output key (by name).
+   *
+   * @generated from rpc state.v1.StateService.SearchByOutput
+   */
+  searchByOutput: {
+    methodKind: "unary";
+    input: typeof SearchByOutputRequestSchema;
+    output: typeof SearchByOutputResponseSchema;
+  },
+  /**
+   * GetTopologicalOrder computes layered ordering of states rooted at given state.
+   *
+   * @generated from rpc state.v1.StateService.GetTopologicalOrder
+   */
+  getTopologicalOrder: {
+    methodKind: "unary";
+    input: typeof GetTopologicalOrderRequestSchema;
+    output: typeof GetTopologicalOrderResponseSchema;
+  },
+  /**
+   * GetStateStatus computes on-demand status for a state based on its incoming edges.
+   *
+   * @generated from rpc state.v1.StateService.GetStateStatus
+   */
+  getStateStatus: {
+    methodKind: "unary";
+    input: typeof GetStateStatusRequestSchema;
+    output: typeof GetStateStatusResponseSchema;
+  },
+  /**
+   * GetDependencyGraph returns full dependency graph data for client-side HCL generation.
+   *
+   * @generated from rpc state.v1.StateService.GetDependencyGraph
+   */
+  getDependencyGraph: {
+    methodKind: "unary";
+    input: typeof GetDependencyGraphRequestSchema;
+    output: typeof GetDependencyGraphResponseSchema;
   },
 }> = /*@__PURE__*/
   serviceDesc(file_state_v1_state, 0);
