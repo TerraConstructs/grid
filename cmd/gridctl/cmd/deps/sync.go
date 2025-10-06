@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/spf13/cobra"
+	"github.com/terraconstructs/grid/cmd/gridctl/internal/dirctx"
 	"github.com/terraconstructs/grid/pkg/sdk"
 )
 
@@ -28,18 +29,32 @@ var syncCmd = &cobra.Command{
 	Short: "Sync dependencies to HCL file",
 	Long: `Fetches all producer states for a consumer and generates a grid_dependencies.tf file
 with Terraform data sources for each producer's remote state. This allows the consumer
-to reference producer outputs via data.terraform_remote_state.<producer>.outputs.<key>`,
+to reference producer outputs via data.terraform_remote_state.<producer>.outputs.<key>
+
+If --state is not specified, the .grid context will be used (if available).`,
 	Args: cobra.NoArgs,
 	RunE: func(cobraCmd *cobra.Command, args []string) error {
-		if syncLogicID == "" {
-			return fmt.Errorf("flag --state is required")
+		// Resolve state from --state flag or .grid context
+		logicID := syncLogicID
+		if logicID == "" {
+			// Try to read .grid context
+			gridCtx, err := dirctx.ReadGridContext()
+			if err != nil {
+				fmt.Printf("Warning: .grid file corrupted or invalid, ignoring: %v\n", err)
+				return fmt.Errorf("--state flag is required (no .grid context found)")
+			} else if gridCtx != nil {
+				logicID = gridCtx.StateLogicID
+				fmt.Printf("Using state from .grid context: %s\n", logicID)
+			} else {
+				return fmt.Errorf("--state flag is required (no .grid context found)")
+			}
 		}
 
 		client := sdk.NewClient(ServerURL)
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
 
-		graph, err := client.GetDependencyGraph(ctx, sdk.StateReference{LogicID: syncLogicID})
+		graph, err := client.GetDependencyGraph(ctx, sdk.StateReference{LogicID: logicID})
 		if err != nil {
 			return fmt.Errorf("failed to get dependency graph: %w", err)
 		}
@@ -184,7 +199,7 @@ to reference producer outputs via data.terraform_remote_state.<producer>.outputs
 }
 
 func init() {
-	syncCmd.Flags().StringVar(&syncLogicID, "state", "", "Logic ID of the consumer state")
+	syncCmd.Flags().StringVar(&syncLogicID, "state", "", "Logic ID of the consumer state (uses .grid context if not specified)")
 }
 
 // sanitizeLogicID converts a logic ID to a safe Terraform identifier

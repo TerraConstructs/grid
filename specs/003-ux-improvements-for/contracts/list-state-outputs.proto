@@ -1,0 +1,121 @@
+// Contract specification for ListStateOutputs RPC method
+// Feature: 003-ux-improvements-for
+// This file documents the new RPC contract to be added to proto/state/v1/state.proto
+
+syntax = "proto3";
+
+package state.v1;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/terraconstructs/grid/api/state/v1;statev1";
+
+// ============================================================================
+// NEW RPC METHOD (to be added to StateService)
+// ============================================================================
+
+service StateService {
+  // ... existing methods ...
+
+  // ListStateOutputs returns available output keys from a state's Terraform/OpenTofu JSON.
+  // Output values are NOT returned (security/size concerns); only keys and sensitive flags.
+  // Used by CLI for interactive output selection when creating dependencies.
+  rpc ListStateOutputs(ListStateOutputsRequest) returns (ListStateOutputsResponse);
+}
+
+// ============================================================================
+// REQUEST/RESPONSE MESSAGES
+// ============================================================================
+
+// ListStateOutputsRequest fetches output keys for a state.
+message ListStateOutputsRequest {
+  // State identifier (prefer logic_id for UX, guid for precision)
+  oneof state {
+    string logic_id = 1;  // User-friendly state identifier
+    string guid = 2;      // Immutable UUIDv7 identifier
+  }
+}
+
+// ListStateOutputsResponse returns output keys parsed from Terraform state JSON.
+message ListStateOutputsResponse {
+  // State identifiers for confirmation
+  string state_guid = 1;
+  string state_logic_id = 2;
+
+  // List of output keys available in this state's Terraform JSON
+  // Empty array if state has no outputs (not an error)
+  repeated OutputKey outputs = 3;
+}
+
+// OutputKey represents a single Terraform/OpenTofu output name and metadata.
+message OutputKey {
+  // Output name from Terraform state JSON (e.g., "vpc_id", "db_password")
+  string key = 1;
+
+  // Whether output is marked sensitive in Terraform state metadata
+  // Used by CLI to display warning: "⚠️  sensitive" next to output name
+  bool sensitive = 2;
+}
+
+// ============================================================================
+// CONTRACT TESTS (to be implemented in tests/contract/)
+// ============================================================================
+
+// Test 1: ListStateOutputs with valid logic-id
+// Request: { logic_id: "test-state" }
+// Expected: Response with state_guid, state_logic_id, and outputs array
+// Assert: Each output has non-empty key and boolean sensitive flag
+
+// Test 2: ListStateOutputs with state that has no outputs
+// Request: { logic_id: "empty-state" }
+// Expected: Response with empty outputs array []
+// Assert: NOT an error, outputs field present but empty
+
+// Test 3: ListStateOutputs with non-existent state
+// Request: { logic_id: "nonexistent-state" }
+// Expected: Connect RPC error with code NOT_FOUND
+// Assert: Error message indicates state not found
+
+// Test 4: ListStateOutputs sensitive flag accuracy
+// Setup: Create state with TF JSON containing sensitive output
+// Request: { logic_id: "test-state" }
+// Expected: Response outputs include {key: "db_password", sensitive: true}
+// Assert: Sensitive flag matches Terraform state metadata
+
+// Test 5: ListStateOutputs with GUID instead of logic-id
+// Request: { guid: "01JXXX..." }
+// Expected: Same response as using logic_id
+// Assert: State identifiers match
+
+// ============================================================================
+// ERROR CASES
+// ============================================================================
+
+// Error: Neither logic_id nor guid provided
+// Code: INVALID_ARGUMENT
+// Message: "state identifier required (logic_id or guid)"
+
+// Error: State not found
+// Code: NOT_FOUND
+// Message: "state with logic_id 'xyz' not found"
+
+// Error: State JSON corrupted (malformed TF state)
+// Code: INTERNAL
+// Message: "failed to parse Terraform state JSON"
+
+// ============================================================================
+// IMPLEMENTATION NOTES
+// ============================================================================
+
+// Server-side:
+// 1. Resolve state by logic_id or guid
+// 2. Fetch state.data (JSONB column containing Terraform state JSON)
+// 3. Parse JSON: extract outputs object
+// 4. For each output, read .sensitive metadata
+// 5. Return OutputKey array (sorted alphabetically for determinism)
+
+// Client SDK (pkg/sdk):
+// func (c *Client) ListStateOutputs(ctx, ref StateRef) ([]OutputKey, error)
+
+// CLI (cmd/gridctl):
+// Used in deps/add.go for interactive multi-select prompt

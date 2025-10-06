@@ -156,6 +156,23 @@ type TopologyInput struct {
 	Direction TopologyDirection
 }
 
+// OutputKey represents a Terraform output name and metadata.
+type OutputKey struct {
+	Key       string
+	Sensitive bool
+}
+
+// StateInfo provides comprehensive information about a state including dependencies, dependents, and outputs.
+type StateInfo struct {
+	State         StateReference
+	BackendConfig BackendConfig
+	Dependencies  []DependencyEdge
+	Dependents    []DependencyEdge
+	Outputs       []OutputKey
+	CreatedAt     time.Time
+	UpdatedAt     time.Time
+}
+
 // helper conversions from proto messages ----------------------------------------------------
 
 func backendConfigFromProto(pb *statev1.BackendConfig) BackendConfig {
@@ -222,4 +239,25 @@ func stateLockFromProto(lock *statev1.StateLock) StateLock {
 		Locked: lock.GetLocked(),
 		Info:   lockInfoFromProto(lock.Info),
 	}
+}
+
+func outputKeyFromProto(pb *statev1.OutputKey) OutputKey {
+	if pb == nil {
+		return OutputKey{}
+	}
+	return OutputKey{
+		Key:       pb.GetKey(),
+		Sensitive: pb.GetSensitive(),
+	}
+}
+
+func outputKeysFromProto(pbs []*statev1.OutputKey) []OutputKey {
+	if pbs == nil {
+		return []OutputKey{}
+	}
+	outputs := make([]OutputKey, 0, len(pbs))
+	for _, pb := range pbs {
+		outputs = append(outputs, outputKeyFromProto(pb))
+	}
+	return outputs
 }

@@ -23,7 +23,7 @@ func TestDuplicateLogicID(t *testing.T) {
 
 	// Step 1: Create first state with the logic_id
 	t.Logf("Creating first state with logic_id: %s", logicID)
-	createCmd1 := exec.CommandContext(ctx, getGridctlPath(t), "state", "create", logicID, "--server", serverURL)
+	createCmd1 := exec.CommandContext(ctx, getGridctlPath(t), "state", "create", logicID, "--server", serverURL, "--force")
 	createOut1, err := createCmd1.CombinedOutput()
 	require.NoError(t, err, "First create should succeed: %s", string(createOut1))
 	t.Logf("First create output: %s", string(createOut1))

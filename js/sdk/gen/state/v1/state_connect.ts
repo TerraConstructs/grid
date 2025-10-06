@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { AddDependencyRequest, AddDependencyResponse, CreateStateRequest, CreateStateResponse, GetDependencyGraphRequest, GetDependencyGraphResponse, GetStateConfigRequest, GetStateConfigResponse, GetStateLockRequest, GetStateLockResponse, GetStateStatusRequest, GetStateStatusResponse, GetTopologicalOrderRequest, GetTopologicalOrderResponse, ListDependenciesRequest, ListDependenciesResponse, ListDependentsRequest, ListDependentsResponse, ListStatesRequest, ListStatesResponse, RemoveDependencyRequest, RemoveDependencyResponse, SearchByOutputRequest, SearchByOutputResponse, UnlockStateRequest, UnlockStateResponse } from "./state_pb.js";
+import { AddDependencyRequest, AddDependencyResponse, CreateStateRequest, CreateStateResponse, GetDependencyGraphRequest, GetDependencyGraphResponse, GetStateConfigRequest, GetStateConfigResponse, GetStateInfoRequest, GetStateInfoResponse, GetStateLockRequest, GetStateLockResponse, GetStateStatusRequest, GetStateStatusResponse, GetTopologicalOrderRequest, GetTopologicalOrderResponse, ListDependenciesRequest, ListDependenciesResponse, ListDependentsRequest, ListDependentsResponse, ListStateOutputsRequest, ListStateOutputsResponse, ListStatesRequest, ListStatesResponse, RemoveDependencyRequest, RemoveDependencyResponse, SearchByOutputRequest, SearchByOutputResponse, UnlockStateRequest, UnlockStateResponse } from "./state_pb.js";
 import { MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -156,6 +156,37 @@ export const StateService = {
       name: "GetDependencyGraph",
       I: GetDependencyGraphRequest,
       O: GetDependencyGraphResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * ListStateOutputs returns available output keys from a state's Terraform/OpenTofu JSON.
+     * Output values are NOT returned (security/size concerns); only keys and sensitive flags.
+     * Used by CLI for interactive output selection when creating dependencies.
+     *
+     * @generated from rpc state.v1.StateService.ListStateOutputs
+     */
+    listStateOutputs: {
+      name: "ListStateOutputs",
+      I: ListStateOutputsRequest,
+      O: ListStateOutputsResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * GetStateInfo retrieves comprehensive state information including:
+     * - Basic metadata (GUID, logic-id, timestamps)
+     * - Backend configuration (Terraform HTTP backend URLs)
+     * - Dependencies (incoming edges: states this state depends on)
+     * - Dependents (outgoing edges: states that depend on this state)
+     * - Outputs (available Terraform output keys from state JSON)
+     *
+     * This consolidates information previously requiring multiple RPC calls.
+     *
+     * @generated from rpc state.v1.StateService.GetStateInfo
+     */
+    getStateInfo: {
+      name: "GetStateInfo",
+      I: GetStateInfoRequest,
+      O: GetStateInfoResponse,
       kind: MethodKind.Unary,
     },
   }

@@ -25,7 +25,7 @@ func TestStateSizeWarning(t *testing.T) {
 
 	// Step 1: Create state via gridctl
 	t.Logf("Creating state with logic_id: %s", logicID)
-	createCmd := exec.CommandContext(ctx, getGridctlPath(t), "state", "create", logicID, "--server", serverURL)
+	createCmd := exec.CommandContext(ctx, getGridctlPath(t), "state", "create", logicID, "--server", serverURL, "--force")
 	createOut, err := createCmd.CombinedOutput()
 	require.NoError(t, err, "Failed to create state: %s", string(createOut))
 

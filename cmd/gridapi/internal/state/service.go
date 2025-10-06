@@ -9,6 +9,7 @@ import (
 
 	"github.com/terraconstructs/grid/cmd/gridapi/internal/db/models"
 	"github.com/terraconstructs/grid/cmd/gridapi/internal/repository"
+	"github.com/terraconstructs/grid/cmd/gridapi/internal/tfstate"
 )
 
 // BackendConfig represents the Terraform HTTP backend endpoints returned to clients.
@@ -29,15 +30,41 @@ type StateSummary struct {
 	LockInfo  *models.LockInfo
 }
 
+// StateInfo provides comprehensive state information including dependencies, dependents, and outputs.
+type StateInfo struct {
+	GUID          string
+	LogicID       string
+	BackendConfig *BackendConfig
+	Dependencies  []models.Edge
+	Dependents    []models.Edge
+	Outputs       []repository.OutputKey
+	CreatedAt     time.Time
+	UpdatedAt     time.Time
+}
+
 // Service orchestrates state persistence and validation for RPC handlers.
 type Service struct {
-	repo      repository.StateRepository
-	serverURL string
+	repo       repository.StateRepository
+	outputRepo repository.StateOutputRepository
+	edgeRepo   repository.EdgeRepository
+	serverURL  string
 }
 
 // NewService constructs a new Service instance.
 func NewService(repo repository.StateRepository, serverURL string) *Service {
 	return &Service{repo: repo, serverURL: serverURL}
+}
+
+// WithOutputRepository adds the output repository to the service (optional dependency).
+func (s *Service) WithOutputRepository(outputRepo repository.StateOutputRepository) *Service {
+	s.outputRepo = outputRepo
+	return s
+}
+
+// WithEdgeRepository adds the edge repository to the service (optional dependency).
+func (s *Service) WithEdgeRepository(edgeRepo repository.EdgeRepository) *Service {
+	s.edgeRepo = edgeRepo
+	return s
 }
 
 // CreateState validates inputs, persists the state, and returns summary + backend config.
@@ -127,33 +154,45 @@ func (s *Service) UnlockState(ctx context.Context, guid, lockID string) error {
 	return nil
 }
 
+// StateUpdateResult contains the result of a state content update
+type StateUpdateResult struct {
+	Summary      *StateSummary
+	OutputValues map[string]interface{} // Parsed output values for edge job
+}
+
 // UpdateStateContent replaces the stored Terraform state payload.
 // If lockID is provided and matches the current lock, the update is allowed even when locked.
-func (s *Service) UpdateStateContent(ctx context.Context, guid string, content []byte, lockID string) (*StateSummary, error) {
+// Updates the output cache atomically in the same transaction (FR-027 compliance).
+// Returns parsed output values to avoid double-parsing for edge updates.
+func (s *Service) UpdateStateContent(ctx context.Context, guid string, content []byte, lockID string) (*StateUpdateResult, error) {
 	if len(content) == 0 {
 		return nil, fmt.Errorf("state content must not be empty")
 	}
 
-	record, err := s.repo.GetByGUID(ctx, guid)
+	// Parse state once to get serial, keys, and values
+	parsed, err := tfstate.ParseState(content)
 	if err != nil {
-		return nil, fmt.Errorf("get state: %w", err)
+		return nil, fmt.Errorf("parse state: %w", err)
 	}
 
-	// If state is locked, verify the caller holds the lock
-	if record.Locked {
-		if lockID == "" || record.LockInfo == nil || lockID != record.LockInfo.ID {
-			return nil, fmt.Errorf("state is locked, cannot update")
-		}
-		// Lock ID matches, allow the update
-	}
-
-	record.StateContent = content
-	if err := s.repo.Update(ctx, record); err != nil {
+	// Use atomic update method to ensure state and outputs are consistent (FR-027)
+	// Both operations happen in ONE transaction via repository.UpdateContentAndUpsertOutputs
+	err = s.repo.UpdateContentAndUpsertOutputs(ctx, guid, content, lockID, parsed.Serial, parsed.Keys)
+	if err != nil {
 		return nil, fmt.Errorf("update state content: %w", err)
 	}
 
+	// Fetch updated state for summary
+	record, err := s.repo.GetByGUID(ctx, guid)
+	if err != nil {
+		return nil, fmt.Errorf("get updated state: %w", err)
+	}
+
 	summary := toSummary(record)
-	return &summary, nil
+	return &StateUpdateResult{
+		Summary:      &summary,
+		OutputValues: parsed.Values,
+	}, nil
 }
 
 // LockState acquires a lock for the given state.
@@ -205,4 +244,91 @@ func validateLogicID(logicID string) error {
 		return fmt.Errorf("logic_id exceeds maximum length of 128 characters")
 	}
 	return nil
+}
+
+// GetOutputKeys retrieves output keys with sensitive flags from cached state outputs.
+// Falls back to parsing state JSON if cache is unavailable or empty.
+func (s *Service) GetOutputKeys(ctx context.Context, guid string) ([]repository.OutputKey, error) {
+	// Try cache first if output repository is available
+	if s.outputRepo != nil {
+		cached, err := s.outputRepo.GetOutputsByState(ctx, guid)
+		if err == nil && len(cached) > 0 {
+			return cached, nil
+		}
+		// Continue to fallback if cache is empty or error occurred
+	}
+
+	// Fallback: fetch state and parse outputs from state JSON
+	record, err := s.repo.GetByGUID(ctx, guid)
+	if err != nil {
+		return nil, fmt.Errorf("get state: %w", err)
+	}
+
+	// Parse output keys from state content (if available)
+	if len(record.StateContent) == 0 {
+		return []repository.OutputKey{}, nil
+	}
+
+	// Parse outputs from Terraform state JSON
+	tfOutputs, err := tfstate.ParseOutputKeys(record.StateContent)
+	if err != nil {
+		return nil, fmt.Errorf("parse output keys: %w", err)
+	}
+
+	// tfstate.OutputKey is already repository.OutputKey and can return directly
+	return tfOutputs, nil
+}
+
+// GetStateInfo retrieves comprehensive state information including dependencies, dependents, and outputs.
+// This consolidates multiple data sources into a single response.
+func (s *Service) GetStateInfo(ctx context.Context, logicID, guid string) (*StateInfo, error) {
+	// Resolve state
+	var state *models.State
+	var err error
+	if logicID != "" {
+		state, err = s.repo.GetByLogicID(ctx, logicID)
+	} else if guid != "" {
+		state, err = s.repo.GetByGUID(ctx, guid)
+	} else {
+		return nil, fmt.Errorf("state reference required (logic_id or guid)")
+	}
+	if err != nil {
+		return nil, fmt.Errorf("get state: %w", err)
+	}
+
+	// Build state info
+	info := &StateInfo{
+		GUID:          state.GUID,
+		LogicID:       state.LogicID,
+		BackendConfig: s.backendConfig(state.GUID),
+		CreatedAt:     state.CreatedAt,
+		UpdatedAt:     state.UpdatedAt,
+	}
+
+	// Get dependencies (incoming edges) if edge repository available
+	if s.edgeRepo != nil {
+		dependencies, err := s.edgeRepo.GetIncomingEdges(ctx, state.GUID)
+		if err == nil {
+			info.Dependencies = dependencies
+		}
+		// Ignore errors, just return empty dependencies
+	}
+
+	// Get dependents (outgoing edges) if edge repository available
+	if s.edgeRepo != nil {
+		dependents, err := s.edgeRepo.GetOutgoingEdges(ctx, state.GUID)
+		if err == nil {
+			info.Dependents = dependents
+		}
+		// Ignore errors, just return empty dependents
+	}
+
+	// Get outputs
+	outputs, err := s.GetOutputKeys(ctx, state.GUID)
+	if err == nil {
+		info.Outputs = outputs
+	}
+	// Ignore errors, just return empty outputs
+
+	return info, nil
 }

@@ -7,6 +7,8 @@ import (
 var (
 	// ServerURL is the Grid API server URL, set by the root command
 	ServerURL string
+	// NonInteractive controls whether interactive prompts are disabled
+	NonInteractive bool
 )
 
 // StateCmd is the parent command for state operations
@@ -27,4 +29,9 @@ func init() {
 // SetServerURL sets the server URL for all state commands
 func SetServerURL(url string) {
 	ServerURL = url
+}
+
+// SetNonInteractive sets the non-interactive mode for all state commands
+func SetNonInteractive(value bool) {
+	NonInteractive = value
 }

@@ -4,10 +4,12 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"strings"
 	"text/tabwriter"
 	"time"
 
 	"github.com/spf13/cobra"
+	"github.com/terraconstructs/grid/cmd/gridctl/internal/dirctx"
 	"github.com/terraconstructs/grid/pkg/sdk"
 )
 
@@ -25,15 +27,25 @@ Status can be:
   - unknown: Unable to determine status`,
 	Args: cobra.NoArgs,
 	RunE: func(cobraCmd *cobra.Command, args []string) error {
-		if statusLogicID == "" {
-			return fmt.Errorf("flag --state is required")
+		logicID := statusLogicID
+		if strings.TrimSpace(logicID) == "" {
+			gridCtx, err := dirctx.ReadGridContext()
+			if err != nil {
+				fmt.Printf("Warning: .grid file corrupted or invalid, ignoring: %v\n", err)
+				return fmt.Errorf("flag --state is required (no .grid context found)")
+			} else if gridCtx != nil {
+				logicID = gridCtx.StateLogicID
+				fmt.Printf("Using --state from .grid context: %s\n", logicID)
+			} else {
+				return fmt.Errorf("flag --state is required (no .grid context found)")
+			}
 		}
 
 		client := sdk.NewClient(ServerURL)
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
 
-		status, err := client.GetStateStatus(ctx, sdk.StateReference{LogicID: statusLogicID})
+		status, err := client.GetStateStatus(ctx, sdk.StateReference{LogicID: logicID})
 		if err != nil {
 			return fmt.Errorf("failed to get state status: %w", err)
 		}

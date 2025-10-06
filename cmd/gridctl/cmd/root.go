@@ -10,7 +10,8 @@ import (
 )
 
 var (
-	serverURL string
+	serverURL      string
+	nonInteractive bool
 )
 
 var rootCmd = &cobra.Command{
@@ -19,9 +20,16 @@ var rootCmd = &cobra.Command{
 	Long: `gridctl is the command-line interface for Grid, a remote state management
 system for Terraform and OpenTofu. Use it to create, list, and initialize states.`,
 	PersistentPreRun: func(cmd *cobra.Command, args []string) {
-		// Propagate serverURL to subcommands
+		// Check for GRID_NON_INTERACTIVE environment variable
+		if os.Getenv("GRID_NON_INTERACTIVE") == "1" {
+			nonInteractive = true
+		}
+
+		// Propagate flags to subcommands
 		state.SetServerURL(serverURL)
+		state.SetNonInteractive(nonInteractive)
 		deps.SetServerURL(serverURL)
+		deps.SetNonInteractive(nonInteractive)
 	},
 }
 
@@ -35,6 +43,7 @@ func Execute() {
 
 func init() {
 	rootCmd.PersistentFlags().StringVar(&serverURL, "server", "http://localhost:8080", "Grid API server URL")
+	rootCmd.PersistentFlags().BoolVar(&nonInteractive, "non-interactive", false, "Disable interactive prompts (also set via GRID_NON_INTERACTIVE=1)")
 	rootCmd.AddCommand(state.StateCmd)
 	rootCmd.AddCommand(deps.DepsCmd)
 }

@@ -72,6 +72,7 @@ func (r *BunStateRepository) GetByLogicID(ctx context.Context, logicID string) (
 }
 
 // Update persists mutated state content and metadata.
+// DEPRECATED: use UpdateContentAndUpsertOutputs for 003-ux-improvements-for/FR-027 compliance.
 func (r *BunStateRepository) Update(ctx context.Context, state *models.State) error {
 	state.UpdatedAt = time.Now()
 
@@ -90,6 +91,85 @@ func (r *BunStateRepository) Update(ctx context.Context, state *models.State) er
 	}
 
 	return nil
+}
+
+// UpdateContentAndUpsertOutputs atomically updates state content and output cache in one transaction.
+// This ensures 003-ux-improvements-for/FR-027 compliance: cache and state are always consistent.
+func (r *BunStateRepository) UpdateContentAndUpsertOutputs(ctx context.Context, guid string, content []byte, lockID string, serial int64, outputs []OutputKey) error {
+	return r.db.RunInTx(ctx, nil, func(ctx context.Context, tx bun.Tx) error {
+		// 1. Fetch state and validate lock
+		state := new(models.State)
+		err := tx.NewSelect().Model(state).Where("guid = ?", guid).Scan(ctx)
+		if err != nil {
+			if errors.Is(err, sql.ErrNoRows) {
+				return fmt.Errorf("state with guid '%s' not found", guid)
+			}
+			return fmt.Errorf("query state: %w", err)
+		}
+
+		// 2. Validate lock if state is locked
+		if state.Locked {
+			if lockID == "" || state.LockInfo == nil || lockID != state.LockInfo.ID {
+				return fmt.Errorf("state is locked, cannot update")
+			}
+		}
+
+		// 3. Update state content
+		now := time.Now()
+		result, err := tx.NewUpdate().
+			Model((*models.State)(nil)).
+			Set("state_content = ?", content).
+			Set("updated_at = ?", now).
+			Where("guid = ?", guid).
+			Exec(ctx)
+		if err != nil {
+			return fmt.Errorf("update state content: %w", err)
+		}
+
+		rows, _ := result.RowsAffected()
+		if rows == 0 {
+			return fmt.Errorf("state with guid '%s' not found", guid)
+		}
+
+		// 4. Delete old outputs with different serial (cache invalidation)
+		_, err = tx.NewDelete().
+			Model((*models.StateOutput)(nil)).
+			Where("state_guid = ?", guid).
+			Where("state_serial != ?", serial).
+			Exec(ctx)
+		if err != nil {
+			return fmt.Errorf("delete stale outputs: %w", err)
+		}
+
+		// 5. Insert new outputs (if any)
+		if len(outputs) > 0 {
+			outputModels := make([]models.StateOutput, 0, len(outputs))
+			for _, out := range outputs {
+				outputModels = append(outputModels, models.StateOutput{
+					StateGUID:   guid,
+					OutputKey:   out.Key,
+					Sensitive:   out.Sensitive,
+					StateSerial: serial,
+					CreatedAt:   now,
+					UpdatedAt:   now,
+				})
+			}
+
+			// Use ON CONFLICT DO UPDATE for idempotency
+			_, err = tx.NewInsert().
+				Model(&outputModels).
+				On("CONFLICT (state_guid, output_key) DO UPDATE").
+				Set("sensitive = EXCLUDED.sensitive").
+				Set("state_serial = EXCLUDED.state_serial").
+				Set("updated_at = EXCLUDED.updated_at").
+				Exec(ctx)
+			if err != nil {
+				return fmt.Errorf("insert outputs: %w", err)
+			}
+		}
+
+		return nil
+	})
 }
 
 // List returns all states ordered from newest to oldest.

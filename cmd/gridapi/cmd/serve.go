@@ -37,10 +37,14 @@ var serveCmd = &cobra.Command{
 		// Initialize repositories
 		stateRepo := repository.NewBunStateRepository(db)
 		edgeRepo := repository.NewBunEdgeRepository(db)
+		outputRepo := repository.NewBunStateOutputRepository(db)
 
 		// Initialize services
-		svc := state.NewService(stateRepo, cfg.ServerURL)
-		depService := dependency.NewService(edgeRepo, stateRepo)
+		svc := state.NewService(stateRepo, cfg.ServerURL).
+			WithOutputRepository(outputRepo).
+			WithEdgeRepository(edgeRepo)
+		depService := dependency.NewService(edgeRepo, stateRepo).
+			WithOutputRepository(outputRepo)
 		edgeUpdater := server.NewEdgeUpdateJob(edgeRepo, stateRepo)
 
 		// Create Chi router

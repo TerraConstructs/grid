@@ -30,18 +30,25 @@ func NewEdgeUpdateJob(edgeRepo repository.EdgeRepository, stateRepo repository.S
 // UpdateEdges processes edge status updates for a state after tfstate write
 // This runs asynchronously (best effort, fire-and-forget with per-state mutex)
 func (j *EdgeUpdateJob) UpdateEdges(ctx context.Context, stateGUID string, tfstateJSON []byte) {
-	// Acquire per-state lock (prevents concurrent updates to same state's edges)
-	lockVal, _ := j.locks.LoadOrStore(stateGUID, &sync.Mutex{})
-	mu := lockVal.(*sync.Mutex)
-	mu.Lock()
-	defer mu.Unlock()
-
 	// Best effort: parse outputs, log failures internally, do not propagate errors
 	outputs, err := tfstate.ParseOutputs(tfstateJSON)
 	if err != nil {
 		log.Printf("EdgeUpdateJob: failed to parse outputs for state %s: %v", stateGUID, err)
 		return
 	}
+
+	// Delegate to UpdateEdgesWithOutputs to avoid code duplication
+	j.UpdateEdgesWithOutputs(ctx, stateGUID, outputs)
+}
+
+// UpdateEdgesWithOutputs processes edge status updates using pre-parsed outputs
+// This avoids double-parsing when outputs are already available from state write
+func (j *EdgeUpdateJob) UpdateEdgesWithOutputs(ctx context.Context, stateGUID string, outputs map[string]interface{}) {
+	// Acquire per-state lock (prevents concurrent updates to same state's edges)
+	lockVal, _ := j.locks.LoadOrStore(stateGUID, &sync.Mutex{})
+	mu := lockVal.(*sync.Mutex)
+	mu.Lock()
+	defer mu.Unlock()
 
 	// Update outgoing edges (this state is producer)
 	if err := j.updateOutgoingEdges(ctx, stateGUID, outputs); err != nil {

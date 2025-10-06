@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/spf13/cobra"
+	"github.com/terraconstructs/grid/cmd/gridctl/internal/dirctx"
 	"github.com/terraconstructs/grid/pkg/sdk"
 )
 
@@ -24,8 +25,18 @@ Direction can be:
   - downstream: Show all consumers (dependents) in layers`,
 	Args: cobra.NoArgs,
 	RunE: func(cobraCmd *cobra.Command, args []string) error {
-		if topoLogicID == "" {
-			return fmt.Errorf("flag --state is required")
+		logicID := strings.TrimSpace(topoLogicID)
+		if logicID == "" {
+			gridCtx, err := dirctx.ReadGridContext()
+			if err != nil {
+				fmt.Printf("Warning: .grid file corrupted or invalid, ignoring: %v\n", err)
+				return fmt.Errorf("flag --state is required (no .grid context found)")
+			} else if gridCtx != nil {
+				logicID = gridCtx.StateLogicID
+				fmt.Printf("Using --state from .grid context: %s\n", logicID)
+			} else {
+				return fmt.Errorf("flag --state is required (no .grid context found)")
+			}
 		}
 
 		direction := strings.ToLower(strings.TrimSpace(topoDirection))
@@ -46,7 +57,7 @@ Direction can be:
 		}
 
 		layers, err := client.GetTopologicalOrder(ctx, sdk.TopologyInput{
-			Root:      sdk.StateReference{LogicID: topoLogicID},
+			Root:      sdk.StateReference{LogicID: logicID},
 			Direction: dir,
 		})
 		if err != nil {

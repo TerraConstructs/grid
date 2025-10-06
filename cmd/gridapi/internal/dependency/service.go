@@ -5,16 +5,19 @@ import (
 	"fmt"
 	"regexp"
 	"strings"
+	"time"
 
 	"github.com/terraconstructs/grid/cmd/gridapi/internal/db/models"
 	"github.com/terraconstructs/grid/cmd/gridapi/internal/graph"
 	"github.com/terraconstructs/grid/cmd/gridapi/internal/repository"
+	"github.com/terraconstructs/grid/cmd/gridapi/internal/tfstate"
 )
 
 // Service handles dependency management operations
 type Service struct {
-	edgeRepo  repository.EdgeRepository
-	stateRepo repository.StateRepository
+	edgeRepo   repository.EdgeRepository
+	stateRepo  repository.StateRepository
+	outputRepo repository.StateOutputRepository
 }
 
 // NewService creates a new dependency service
@@ -23,6 +26,12 @@ func NewService(edgeRepo repository.EdgeRepository, stateRepo repository.StateRe
 		edgeRepo:  edgeRepo,
 		stateRepo: stateRepo,
 	}
+}
+
+// WithOutputRepository adds output repository (optional)
+func (s *Service) WithOutputRepository(outputRepo repository.StateOutputRepository) *Service {
+	s.outputRepo = outputRepo
+	return s
 }
 
 // AddDependencyRequest represents a request to add a dependency
@@ -98,6 +107,14 @@ func (s *Service) AddDependency(ctx context.Context, req *AddDependencyRequest) 
 			}
 		}
 		return nil, false, fmt.Errorf("create edge: %w", err)
+	}
+
+	// Initialize edge if producer already has the referenced output
+	// This handles the case where edge is created AFTER producer has outputs
+	if err := s.initializeEdgeIfProducerHasOutput(ctx, edge); err != nil {
+		// Non-fatal: log but don't fail the AddDependency operation
+		// The edge will be initialized later when producer updates
+		fmt.Printf("Warning: failed to initialize edge: %v\n", err)
 	}
 
 	return edge, false, nil
@@ -242,4 +259,71 @@ func slugify(s string) string {
 	}
 
 	return s
+}
+
+// initializeEdgeIfProducerHasOutput checks if producer has the referenced output
+// and initializes InDigest and status if it does.
+// This handles the case where an edge is created AFTER the producer already has outputs.
+func (s *Service) initializeEdgeIfProducerHasOutput(ctx context.Context, edge *models.Edge) error {
+	// Skip if edge already has InDigest (e.g., mock edges)
+	if edge.InDigest != "" {
+		return nil
+	}
+
+	// Get producer state
+	producerState, err := s.stateRepo.GetByGUID(ctx, edge.FromState)
+	if err != nil {
+		return fmt.Errorf("get producer state: %w", err)
+	}
+
+	// Skip if no state content
+	if len(producerState.StateContent) == 0 {
+		return nil // Producer doesn't have outputs yet, stay pending
+	}
+
+	// Fast path: consult output cache (if available) to determine absence
+	// If the referenced output key is not cached for this producer at the current serial,
+	// mark the edge as missing-output and avoid parsing tfstate JSON.
+	if s.outputRepo != nil {
+		if cached, cacheErr := s.outputRepo.GetOutputsByState(ctx, producerState.GUID); cacheErr == nil {
+			found := false
+			for _, out := range cached {
+				if out.Key == edge.FromOutput {
+					found = true
+					break
+				}
+			}
+			if !found {
+				edge.Status = models.EdgeStatusMissingOutput
+				return s.edgeRepo.Update(ctx, edge)
+			}
+		}
+		// On cache error or inconclusive result, fall back to parsing
+	}
+
+	// Parse tfstate to get outputs
+	parsed, err := tfstate.ParseState(producerState.StateContent)
+	if err != nil {
+		return fmt.Errorf("parse producer state: %w", err)
+	}
+
+	// Check if the referenced output exists
+	outputValue, exists := parsed.Values[edge.FromOutput]
+	if !exists {
+		// Output doesn't exist, edge should be missing-output
+		edge.Status = models.EdgeStatusMissingOutput
+		return s.edgeRepo.Update(ctx, edge)
+	}
+
+	// Output exists - compute fingerprint and set InDigest
+	digest := tfstate.ComputeFingerprint(outputValue)
+	edge.InDigest = digest
+	now := time.Now()
+	edge.LastInAt = &now
+
+	// Set status to dirty (producer has output, consumer hasn't observed yet)
+	edge.Status = models.EdgeStatusDirty
+
+	// Update the edge in database
+	return s.edgeRepo.Update(ctx, edge)
 }

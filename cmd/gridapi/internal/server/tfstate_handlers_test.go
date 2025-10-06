@@ -21,7 +21,7 @@ type mockStateService struct {
 	listStatesFunc     func(ctx context.Context) ([]statepkg.StateSummary, error)
 	getStateConfigFunc func(ctx context.Context, logicID string) (string, *statepkg.BackendConfig, error)
 	getByGUIDFunc      func(ctx context.Context, guid string) (*models.State, error)
-	updateContentFunc  func(ctx context.Context, guid string, content []byte, lockID string) (*statepkg.StateSummary, error)
+	updateContentFunc  func(ctx context.Context, guid string, content []byte, lockID string) (*statepkg.StateUpdateResult, error)
 	lockStateFunc      func(ctx context.Context, guid string, lockInfo *models.LockInfo) error
 	unlockStateFunc    func(ctx context.Context, guid string, lockID string) error
 	getStateLockFunc   func(ctx context.Context, guid string) (*models.LockInfo, error)
@@ -55,7 +55,7 @@ func (m *mockStateService) GetStateByGUID(ctx context.Context, guid string) (*mo
 	return nil, errors.New("not implemented")
 }
 
-func (m *mockStateService) UpdateStateContent(ctx context.Context, guid string, content []byte, lockID string) (*statepkg.StateSummary, error) {
+func (m *mockStateService) UpdateStateContent(ctx context.Context, guid string, content []byte, lockID string) (*statepkg.StateUpdateResult, error) {
 	if m.updateContentFunc != nil {
 		return m.updateContentFunc(ctx, guid, content, lockID)
 	}
@@ -171,9 +171,11 @@ func TestUpdateState(t *testing.T) {
 				getByGUIDFunc: func(ctx context.Context, guid string) (*models.State, error) {
 					return &models.State{GUID: guid}, nil
 				},
-				updateContentFunc: func(ctx context.Context, guid string, content []byte, lockID string) (*statepkg.StateSummary, error) {
-					return &statepkg.StateSummary{
-						SizeBytes: 100,
+				updateContentFunc: func(ctx context.Context, guid string, content []byte, lockID string) (*statepkg.StateUpdateResult, error) {
+					return &statepkg.StateUpdateResult{
+						Summary: &statepkg.StateSummary{
+							SizeBytes: 100,
+						},
 					}, nil
 				},
 			},
@@ -187,9 +189,11 @@ func TestUpdateState(t *testing.T) {
 				getByGUIDFunc: func(ctx context.Context, guid string) (*models.State, error) {
 					return &models.State{GUID: guid}, nil
 				},
-				updateContentFunc: func(ctx context.Context, guid string, content []byte, lockID string) (*statepkg.StateSummary, error) {
-					return &statepkg.StateSummary{
-						SizeBytes: 11 * 1024 * 1024, // 11MB > 10MB threshold
+				updateContentFunc: func(ctx context.Context, guid string, content []byte, lockID string) (*statepkg.StateUpdateResult, error) {
+					return &statepkg.StateUpdateResult{
+						Summary: &statepkg.StateSummary{
+							SizeBytes: 11 * 1024 * 1024, // 11MB > 10MB threshold
+						},
 					}, nil
 				},
 			},
@@ -205,7 +209,7 @@ func TestUpdateState(t *testing.T) {
 				getByGUIDFunc: func(ctx context.Context, guid string) (*models.State, error) {
 					return &models.State{GUID: guid}, nil
 				},
-				updateContentFunc: func(ctx context.Context, guid string, content []byte, lockID string) (*statepkg.StateSummary, error) {
+				updateContentFunc: func(ctx context.Context, guid string, content []byte, lockID string) (*statepkg.StateUpdateResult, error) {
 					return nil, errors.New("should not be called")
 				},
 			},
@@ -219,7 +223,7 @@ func TestUpdateState(t *testing.T) {
 				getByGUIDFunc: func(ctx context.Context, guid string) (*models.State, error) {
 					return nil, errors.New("state not found")
 				},
-				updateContentFunc: func(ctx context.Context, guid string, content []byte, lockID string) (*statepkg.StateSummary, error) {
+				updateContentFunc: func(ctx context.Context, guid string, content []byte, lockID string) (*statepkg.StateUpdateResult, error) {
 					return nil, errors.New("should not be called")
 				},
 			},
@@ -233,7 +237,7 @@ func TestUpdateState(t *testing.T) {
 				getByGUIDFunc: func(ctx context.Context, guid string) (*models.State, error) {
 					return &models.State{GUID: guid}, nil
 				},
-				updateContentFunc: func(ctx context.Context, guid string, content []byte, lockID string) (*statepkg.StateSummary, error) {
+				updateContentFunc: func(ctx context.Context, guid string, content []byte, lockID string) (*statepkg.StateUpdateResult, error) {
 					return nil, errors.New("state is locked")
 				},
 			},

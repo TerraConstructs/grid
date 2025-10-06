@@ -1,0 +1,173 @@
+// Contract specification for GetStateInfo RPC method
+// Feature: 003-ux-improvements-for
+// This file documents the new/enhanced RPC contract for comprehensive state information
+
+syntax = "proto3";
+
+package state.v1;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/terraconstructs/grid/api/state/v1;statev1";
+
+// ============================================================================
+// NEW RPC METHOD (to be added to StateService)
+// ============================================================================
+
+service StateService {
+  // ... existing methods ...
+
+  // GetStateInfo retrieves comprehensive state information including:
+  // - Basic metadata (GUID, logic-id, timestamps)
+  // - Backend configuration (Terraform HTTP backend URLs)
+  // - Dependencies (incoming edges: states this state depends on)
+  // - Dependents (outgoing edges: states that depend on this state)
+  // - Outputs (available Terraform output keys from state JSON)
+  //
+  // This consolidates information previously requiring multiple RPC calls.
+  rpc GetStateInfo(GetStateInfoRequest) returns (GetStateInfoResponse);
+}
+
+// ============================================================================
+// REQUEST/RESPONSE MESSAGES
+// ============================================================================
+
+// GetStateInfoRequest fetches full state information.
+message GetStateInfoRequest {
+  // State identifier (prefer logic_id for UX, guid for precision)
+  oneof state {
+    string logic_id = 1;  // User-friendly state identifier
+    string guid = 2;      // Immutable UUIDv7 identifier
+  }
+}
+
+// GetStateInfoResponse returns comprehensive state view.
+message GetStateInfoResponse {
+  // State identifiers
+  string guid = 1;
+  string logic_id = 2;
+
+  // Terraform HTTP backend configuration
+  BackendConfig backend_config = 3;
+
+  // Incoming dependency edges (this state consumes outputs from these states)
+  // Equivalent to: SELECT * FROM edges WHERE to_guid = this.guid
+  repeated DependencyEdge dependencies = 4;
+
+  // Outgoing dependency edges (other states consume this state's outputs)
+  // Equivalent to: SELECT * FROM edges WHERE from_guid = this.guid
+  repeated DependencyEdge dependents = 5;
+
+  // Available outputs from this state's Terraform JSON (keys only, no values)
+  // Empty array if state has no Terraform state JSON uploaded yet
+  repeated OutputKey outputs = 6;
+
+  // State lifecycle timestamps
+  google.protobuf.Timestamp created_at = 7;
+  google.protobuf.Timestamp updated_at = 8;
+}
+
+// BackendConfig (existing message, referenced here for completeness)
+message BackendConfig {
+  string address = 1;         // HTTP backend state address
+  string lock_address = 2;    // HTTP backend lock address
+  string unlock_address = 3;  // HTTP backend unlock address
+}
+
+// DependencyEdge (existing message, referenced here for completeness)
+message DependencyEdge {
+  int64 id = 1;
+  string from_guid = 2;
+  string from_logic_id = 3;
+  string from_output = 4;         // Output key name
+  string to_guid = 5;
+  string to_logic_id = 6;
+  optional string to_input_name = 7;  // Optional HCL variable name override
+  string status = 8;                  // "clean", "dirty", "pending", etc.
+  // ... additional fields (digests, timestamps, etc.) omitted for brevity
+}
+
+// OutputKey (new message, also used by ListStateOutputs)
+message OutputKey {
+  string key = 1;          // Terraform output name
+  bool sensitive = 2;      // Sensitive flag from TF state metadata
+}
+
+// ============================================================================
+// CONTRACT TESTS (to be implemented in tests/contract/)
+// ============================================================================
+
+// Test 1: GetStateInfo with state that has dependencies
+// Setup:
+//   - Create state A with outputs: {vpc_id, subnet_id}
+//   - Create state B with no outputs
+//   - Create dependency edge: A.vpc_id -> B
+// Request: { logic_id: "B" }
+// Expected:
+//   - Response guid = B.guid, logic_id = "B"
+//   - dependencies = [edge: from=A, from_output=vpc_id, to=B]
+//   - dependents = []
+//   - outputs = [] (B has no outputs)
+
+// Test 2: GetStateInfo with state that has dependents
+// Setup:
+//   - Create state A with outputs: {vpc_id}
+//   - Create states B, C
+//   - Create edges: A.vpc_id -> B, A.vpc_id -> C
+// Request: { logic_id: "A" }
+// Expected:
+//   - dependencies = []
+//   - dependents = [2 edges: to=B and to=C]
+//   - outputs = [{key: "vpc_id", sensitive: false}]
+
+// Test 3: GetStateInfo with isolated state (no deps/dependents)
+// Setup: Create state with outputs but no edges
+// Request: { logic_id: "isolated" }
+// Expected:
+//   - dependencies = []
+//   - dependents = []
+//   - outputs = [list of output keys]
+
+// Test 4: GetStateInfo with non-existent state
+// Request: { logic_id: "nonexistent" }
+// Expected: Connect RPC error with code NOT_FOUND
+
+// Test 5: GetStateInfo includes backend_config
+// Request: { logic_id: "test-state" }
+// Expected:
+//   - backend_config.address ends with /tfstate/{guid}
+//   - backend_config.lock_address ends with /tfstate/{guid}/lock
+//   - backend_config.unlock_address ends with /tfstate/{guid}/unlock
+
+// ============================================================================
+// ERROR CASES
+// ============================================================================
+
+// Error: Neither logic_id nor guid provided
+// Code: INVALID_ARGUMENT
+// Message: "state identifier required (logic_id or guid)"
+
+// Error: State not found
+// Code: NOT_FOUND
+// Message: "state with logic_id 'xyz' not found"
+
+// Error: State JSON corrupted (outputs parsing fails)
+// Code: INTERNAL (or return empty outputs array and log warning server-side)
+
+// ============================================================================
+// IMPLEMENTATION NOTES
+// ============================================================================
+
+// Server-side queries:
+// 1. SELECT * FROM states WHERE guid = $1 OR logic_id = $2
+// 2. SELECT * FROM edges WHERE to_guid = $1 (dependencies)
+// 3. SELECT * FROM edges WHERE from_guid = $1 (dependents)
+// 4. Parse state.data JSONB to extract outputs
+
+// Performance: 4 DB queries total (can optimize with JOINs or parallel fetches)
+
+// Client SDK (pkg/sdk):
+// func (c *Client) GetStateInfo(ctx, ref StateRef) (*StateInfo, error)
+
+// CLI (cmd/gridctl/cmd/state/get.go):
+// Replaces current simple state display with rich output showing all relationships

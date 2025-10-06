@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/spf13/cobra"
+	"github.com/terraconstructs/grid/cmd/gridctl/internal/dirctx"
 	"github.com/terraconstructs/grid/pkg/sdk"
 )
 
@@ -21,11 +22,29 @@ var listCmd = &cobra.Command{
 	Use:   "list",
 	Short: "List dependencies for a state",
 	Long: `Lists all incoming dependency edges (dependencies) or outgoing edges (dependents) for a state.
-Use --state to show incoming dependencies (default) or --from to show outgoing dependents. Exactly one flag must be provided.`,
+Use --state to show incoming dependencies (default) or --from to show outgoing dependents.
+If neither flag is provided, .grid context will be used for --state (if available).`,
 	Args: cobra.NoArgs,
 	RunE: func(cobraCmd *cobra.Command, args []string) error {
-		showIncoming := listConsumerLogicID != ""
-		showOutgoing := listProducerLogicID != ""
+		consumerLogicID := listConsumerLogicID
+		producerLogicID := listProducerLogicID
+
+		// If neither flag provided, try to use .grid context for --state
+		if consumerLogicID == "" && producerLogicID == "" {
+			gridCtx, err := dirctx.ReadGridContext()
+			if err != nil {
+				fmt.Printf("Warning: .grid file corrupted or invalid, ignoring: %v\n", err)
+				return fmt.Errorf("provide exactly one of --state or --from (no .grid context found)")
+			} else if gridCtx != nil {
+				consumerLogicID = gridCtx.StateLogicID
+				fmt.Printf("Using --state from .grid context: %s\n", consumerLogicID)
+			} else {
+				return fmt.Errorf("provide exactly one of --state or --from (no .grid context found)")
+			}
+		}
+
+		showIncoming := consumerLogicID != ""
+		showOutgoing := producerLogicID != ""
 		if showIncoming == showOutgoing {
 			return fmt.Errorf("provide exactly one of --state or --from")
 		}
@@ -41,11 +60,11 @@ Use --state to show incoming dependencies (default) or --from to show outgoing d
 		)
 
 		if showIncoming {
-			edges, err = client.ListDependencies(ctx, sdk.StateReference{LogicID: listConsumerLogicID})
-			header = fmt.Sprintf("Incoming dependencies for %s", listConsumerLogicID)
+			edges, err = client.ListDependencies(ctx, sdk.StateReference{LogicID: consumerLogicID})
+			header = fmt.Sprintf("Incoming dependencies for %s", consumerLogicID)
 		} else {
-			edges, err = client.ListDependents(ctx, sdk.StateReference{LogicID: listProducerLogicID})
-			header = fmt.Sprintf("Outgoing dependents for %s", listProducerLogicID)
+			edges, err = client.ListDependents(ctx, sdk.StateReference{LogicID: producerLogicID})
+			header = fmt.Sprintf("Outgoing dependents for %s", producerLogicID)
 		}
 		if err != nil {
 			if showIncoming {
@@ -89,6 +108,6 @@ Use --state to show incoming dependencies (default) or --from to show outgoing d
 }
 
 func init() {
-	listCmd.Flags().StringVar(&listConsumerLogicID, "state", "", "Logic ID of consumer state to list incoming dependencies")
+	listCmd.Flags().StringVar(&listConsumerLogicID, "state", "", "Logic ID of consumer state to list incoming dependencies (uses .grid context if not specified)")
 	listCmd.Flags().StringVar(&listProducerLogicID, "from", "", "Logic ID of producer state to list outgoing dependents")
 }

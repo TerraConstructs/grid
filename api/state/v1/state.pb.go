@@ -227,7 +227,7 @@ type StateInfo struct {
 	CreatedAt *timestamppb.Timestamp `protobuf:"bytes,4,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
 	UpdatedAt *timestamppb.Timestamp `protobuf:"bytes,5,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
 	SizeBytes int64                  `protobuf:"varint,6,opt,name=size_bytes,json=sizeBytes,proto3" json:"size_bytes,omitempty"`
-	// NEW: Derived status fields for quick indicators
+	// Derived status fields for quick indicators
 	ComputedStatus     *string  `protobuf:"bytes,7,opt,name=computed_status,json=computedStatus,proto3,oneof" json:"computed_status,omitempty"`         // "clean", "stale", "potentially-stale"
 	DependencyLogicIds []string `protobuf:"bytes,8,rep,name=dependency_logic_ids,json=dependencyLogicIds,proto3" json:"dependency_logic_ids,omitempty"` // Unique set of producer logic_ids (incoming edges)
 	unknownFields      protoimpl.UnknownFields
@@ -2424,6 +2424,406 @@ func (x *DependencyEdge) GetUpdatedAt() *timestamppb.Timestamp {
 	return nil
 }
 
+// OutputKey represents a single Terraform/OpenTofu output name and metadata.
+type OutputKey struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Output name from Terraform state JSON (e.g., "vpc_id", "db_password")
+	Key string `protobuf:"bytes,1,opt,name=key,proto3" json:"key,omitempty"`
+	// Whether output is marked sensitive in Terraform state metadata
+	// Used by CLI to display warning: "⚠️  sensitive" next to output name
+	Sensitive     bool `protobuf:"varint,2,opt,name=sensitive,proto3" json:"sensitive,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *OutputKey) Reset() {
+	*x = OutputKey{}
+	mi := &file_state_v1_state_proto_msgTypes[36]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *OutputKey) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*OutputKey) ProtoMessage() {}
+
+func (x *OutputKey) ProtoReflect() protoreflect.Message {
+	mi := &file_state_v1_state_proto_msgTypes[36]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use OutputKey.ProtoReflect.Descriptor instead.
+func (*OutputKey) Descriptor() ([]byte, []int) {
+	return file_state_v1_state_proto_rawDescGZIP(), []int{36}
+}
+
+func (x *OutputKey) GetKey() string {
+	if x != nil {
+		return x.Key
+	}
+	return ""
+}
+
+func (x *OutputKey) GetSensitive() bool {
+	if x != nil {
+		return x.Sensitive
+	}
+	return false
+}
+
+// ListStateOutputsRequest fetches output keys for a state.
+type ListStateOutputsRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// State identifier (prefer logic_id for UX, guid for precision)
+	//
+	// Types that are valid to be assigned to State:
+	//
+	//	*ListStateOutputsRequest_LogicId
+	//	*ListStateOutputsRequest_Guid
+	State         isListStateOutputsRequest_State `protobuf_oneof:"state"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListStateOutputsRequest) Reset() {
+	*x = ListStateOutputsRequest{}
+	mi := &file_state_v1_state_proto_msgTypes[37]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListStateOutputsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListStateOutputsRequest) ProtoMessage() {}
+
+func (x *ListStateOutputsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_state_v1_state_proto_msgTypes[37]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListStateOutputsRequest.ProtoReflect.Descriptor instead.
+func (*ListStateOutputsRequest) Descriptor() ([]byte, []int) {
+	return file_state_v1_state_proto_rawDescGZIP(), []int{37}
+}
+
+func (x *ListStateOutputsRequest) GetState() isListStateOutputsRequest_State {
+	if x != nil {
+		return x.State
+	}
+	return nil
+}
+
+func (x *ListStateOutputsRequest) GetLogicId() string {
+	if x != nil {
+		if x, ok := x.State.(*ListStateOutputsRequest_LogicId); ok {
+			return x.LogicId
+		}
+	}
+	return ""
+}
+
+func (x *ListStateOutputsRequest) GetGuid() string {
+	if x != nil {
+		if x, ok := x.State.(*ListStateOutputsRequest_Guid); ok {
+			return x.Guid
+		}
+	}
+	return ""
+}
+
+type isListStateOutputsRequest_State interface {
+	isListStateOutputsRequest_State()
+}
+
+type ListStateOutputsRequest_LogicId struct {
+	LogicId string `protobuf:"bytes,1,opt,name=logic_id,json=logicId,proto3,oneof"` // User-friendly state identifier
+}
+
+type ListStateOutputsRequest_Guid struct {
+	Guid string `protobuf:"bytes,2,opt,name=guid,proto3,oneof"` // Immutable UUIDv7 identifier
+}
+
+func (*ListStateOutputsRequest_LogicId) isListStateOutputsRequest_State() {}
+
+func (*ListStateOutputsRequest_Guid) isListStateOutputsRequest_State() {}
+
+// ListStateOutputsResponse returns output keys parsed from Terraform state JSON.
+type ListStateOutputsResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// State identifiers for confirmation
+	StateGuid    string `protobuf:"bytes,1,opt,name=state_guid,json=stateGuid,proto3" json:"state_guid,omitempty"`
+	StateLogicId string `protobuf:"bytes,2,opt,name=state_logic_id,json=stateLogicId,proto3" json:"state_logic_id,omitempty"`
+	// List of output keys available in this state's Terraform JSON
+	// Empty array if state has no outputs (not an error)
+	Outputs       []*OutputKey `protobuf:"bytes,3,rep,name=outputs,proto3" json:"outputs,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListStateOutputsResponse) Reset() {
+	*x = ListStateOutputsResponse{}
+	mi := &file_state_v1_state_proto_msgTypes[38]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListStateOutputsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListStateOutputsResponse) ProtoMessage() {}
+
+func (x *ListStateOutputsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_state_v1_state_proto_msgTypes[38]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListStateOutputsResponse.ProtoReflect.Descriptor instead.
+func (*ListStateOutputsResponse) Descriptor() ([]byte, []int) {
+	return file_state_v1_state_proto_rawDescGZIP(), []int{38}
+}
+
+func (x *ListStateOutputsResponse) GetStateGuid() string {
+	if x != nil {
+		return x.StateGuid
+	}
+	return ""
+}
+
+func (x *ListStateOutputsResponse) GetStateLogicId() string {
+	if x != nil {
+		return x.StateLogicId
+	}
+	return ""
+}
+
+func (x *ListStateOutputsResponse) GetOutputs() []*OutputKey {
+	if x != nil {
+		return x.Outputs
+	}
+	return nil
+}
+
+// GetStateInfoRequest fetches full state information.
+type GetStateInfoRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// State identifier (prefer logic_id for UX, guid for precision)
+	//
+	// Types that are valid to be assigned to State:
+	//
+	//	*GetStateInfoRequest_LogicId
+	//	*GetStateInfoRequest_Guid
+	State         isGetStateInfoRequest_State `protobuf_oneof:"state"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetStateInfoRequest) Reset() {
+	*x = GetStateInfoRequest{}
+	mi := &file_state_v1_state_proto_msgTypes[39]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetStateInfoRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetStateInfoRequest) ProtoMessage() {}
+
+func (x *GetStateInfoRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_state_v1_state_proto_msgTypes[39]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetStateInfoRequest.ProtoReflect.Descriptor instead.
+func (*GetStateInfoRequest) Descriptor() ([]byte, []int) {
+	return file_state_v1_state_proto_rawDescGZIP(), []int{39}
+}
+
+func (x *GetStateInfoRequest) GetState() isGetStateInfoRequest_State {
+	if x != nil {
+		return x.State
+	}
+	return nil
+}
+
+func (x *GetStateInfoRequest) GetLogicId() string {
+	if x != nil {
+		if x, ok := x.State.(*GetStateInfoRequest_LogicId); ok {
+			return x.LogicId
+		}
+	}
+	return ""
+}
+
+func (x *GetStateInfoRequest) GetGuid() string {
+	if x != nil {
+		if x, ok := x.State.(*GetStateInfoRequest_Guid); ok {
+			return x.Guid
+		}
+	}
+	return ""
+}
+
+type isGetStateInfoRequest_State interface {
+	isGetStateInfoRequest_State()
+}
+
+type GetStateInfoRequest_LogicId struct {
+	LogicId string `protobuf:"bytes,1,opt,name=logic_id,json=logicId,proto3,oneof"` // User-friendly state identifier
+}
+
+type GetStateInfoRequest_Guid struct {
+	Guid string `protobuf:"bytes,2,opt,name=guid,proto3,oneof"` // Immutable UUIDv7 identifier
+}
+
+func (*GetStateInfoRequest_LogicId) isGetStateInfoRequest_State() {}
+
+func (*GetStateInfoRequest_Guid) isGetStateInfoRequest_State() {}
+
+// GetStateInfoResponse returns comprehensive state view.
+type GetStateInfoResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// State identifiers
+	Guid    string `protobuf:"bytes,1,opt,name=guid,proto3" json:"guid,omitempty"`
+	LogicId string `protobuf:"bytes,2,opt,name=logic_id,json=logicId,proto3" json:"logic_id,omitempty"`
+	// Terraform HTTP backend configuration
+	BackendConfig *BackendConfig `protobuf:"bytes,3,opt,name=backend_config,json=backendConfig,proto3" json:"backend_config,omitempty"`
+	// Incoming dependency edges (this state consumes outputs from these states)
+	// Equivalent to: SELECT * FROM edges WHERE to_guid = this.guid
+	Dependencies []*DependencyEdge `protobuf:"bytes,4,rep,name=dependencies,proto3" json:"dependencies,omitempty"`
+	// Outgoing dependency edges (other states consume this state's outputs)
+	// Equivalent to: SELECT * FROM edges WHERE from_guid = this.guid
+	Dependents []*DependencyEdge `protobuf:"bytes,5,rep,name=dependents,proto3" json:"dependents,omitempty"`
+	// Available outputs from this state's Terraform JSON (keys only, no values)
+	// Empty array if state has no Terraform state JSON uploaded yet
+	Outputs []*OutputKey `protobuf:"bytes,6,rep,name=outputs,proto3" json:"outputs,omitempty"`
+	// State lifecycle timestamps
+	CreatedAt     *timestamppb.Timestamp `protobuf:"bytes,7,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	UpdatedAt     *timestamppb.Timestamp `protobuf:"bytes,8,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetStateInfoResponse) Reset() {
+	*x = GetStateInfoResponse{}
+	mi := &file_state_v1_state_proto_msgTypes[40]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetStateInfoResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetStateInfoResponse) ProtoMessage() {}
+
+func (x *GetStateInfoResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_state_v1_state_proto_msgTypes[40]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetStateInfoResponse.ProtoReflect.Descriptor instead.
+func (*GetStateInfoResponse) Descriptor() ([]byte, []int) {
+	return file_state_v1_state_proto_rawDescGZIP(), []int{40}
+}
+
+func (x *GetStateInfoResponse) GetGuid() string {
+	if x != nil {
+		return x.Guid
+	}
+	return ""
+}
+
+func (x *GetStateInfoResponse) GetLogicId() string {
+	if x != nil {
+		return x.LogicId
+	}
+	return ""
+}
+
+func (x *GetStateInfoResponse) GetBackendConfig() *BackendConfig {
+	if x != nil {
+		return x.BackendConfig
+	}
+	return nil
+}
+
+func (x *GetStateInfoResponse) GetDependencies() []*DependencyEdge {
+	if x != nil {
+		return x.Dependencies
+	}
+	return nil
+}
+
+func (x *GetStateInfoResponse) GetDependents() []*DependencyEdge {
+	if x != nil {
+		return x.Dependents
+	}
+	return nil
+}
+
+func (x *GetStateInfoResponse) GetOutputs() []*OutputKey {
+	if x != nil {
+		return x.Outputs
+	}
+	return nil
+}
+
+func (x *GetStateInfoResponse) GetCreatedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.CreatedAt
+	}
+	return nil
+}
+
+func (x *GetStateInfoResponse) GetUpdatedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.UpdatedAt
+	}
+	return nil
+}
+
 var File_state_v1_state_proto protoreflect.FileDescriptor
 
 const file_state_v1_state_proto_rawDesc = "" +
@@ -2609,7 +3009,37 @@ const file_state_v1_state_proto_rawDesc = "" +
 	"\v_out_digestB\x12\n" +
 	"\x10_mock_value_jsonB\r\n" +
 	"\v_last_in_atB\x0e\n" +
-	"\f_last_out_at2\xdf\b\n" +
+	"\f_last_out_at\";\n" +
+	"\tOutputKey\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12\x1c\n" +
+	"\tsensitive\x18\x02 \x01(\bR\tsensitive\"U\n" +
+	"\x17ListStateOutputsRequest\x12\x1b\n" +
+	"\blogic_id\x18\x01 \x01(\tH\x00R\alogicId\x12\x14\n" +
+	"\x04guid\x18\x02 \x01(\tH\x00R\x04guidB\a\n" +
+	"\x05state\"\x8e\x01\n" +
+	"\x18ListStateOutputsResponse\x12\x1d\n" +
+	"\n" +
+	"state_guid\x18\x01 \x01(\tR\tstateGuid\x12$\n" +
+	"\x0estate_logic_id\x18\x02 \x01(\tR\fstateLogicId\x12-\n" +
+	"\aoutputs\x18\x03 \x03(\v2\x13.state.v1.OutputKeyR\aoutputs\"Q\n" +
+	"\x13GetStateInfoRequest\x12\x1b\n" +
+	"\blogic_id\x18\x01 \x01(\tH\x00R\alogicId\x12\x14\n" +
+	"\x04guid\x18\x02 \x01(\tH\x00R\x04guidB\a\n" +
+	"\x05state\"\xa2\x03\n" +
+	"\x14GetStateInfoResponse\x12\x12\n" +
+	"\x04guid\x18\x01 \x01(\tR\x04guid\x12\x19\n" +
+	"\blogic_id\x18\x02 \x01(\tR\alogicId\x12>\n" +
+	"\x0ebackend_config\x18\x03 \x01(\v2\x17.state.v1.BackendConfigR\rbackendConfig\x12<\n" +
+	"\fdependencies\x18\x04 \x03(\v2\x18.state.v1.DependencyEdgeR\fdependencies\x128\n" +
+	"\n" +
+	"dependents\x18\x05 \x03(\v2\x18.state.v1.DependencyEdgeR\n" +
+	"dependents\x12-\n" +
+	"\aoutputs\x18\x06 \x03(\v2\x13.state.v1.OutputKeyR\aoutputs\x129\n" +
+	"\n" +
+	"created_at\x18\a \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x129\n" +
+	"\n" +
+	"updated_at\x18\b \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt2\x89\n" +
+	"\n" +
 	"\fStateService\x12J\n" +
 	"\vCreateState\x12\x1c.state.v1.CreateStateRequest\x1a\x1d.state.v1.CreateStateResponse\x12G\n" +
 	"\n" +
@@ -2624,7 +3054,9 @@ const file_state_v1_state_proto_rawDesc = "" +
 	"\x0eSearchByOutput\x12\x1f.state.v1.SearchByOutputRequest\x1a .state.v1.SearchByOutputResponse\x12b\n" +
 	"\x13GetTopologicalOrder\x12$.state.v1.GetTopologicalOrderRequest\x1a%.state.v1.GetTopologicalOrderResponse\x12S\n" +
 	"\x0eGetStateStatus\x12\x1f.state.v1.GetStateStatusRequest\x1a .state.v1.GetStateStatusResponse\x12_\n" +
-	"\x12GetDependencyGraph\x12#.state.v1.GetDependencyGraphRequest\x1a$.state.v1.GetDependencyGraphResponseB6Z4github.com/terraconstructs/grid/api/state/v1;statev1b\x06proto3"
+	"\x12GetDependencyGraph\x12#.state.v1.GetDependencyGraphRequest\x1a$.state.v1.GetDependencyGraphResponse\x12Y\n" +
+	"\x10ListStateOutputs\x12!.state.v1.ListStateOutputsRequest\x1a\".state.v1.ListStateOutputsResponse\x12M\n" +
+	"\fGetStateInfo\x12\x1d.state.v1.GetStateInfoRequest\x1a\x1e.state.v1.GetStateInfoResponseB6Z4github.com/terraconstructs/grid/api/state/v1;statev1b\x06proto3"
 
 var (
 	file_state_v1_state_proto_rawDescOnce sync.Once
@@ -2638,7 +3070,7 @@ func file_state_v1_state_proto_rawDescGZIP() []byte {
 	return file_state_v1_state_proto_rawDescData
 }
 
-var file_state_v1_state_proto_msgTypes = make([]protoimpl.MessageInfo, 36)
+var file_state_v1_state_proto_msgTypes = make([]protoimpl.MessageInfo, 41)
 var file_state_v1_state_proto_goTypes = []any{
 	(*CreateStateRequest)(nil),          // 0: state.v1.CreateStateRequest
 	(*CreateStateResponse)(nil),         // 1: state.v1.CreateStateResponse
@@ -2676,15 +3108,20 @@ var file_state_v1_state_proto_goTypes = []any{
 	(*GetDependencyGraphResponse)(nil),  // 33: state.v1.GetDependencyGraphResponse
 	(*ProducerState)(nil),               // 34: state.v1.ProducerState
 	(*DependencyEdge)(nil),              // 35: state.v1.DependencyEdge
-	(*timestamppb.Timestamp)(nil),       // 36: google.protobuf.Timestamp
+	(*OutputKey)(nil),                   // 36: state.v1.OutputKey
+	(*ListStateOutputsRequest)(nil),     // 37: state.v1.ListStateOutputsRequest
+	(*ListStateOutputsResponse)(nil),    // 38: state.v1.ListStateOutputsResponse
+	(*GetStateInfoRequest)(nil),         // 39: state.v1.GetStateInfoRequest
+	(*GetStateInfoResponse)(nil),        // 40: state.v1.GetStateInfoResponse
+	(*timestamppb.Timestamp)(nil),       // 41: google.protobuf.Timestamp
 }
 var file_state_v1_state_proto_depIdxs = []int32{
 	5,  // 0: state.v1.CreateStateResponse.backend_config:type_name -> state.v1.BackendConfig
 	4,  // 1: state.v1.ListStatesResponse.states:type_name -> state.v1.StateInfo
-	36, // 2: state.v1.StateInfo.created_at:type_name -> google.protobuf.Timestamp
-	36, // 3: state.v1.StateInfo.updated_at:type_name -> google.protobuf.Timestamp
+	41, // 2: state.v1.StateInfo.created_at:type_name -> google.protobuf.Timestamp
+	41, // 3: state.v1.StateInfo.updated_at:type_name -> google.protobuf.Timestamp
 	5,  // 4: state.v1.GetStateConfigResponse.backend_config:type_name -> state.v1.BackendConfig
-	36, // 5: state.v1.LockInfo.created:type_name -> google.protobuf.Timestamp
+	41, // 5: state.v1.LockInfo.created:type_name -> google.protobuf.Timestamp
 	9,  // 6: state.v1.StateLock.info:type_name -> state.v1.LockInfo
 	10, // 7: state.v1.GetStateLockResponse.lock:type_name -> state.v1.StateLock
 	10, // 8: state.v1.UnlockStateResponse.lock:type_name -> state.v1.StateLock
@@ -2696,46 +3133,57 @@ var file_state_v1_state_proto_depIdxs = []int32{
 	27, // 14: state.v1.Layer.states:type_name -> state.v1.StateRef
 	30, // 15: state.v1.GetStateStatusResponse.incoming:type_name -> state.v1.IncomingEdgeView
 	31, // 16: state.v1.GetStateStatusResponse.summary:type_name -> state.v1.StatusSummary
-	36, // 17: state.v1.IncomingEdgeView.last_in_at:type_name -> google.protobuf.Timestamp
-	36, // 18: state.v1.IncomingEdgeView.last_out_at:type_name -> google.protobuf.Timestamp
+	41, // 17: state.v1.IncomingEdgeView.last_in_at:type_name -> google.protobuf.Timestamp
+	41, // 18: state.v1.IncomingEdgeView.last_out_at:type_name -> google.protobuf.Timestamp
 	34, // 19: state.v1.GetDependencyGraphResponse.producers:type_name -> state.v1.ProducerState
 	35, // 20: state.v1.GetDependencyGraphResponse.edges:type_name -> state.v1.DependencyEdge
 	5,  // 21: state.v1.ProducerState.backend_config:type_name -> state.v1.BackendConfig
-	36, // 22: state.v1.DependencyEdge.last_in_at:type_name -> google.protobuf.Timestamp
-	36, // 23: state.v1.DependencyEdge.last_out_at:type_name -> google.protobuf.Timestamp
-	36, // 24: state.v1.DependencyEdge.created_at:type_name -> google.protobuf.Timestamp
-	36, // 25: state.v1.DependencyEdge.updated_at:type_name -> google.protobuf.Timestamp
-	0,  // 26: state.v1.StateService.CreateState:input_type -> state.v1.CreateStateRequest
-	2,  // 27: state.v1.StateService.ListStates:input_type -> state.v1.ListStatesRequest
-	6,  // 28: state.v1.StateService.GetStateConfig:input_type -> state.v1.GetStateConfigRequest
-	8,  // 29: state.v1.StateService.GetStateLock:input_type -> state.v1.GetStateLockRequest
-	12, // 30: state.v1.StateService.UnlockState:input_type -> state.v1.UnlockStateRequest
-	14, // 31: state.v1.StateService.AddDependency:input_type -> state.v1.AddDependencyRequest
-	16, // 32: state.v1.StateService.RemoveDependency:input_type -> state.v1.RemoveDependencyRequest
-	18, // 33: state.v1.StateService.ListDependencies:input_type -> state.v1.ListDependenciesRequest
-	20, // 34: state.v1.StateService.ListDependents:input_type -> state.v1.ListDependentsRequest
-	22, // 35: state.v1.StateService.SearchByOutput:input_type -> state.v1.SearchByOutputRequest
-	24, // 36: state.v1.StateService.GetTopologicalOrder:input_type -> state.v1.GetTopologicalOrderRequest
-	28, // 37: state.v1.StateService.GetStateStatus:input_type -> state.v1.GetStateStatusRequest
-	32, // 38: state.v1.StateService.GetDependencyGraph:input_type -> state.v1.GetDependencyGraphRequest
-	1,  // 39: state.v1.StateService.CreateState:output_type -> state.v1.CreateStateResponse
-	3,  // 40: state.v1.StateService.ListStates:output_type -> state.v1.ListStatesResponse
-	7,  // 41: state.v1.StateService.GetStateConfig:output_type -> state.v1.GetStateConfigResponse
-	11, // 42: state.v1.StateService.GetStateLock:output_type -> state.v1.GetStateLockResponse
-	13, // 43: state.v1.StateService.UnlockState:output_type -> state.v1.UnlockStateResponse
-	15, // 44: state.v1.StateService.AddDependency:output_type -> state.v1.AddDependencyResponse
-	17, // 45: state.v1.StateService.RemoveDependency:output_type -> state.v1.RemoveDependencyResponse
-	19, // 46: state.v1.StateService.ListDependencies:output_type -> state.v1.ListDependenciesResponse
-	21, // 47: state.v1.StateService.ListDependents:output_type -> state.v1.ListDependentsResponse
-	23, // 48: state.v1.StateService.SearchByOutput:output_type -> state.v1.SearchByOutputResponse
-	25, // 49: state.v1.StateService.GetTopologicalOrder:output_type -> state.v1.GetTopologicalOrderResponse
-	29, // 50: state.v1.StateService.GetStateStatus:output_type -> state.v1.GetStateStatusResponse
-	33, // 51: state.v1.StateService.GetDependencyGraph:output_type -> state.v1.GetDependencyGraphResponse
-	39, // [39:52] is the sub-list for method output_type
-	26, // [26:39] is the sub-list for method input_type
-	26, // [26:26] is the sub-list for extension type_name
-	26, // [26:26] is the sub-list for extension extendee
-	0,  // [0:26] is the sub-list for field type_name
+	41, // 22: state.v1.DependencyEdge.last_in_at:type_name -> google.protobuf.Timestamp
+	41, // 23: state.v1.DependencyEdge.last_out_at:type_name -> google.protobuf.Timestamp
+	41, // 24: state.v1.DependencyEdge.created_at:type_name -> google.protobuf.Timestamp
+	41, // 25: state.v1.DependencyEdge.updated_at:type_name -> google.protobuf.Timestamp
+	36, // 26: state.v1.ListStateOutputsResponse.outputs:type_name -> state.v1.OutputKey
+	5,  // 27: state.v1.GetStateInfoResponse.backend_config:type_name -> state.v1.BackendConfig
+	35, // 28: state.v1.GetStateInfoResponse.dependencies:type_name -> state.v1.DependencyEdge
+	35, // 29: state.v1.GetStateInfoResponse.dependents:type_name -> state.v1.DependencyEdge
+	36, // 30: state.v1.GetStateInfoResponse.outputs:type_name -> state.v1.OutputKey
+	41, // 31: state.v1.GetStateInfoResponse.created_at:type_name -> google.protobuf.Timestamp
+	41, // 32: state.v1.GetStateInfoResponse.updated_at:type_name -> google.protobuf.Timestamp
+	0,  // 33: state.v1.StateService.CreateState:input_type -> state.v1.CreateStateRequest
+	2,  // 34: state.v1.StateService.ListStates:input_type -> state.v1.ListStatesRequest
+	6,  // 35: state.v1.StateService.GetStateConfig:input_type -> state.v1.GetStateConfigRequest
+	8,  // 36: state.v1.StateService.GetStateLock:input_type -> state.v1.GetStateLockRequest
+	12, // 37: state.v1.StateService.UnlockState:input_type -> state.v1.UnlockStateRequest
+	14, // 38: state.v1.StateService.AddDependency:input_type -> state.v1.AddDependencyRequest
+	16, // 39: state.v1.StateService.RemoveDependency:input_type -> state.v1.RemoveDependencyRequest
+	18, // 40: state.v1.StateService.ListDependencies:input_type -> state.v1.ListDependenciesRequest
+	20, // 41: state.v1.StateService.ListDependents:input_type -> state.v1.ListDependentsRequest
+	22, // 42: state.v1.StateService.SearchByOutput:input_type -> state.v1.SearchByOutputRequest
+	24, // 43: state.v1.StateService.GetTopologicalOrder:input_type -> state.v1.GetTopologicalOrderRequest
+	28, // 44: state.v1.StateService.GetStateStatus:input_type -> state.v1.GetStateStatusRequest
+	32, // 45: state.v1.StateService.GetDependencyGraph:input_type -> state.v1.GetDependencyGraphRequest
+	37, // 46: state.v1.StateService.ListStateOutputs:input_type -> state.v1.ListStateOutputsRequest
+	39, // 47: state.v1.StateService.GetStateInfo:input_type -> state.v1.GetStateInfoRequest
+	1,  // 48: state.v1.StateService.CreateState:output_type -> state.v1.CreateStateResponse
+	3,  // 49: state.v1.StateService.ListStates:output_type -> state.v1.ListStatesResponse
+	7,  // 50: state.v1.StateService.GetStateConfig:output_type -> state.v1.GetStateConfigResponse
+	11, // 51: state.v1.StateService.GetStateLock:output_type -> state.v1.GetStateLockResponse
+	13, // 52: state.v1.StateService.UnlockState:output_type -> state.v1.UnlockStateResponse
+	15, // 53: state.v1.StateService.AddDependency:output_type -> state.v1.AddDependencyResponse
+	17, // 54: state.v1.StateService.RemoveDependency:output_type -> state.v1.RemoveDependencyResponse
+	19, // 55: state.v1.StateService.ListDependencies:output_type -> state.v1.ListDependenciesResponse
+	21, // 56: state.v1.StateService.ListDependents:output_type -> state.v1.ListDependentsResponse
+	23, // 57: state.v1.StateService.SearchByOutput:output_type -> state.v1.SearchByOutputResponse
+	25, // 58: state.v1.StateService.GetTopologicalOrder:output_type -> state.v1.GetTopologicalOrderResponse
+	29, // 59: state.v1.StateService.GetStateStatus:output_type -> state.v1.GetStateStatusResponse
+	33, // 60: state.v1.StateService.GetDependencyGraph:output_type -> state.v1.GetDependencyGraphResponse
+	38, // 61: state.v1.StateService.ListStateOutputs:output_type -> state.v1.ListStateOutputsResponse
+	40, // 62: state.v1.StateService.GetStateInfo:output_type -> state.v1.GetStateInfoResponse
+	48, // [48:63] is the sub-list for method output_type
+	33, // [33:48] is the sub-list for method input_type
+	33, // [33:33] is the sub-list for extension type_name
+	33, // [33:33] is the sub-list for extension extendee
+	0,  // [0:33] is the sub-list for field type_name
 }
 
 func init() { file_state_v1_state_proto_init() }
@@ -2772,13 +3220,21 @@ func file_state_v1_state_proto_init() {
 		(*GetDependencyGraphRequest_Guid)(nil),
 	}
 	file_state_v1_state_proto_msgTypes[35].OneofWrappers = []any{}
+	file_state_v1_state_proto_msgTypes[37].OneofWrappers = []any{
+		(*ListStateOutputsRequest_LogicId)(nil),
+		(*ListStateOutputsRequest_Guid)(nil),
+	}
+	file_state_v1_state_proto_msgTypes[39].OneofWrappers = []any{
+		(*GetStateInfoRequest_LogicId)(nil),
+		(*GetStateInfoRequest_Guid)(nil),
+	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_state_v1_state_proto_rawDesc), len(file_state_v1_state_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   36,
+			NumMessages:   41,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

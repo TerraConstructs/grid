@@ -40,6 +40,9 @@ test-unit: ## Run unit tests (no external dependencies)
 		./cmd/gridapi/internal/config/... \
 		./cmd/gridapi/internal/server/... \
 		./cmd/gridapi/internal/state/... \
+		./cmd/gridapi/internal/tfstate/... \
+		./cmd/gridapi/internal/graph/... \
+		./pkg/sdk/... \
 		./cmd/gridctl/...
 
 test-unit-db: ## Run repository unit tests (requires database)

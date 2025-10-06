@@ -12,7 +12,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file state/v1/state.proto.
  */
 export const file_state_v1_state: GenFile = /*@__PURE__*/
-  fileDesc("ChRzdGF0ZS92MS9zdGF0ZS5wcm90bxIIc3RhdGUudjEiNAoSQ3JlYXRlU3RhdGVSZXF1ZXN0EgwKBGd1aWQYASABKAkSEAoIbG9naWNfaWQYAiABKAkiZgoTQ3JlYXRlU3RhdGVSZXNwb25zZRIMCgRndWlkGAEgASgJEhAKCGxvZ2ljX2lkGAIgASgJEi8KDmJhY2tlbmRfY29uZmlnGAMgASgLMhcuc3RhdGUudjEuQmFja2VuZENvbmZpZyITChFMaXN0U3RhdGVzUmVxdWVzdCI5ChJMaXN0U3RhdGVzUmVzcG9uc2USIwoGc3RhdGVzGAEgAygLMhMuc3RhdGUudjEuU3RhdGVJbmZvIv8BCglTdGF0ZUluZm8SDAoEZ3VpZBgBIAEoCRIQCghsb2dpY19pZBgCIAEoCRIOCgZsb2NrZWQYAyABKAgSLgoKY3JlYXRlZF9hdBgEIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASLgoKdXBkYXRlZF9hdBgFIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASEgoKc2l6ZV9ieXRlcxgGIAEoAxIcCg9jb21wdXRlZF9zdGF0dXMYByABKAlIAIgBARIcChRkZXBlbmRlbmN5X2xvZ2ljX2lkcxgIIAMoCUISChBfY29tcHV0ZWRfc3RhdHVzIk4KDUJhY2tlbmRDb25maWcSDwoHYWRkcmVzcxgBIAEoCRIUCgxsb2NrX2FkZHJlc3MYAiABKAkSFgoOdW5sb2NrX2FkZHJlc3MYAyABKAkiKQoVR2V0U3RhdGVDb25maWdSZXF1ZXN0EhAKCGxvZ2ljX2lkGAEgASgJIlcKFkdldFN0YXRlQ29uZmlnUmVzcG9uc2USDAoEZ3VpZBgBIAEoCRIvCg5iYWNrZW5kX2NvbmZpZxgCIAEoCzIXLnN0YXRlLnYxLkJhY2tlbmRDb25maWciIwoTR2V0U3RhdGVMb2NrUmVxdWVzdBIMCgRndWlkGAEgASgJIpABCghMb2NrSW5mbxIKCgJpZBgBIAEoCRIRCglvcGVyYXRpb24YAiABKAkSDAoEaW5mbxgDIAEoCRILCgN3aG8YBCABKAkSDwoHdmVyc2lvbhgFIAEoCRIrCgdjcmVhdGVkGAYgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIMCgRwYXRoGAcgASgJIj0KCVN0YXRlTG9jaxIOCgZsb2NrZWQYASABKAgSIAoEaW5mbxgCIAEoCzISLnN0YXRlLnYxLkxvY2tJbmZvIjkKFEdldFN0YXRlTG9ja1Jlc3BvbnNlEiEKBGxvY2sYASABKAsyEy5zdGF0ZS52MS5TdGF0ZUxvY2siMwoSVW5sb2NrU3RhdGVSZXF1ZXN0EgwKBGd1aWQYASABKAkSDwoHbG9ja19pZBgCIAEoCSI4ChNVbmxvY2tTdGF0ZVJlc3BvbnNlEiEKBGxvY2sYASABKAsyEy5zdGF0ZS52MS5TdGF0ZUxvY2si/QEKFEFkZERlcGVuZGVuY3lSZXF1ZXN0EhcKDWZyb21fbG9naWNfaWQYASABKAlIABITCglmcm9tX2d1aWQYAiABKAlIABITCgtmcm9tX291dHB1dBgDIAEoCRIVCgt0b19sb2dpY19pZBgEIAEoCUgBEhEKB3RvX2d1aWQYBSABKAlIARIaCg10b19pbnB1dF9uYW1lGAYgASgJSAKIAQESHAoPbW9ja192YWx1ZV9qc29uGAcgASgJSAOIAQFCDAoKZnJvbV9zdGF0ZUIKCgh0b19zdGF0ZUIQCg5fdG9faW5wdXRfbmFtZUISChBfbW9ja192YWx1ZV9qc29uIlcKFUFkZERlcGVuZGVuY3lSZXNwb25zZRImCgRlZGdlGAEgASgLMhguc3RhdGUudjEuRGVwZW5kZW5jeUVkZ2USFgoOYWxyZWFkeV9leGlzdHMYAiABKAgiKgoXUmVtb3ZlRGVwZW5kZW5jeVJlcXVlc3QSDwoHZWRnZV9pZBgBIAEoAyIrChhSZW1vdmVEZXBlbmRlbmN5UmVzcG9uc2USDwoHc3VjY2VzcxgBIAEoCCJGChdMaXN0RGVwZW5kZW5jaWVzUmVxdWVzdBISCghsb2dpY19pZBgBIAEoCUgAEg4KBGd1aWQYAiABKAlIAEIHCgVzdGF0ZSJDChhMaXN0RGVwZW5kZW5jaWVzUmVzcG9uc2USJwoFZWRnZXMYASADKAsyGC5zdGF0ZS52MS5EZXBlbmRlbmN5RWRnZSJEChVMaXN0RGVwZW5kZW50c1JlcXVlc3QSEgoIbG9naWNfaWQYASABKAlIABIOCgRndWlkGAIgASgJSABCBwoFc3RhdGUiQQoWTGlzdERlcGVuZGVudHNSZXNwb25zZRInCgVlZGdlcxgBIAMoCzIYLnN0YXRlLnYxLkRlcGVuZGVuY3lFZGdlIisKFVNlYXJjaEJ5T3V0cHV0UmVxdWVzdBISCgpvdXRwdXRfa2V5GAEgASgJIkEKFlNlYXJjaEJ5T3V0cHV0UmVzcG9uc2USJwoFZWRnZXMYASADKAsyGC5zdGF0ZS52MS5EZXBlbmRlbmN5RWRnZSJvChpHZXRUb3BvbG9naWNhbE9yZGVyUmVxdWVzdBISCghsb2dpY19pZBgBIAEoCUgAEg4KBGd1aWQYAiABKAlIABIWCglkaXJlY3Rpb24YAyABKAlIAYgBAUIHCgVzdGF0ZUIMCgpfZGlyZWN0aW9uIj4KG0dldFRvcG9sb2dpY2FsT3JkZXJSZXNwb25zZRIfCgZsYXllcnMYASADKAsyDy5zdGF0ZS52MS5MYXllciI6CgVMYXllchINCgVsZXZlbBgBIAEoBRIiCgZzdGF0ZXMYAiADKAsyEi5zdGF0ZS52MS5TdGF0ZVJlZiIqCghTdGF0ZVJlZhIMCgRndWlkGAEgASgJEhAKCGxvZ2ljX2lkGAIgASgJIkQKFUdldFN0YXRlU3RhdHVzUmVxdWVzdBISCghsb2dpY19pZBgBIAEoCUgAEg4KBGd1aWQYAiABKAlIAEIHCgVzdGF0ZSKgAQoWR2V0U3RhdGVTdGF0dXNSZXNwb25zZRIMCgRndWlkGAEgASgJEhAKCGxvZ2ljX2lkGAIgASgJEg4KBnN0YXR1cxgDIAEoCRIsCghpbmNvbWluZxgEIAMoCzIaLnN0YXRlLnYxLkluY29taW5nRWRnZVZpZXcSKAoHc3VtbWFyeRgFIAEoCzIXLnN0YXRlLnYxLlN0YXR1c1N1bW1hcnkiygIKEEluY29taW5nRWRnZVZpZXcSDwoHZWRnZV9pZBgBIAEoAxIRCglmcm9tX2d1aWQYAiABKAkSFQoNZnJvbV9sb2dpY19pZBgDIAEoCRITCgtmcm9tX291dHB1dBgEIAEoCRIOCgZzdGF0dXMYBSABKAkSFgoJaW5fZGlnZXN0GAYgASgJSACIAQESFwoKb3V0X2RpZ2VzdBgHIAEoCUgBiAEBEjMKCmxhc3RfaW5fYXQYCCABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wSAKIAQESNAoLbGFzdF9vdXRfYXQYCSABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wSAOIAQFCDAoKX2luX2RpZ2VzdEINCgtfb3V0X2RpZ2VzdEINCgtfbGFzdF9pbl9hdEIOCgxfbGFzdF9vdXRfYXQicwoNU3RhdHVzU3VtbWFyeRIWCg5pbmNvbWluZ19jbGVhbhgBIAEoBRIWCg5pbmNvbWluZ19kaXJ0eRgCIAEoBRIYChBpbmNvbWluZ19wZW5kaW5nGAMgASgFEhgKEGluY29taW5nX3Vua25vd24YBCABKAUiSAoZR2V0RGVwZW5kZW5jeUdyYXBoUmVxdWVzdBISCghsb2dpY19pZBgBIAEoCUgAEg4KBGd1aWQYAiABKAlIAEIHCgVzdGF0ZSKjAQoaR2V0RGVwZW5kZW5jeUdyYXBoUmVzcG9uc2USFQoNY29uc3VtZXJfZ3VpZBgBIAEoCRIZChFjb25zdW1lcl9sb2dpY19pZBgCIAEoCRIqCglwcm9kdWNlcnMYAyADKAsyFy5zdGF0ZS52MS5Qcm9kdWNlclN0YXRlEicKBWVkZ2VzGAQgAygLMhguc3RhdGUudjEuRGVwZW5kZW5jeUVkZ2UiYAoNUHJvZHVjZXJTdGF0ZRIMCgRndWlkGAEgASgJEhAKCGxvZ2ljX2lkGAIgASgJEi8KDmJhY2tlbmRfY29uZmlnGAMgASgLMhcuc3RhdGUudjEuQmFja2VuZENvbmZpZyKpBAoORGVwZW5kZW5jeUVkZ2USCgoCaWQYASABKAMSEQoJZnJvbV9ndWlkGAIgASgJEhUKDWZyb21fbG9naWNfaWQYAyABKAkSEwoLZnJvbV9vdXRwdXQYBCABKAkSDwoHdG9fZ3VpZBgFIAEoCRITCgt0b19sb2dpY19pZBgGIAEoCRIaCg10b19pbnB1dF9uYW1lGAcgASgJSACIAQESDgoGc3RhdHVzGAggASgJEhYKCWluX2RpZ2VzdBgJIAEoCUgBiAEBEhcKCm91dF9kaWdlc3QYCiABKAlIAogBARIcCg9tb2NrX3ZhbHVlX2pzb24YCyABKAlIA4gBARIzCgpsYXN0X2luX2F0GAwgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcEgEiAEBEjQKC2xhc3Rfb3V0X2F0GA0gASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcEgFiAEBEi4KCmNyZWF0ZWRfYXQYDiABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEi4KCnVwZGF0ZWRfYXQYDyABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wQhAKDl90b19pbnB1dF9uYW1lQgwKCl9pbl9kaWdlc3RCDQoLX291dF9kaWdlc3RCEgoQX21vY2tfdmFsdWVfanNvbkINCgtfbGFzdF9pbl9hdEIOCgxfbGFzdF9vdXRfYXQy3wgKDFN0YXRlU2VydmljZRJKCgtDcmVhdGVTdGF0ZRIcLnN0YXRlLnYxLkNyZWF0ZVN0YXRlUmVxdWVzdBodLnN0YXRlLnYxLkNyZWF0ZVN0YXRlUmVzcG9uc2USRwoKTGlzdFN0YXRlcxIbLnN0YXRlLnYxLkxpc3RTdGF0ZXNSZXF1ZXN0Ghwuc3RhdGUudjEuTGlzdFN0YXRlc1Jlc3BvbnNlElMKDkdldFN0YXRlQ29uZmlnEh8uc3RhdGUudjEuR2V0U3RhdGVDb25maWdSZXF1ZXN0GiAuc3RhdGUudjEuR2V0U3RhdGVDb25maWdSZXNwb25zZRJNCgxHZXRTdGF0ZUxvY2sSHS5zdGF0ZS52MS5HZXRTdGF0ZUxvY2tSZXF1ZXN0Gh4uc3RhdGUudjEuR2V0U3RhdGVMb2NrUmVzcG9uc2USSgoLVW5sb2NrU3RhdGUSHC5zdGF0ZS52MS5VbmxvY2tTdGF0ZVJlcXVlc3QaHS5zdGF0ZS52MS5VbmxvY2tTdGF0ZVJlc3BvbnNlElAKDUFkZERlcGVuZGVuY3kSHi5zdGF0ZS52MS5BZGREZXBlbmRlbmN5UmVxdWVzdBofLnN0YXRlLnYxLkFkZERlcGVuZGVuY3lSZXNwb25zZRJZChBSZW1vdmVEZXBlbmRlbmN5EiEuc3RhdGUudjEuUmVtb3ZlRGVwZW5kZW5jeVJlcXVlc3QaIi5zdGF0ZS52MS5SZW1vdmVEZXBlbmRlbmN5UmVzcG9uc2USWQoQTGlzdERlcGVuZGVuY2llcxIhLnN0YXRlLnYxLkxpc3REZXBlbmRlbmNpZXNSZXF1ZXN0GiIuc3RhdGUudjEuTGlzdERlcGVuZGVuY2llc1Jlc3BvbnNlElMKDkxpc3REZXBlbmRlbnRzEh8uc3RhdGUudjEuTGlzdERlcGVuZGVudHNSZXF1ZXN0GiAuc3RhdGUudjEuTGlzdERlcGVuZGVudHNSZXNwb25zZRJTCg5TZWFyY2hCeU91dHB1dBIfLnN0YXRlLnYxLlNlYXJjaEJ5T3V0cHV0UmVxdWVzdBogLnN0YXRlLnYxLlNlYXJjaEJ5T3V0cHV0UmVzcG9uc2USYgoTR2V0VG9wb2xvZ2ljYWxPcmRlchIkLnN0YXRlLnYxLkdldFRvcG9sb2dpY2FsT3JkZXJSZXF1ZXN0GiUuc3RhdGUudjEuR2V0VG9wb2xvZ2ljYWxPcmRlclJlc3BvbnNlElMKDkdldFN0YXRlU3RhdHVzEh8uc3RhdGUudjEuR2V0U3RhdGVTdGF0dXNSZXF1ZXN0GiAuc3RhdGUudjEuR2V0U3RhdGVTdGF0dXNSZXNwb25zZRJfChJHZXREZXBlbmRlbmN5R3JhcGgSIy5zdGF0ZS52MS5HZXREZXBlbmRlbmN5R3JhcGhSZXF1ZXN0GiQuc3RhdGUudjEuR2V0RGVwZW5kZW5jeUdyYXBoUmVzcG9uc2VCNlo0Z2l0aHViLmNvbS90ZXJyYWNvbnN0cnVjdHMvZ3JpZC9hcGkvc3RhdGUvdjE7c3RhdGV2MWIGcHJvdG8z", [file_google_protobuf_timestamp]);
+  fileDesc("ChRzdGF0ZS92MS9zdGF0ZS5wcm90bxIIc3RhdGUudjEiNAoSQ3JlYXRlU3RhdGVSZXF1ZXN0EgwKBGd1aWQYASABKAkSEAoIbG9naWNfaWQYAiABKAkiZgoTQ3JlYXRlU3RhdGVSZXNwb25zZRIMCgRndWlkGAEgASgJEhAKCGxvZ2ljX2lkGAIgASgJEi8KDmJhY2tlbmRfY29uZmlnGAMgASgLMhcuc3RhdGUudjEuQmFja2VuZENvbmZpZyITChFMaXN0U3RhdGVzUmVxdWVzdCI5ChJMaXN0U3RhdGVzUmVzcG9uc2USIwoGc3RhdGVzGAEgAygLMhMuc3RhdGUudjEuU3RhdGVJbmZvIv8BCglTdGF0ZUluZm8SDAoEZ3VpZBgBIAEoCRIQCghsb2dpY19pZBgCIAEoCRIOCgZsb2NrZWQYAyABKAgSLgoKY3JlYXRlZF9hdBgEIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASLgoKdXBkYXRlZF9hdBgFIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASEgoKc2l6ZV9ieXRlcxgGIAEoAxIcCg9jb21wdXRlZF9zdGF0dXMYByABKAlIAIgBARIcChRkZXBlbmRlbmN5X2xvZ2ljX2lkcxgIIAMoCUISChBfY29tcHV0ZWRfc3RhdHVzIk4KDUJhY2tlbmRDb25maWcSDwoHYWRkcmVzcxgBIAEoCRIUCgxsb2NrX2FkZHJlc3MYAiABKAkSFgoOdW5sb2NrX2FkZHJlc3MYAyABKAkiKQoVR2V0U3RhdGVDb25maWdSZXF1ZXN0EhAKCGxvZ2ljX2lkGAEgASgJIlcKFkdldFN0YXRlQ29uZmlnUmVzcG9uc2USDAoEZ3VpZBgBIAEoCRIvCg5iYWNrZW5kX2NvbmZpZxgCIAEoCzIXLnN0YXRlLnYxLkJhY2tlbmRDb25maWciIwoTR2V0U3RhdGVMb2NrUmVxdWVzdBIMCgRndWlkGAEgASgJIpABCghMb2NrSW5mbxIKCgJpZBgBIAEoCRIRCglvcGVyYXRpb24YAiABKAkSDAoEaW5mbxgDIAEoCRILCgN3aG8YBCABKAkSDwoHdmVyc2lvbhgFIAEoCRIrCgdjcmVhdGVkGAYgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIMCgRwYXRoGAcgASgJIj0KCVN0YXRlTG9jaxIOCgZsb2NrZWQYASABKAgSIAoEaW5mbxgCIAEoCzISLnN0YXRlLnYxLkxvY2tJbmZvIjkKFEdldFN0YXRlTG9ja1Jlc3BvbnNlEiEKBGxvY2sYASABKAsyEy5zdGF0ZS52MS5TdGF0ZUxvY2siMwoSVW5sb2NrU3RhdGVSZXF1ZXN0EgwKBGd1aWQYASABKAkSDwoHbG9ja19pZBgCIAEoCSI4ChNVbmxvY2tTdGF0ZVJlc3BvbnNlEiEKBGxvY2sYASABKAsyEy5zdGF0ZS52MS5TdGF0ZUxvY2si/QEKFEFkZERlcGVuZGVuY3lSZXF1ZXN0EhcKDWZyb21fbG9naWNfaWQYASABKAlIABITCglmcm9tX2d1aWQYAiABKAlIABITCgtmcm9tX291dHB1dBgDIAEoCRIVCgt0b19sb2dpY19pZBgEIAEoCUgBEhEKB3RvX2d1aWQYBSABKAlIARIaCg10b19pbnB1dF9uYW1lGAYgASgJSAKIAQESHAoPbW9ja192YWx1ZV9qc29uGAcgASgJSAOIAQFCDAoKZnJvbV9zdGF0ZUIKCgh0b19zdGF0ZUIQCg5fdG9faW5wdXRfbmFtZUISChBfbW9ja192YWx1ZV9qc29uIlcKFUFkZERlcGVuZGVuY3lSZXNwb25zZRImCgRlZGdlGAEgASgLMhguc3RhdGUudjEuRGVwZW5kZW5jeUVkZ2USFgoOYWxyZWFkeV9leGlzdHMYAiABKAgiKgoXUmVtb3ZlRGVwZW5kZW5jeVJlcXVlc3QSDwoHZWRnZV9pZBgBIAEoAyIrChhSZW1vdmVEZXBlbmRlbmN5UmVzcG9uc2USDwoHc3VjY2VzcxgBIAEoCCJGChdMaXN0RGVwZW5kZW5jaWVzUmVxdWVzdBISCghsb2dpY19pZBgBIAEoCUgAEg4KBGd1aWQYAiABKAlIAEIHCgVzdGF0ZSJDChhMaXN0RGVwZW5kZW5jaWVzUmVzcG9uc2USJwoFZWRnZXMYASADKAsyGC5zdGF0ZS52MS5EZXBlbmRlbmN5RWRnZSJEChVMaXN0RGVwZW5kZW50c1JlcXVlc3QSEgoIbG9naWNfaWQYASABKAlIABIOCgRndWlkGAIgASgJSABCBwoFc3RhdGUiQQoWTGlzdERlcGVuZGVudHNSZXNwb25zZRInCgVlZGdlcxgBIAMoCzIYLnN0YXRlLnYxLkRlcGVuZGVuY3lFZGdlIisKFVNlYXJjaEJ5T3V0cHV0UmVxdWVzdBISCgpvdXRwdXRfa2V5GAEgASgJIkEKFlNlYXJjaEJ5T3V0cHV0UmVzcG9uc2USJwoFZWRnZXMYASADKAsyGC5zdGF0ZS52MS5EZXBlbmRlbmN5RWRnZSJvChpHZXRUb3BvbG9naWNhbE9yZGVyUmVxdWVzdBISCghsb2dpY19pZBgBIAEoCUgAEg4KBGd1aWQYAiABKAlIABIWCglkaXJlY3Rpb24YAyABKAlIAYgBAUIHCgVzdGF0ZUIMCgpfZGlyZWN0aW9uIj4KG0dldFRvcG9sb2dpY2FsT3JkZXJSZXNwb25zZRIfCgZsYXllcnMYASADKAsyDy5zdGF0ZS52MS5MYXllciI6CgVMYXllchINCgVsZXZlbBgBIAEoBRIiCgZzdGF0ZXMYAiADKAsyEi5zdGF0ZS52MS5TdGF0ZVJlZiIqCghTdGF0ZVJlZhIMCgRndWlkGAEgASgJEhAKCGxvZ2ljX2lkGAIgASgJIkQKFUdldFN0YXRlU3RhdHVzUmVxdWVzdBISCghsb2dpY19pZBgBIAEoCUgAEg4KBGd1aWQYAiABKAlIAEIHCgVzdGF0ZSKgAQoWR2V0U3RhdGVTdGF0dXNSZXNwb25zZRIMCgRndWlkGAEgASgJEhAKCGxvZ2ljX2lkGAIgASgJEg4KBnN0YXR1cxgDIAEoCRIsCghpbmNvbWluZxgEIAMoCzIaLnN0YXRlLnYxLkluY29taW5nRWRnZVZpZXcSKAoHc3VtbWFyeRgFIAEoCzIXLnN0YXRlLnYxLlN0YXR1c1N1bW1hcnkiygIKEEluY29taW5nRWRnZVZpZXcSDwoHZWRnZV9pZBgBIAEoAxIRCglmcm9tX2d1aWQYAiABKAkSFQoNZnJvbV9sb2dpY19pZBgDIAEoCRITCgtmcm9tX291dHB1dBgEIAEoCRIOCgZzdGF0dXMYBSABKAkSFgoJaW5fZGlnZXN0GAYgASgJSACIAQESFwoKb3V0X2RpZ2VzdBgHIAEoCUgBiAEBEjMKCmxhc3RfaW5fYXQYCCABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wSAKIAQESNAoLbGFzdF9vdXRfYXQYCSABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wSAOIAQFCDAoKX2luX2RpZ2VzdEINCgtfb3V0X2RpZ2VzdEINCgtfbGFzdF9pbl9hdEIOCgxfbGFzdF9vdXRfYXQicwoNU3RhdHVzU3VtbWFyeRIWCg5pbmNvbWluZ19jbGVhbhgBIAEoBRIWCg5pbmNvbWluZ19kaXJ0eRgCIAEoBRIYChBpbmNvbWluZ19wZW5kaW5nGAMgASgFEhgKEGluY29taW5nX3Vua25vd24YBCABKAUiSAoZR2V0RGVwZW5kZW5jeUdyYXBoUmVxdWVzdBISCghsb2dpY19pZBgBIAEoCUgAEg4KBGd1aWQYAiABKAlIAEIHCgVzdGF0ZSKjAQoaR2V0RGVwZW5kZW5jeUdyYXBoUmVzcG9uc2USFQoNY29uc3VtZXJfZ3VpZBgBIAEoCRIZChFjb25zdW1lcl9sb2dpY19pZBgCIAEoCRIqCglwcm9kdWNlcnMYAyADKAsyFy5zdGF0ZS52MS5Qcm9kdWNlclN0YXRlEicKBWVkZ2VzGAQgAygLMhguc3RhdGUudjEuRGVwZW5kZW5jeUVkZ2UiYAoNUHJvZHVjZXJTdGF0ZRIMCgRndWlkGAEgASgJEhAKCGxvZ2ljX2lkGAIgASgJEi8KDmJhY2tlbmRfY29uZmlnGAMgASgLMhcuc3RhdGUudjEuQmFja2VuZENvbmZpZyKpBAoORGVwZW5kZW5jeUVkZ2USCgoCaWQYASABKAMSEQoJZnJvbV9ndWlkGAIgASgJEhUKDWZyb21fbG9naWNfaWQYAyABKAkSEwoLZnJvbV9vdXRwdXQYBCABKAkSDwoHdG9fZ3VpZBgFIAEoCRITCgt0b19sb2dpY19pZBgGIAEoCRIaCg10b19pbnB1dF9uYW1lGAcgASgJSACIAQESDgoGc3RhdHVzGAggASgJEhYKCWluX2RpZ2VzdBgJIAEoCUgBiAEBEhcKCm91dF9kaWdlc3QYCiABKAlIAogBARIcCg9tb2NrX3ZhbHVlX2pzb24YCyABKAlIA4gBARIzCgpsYXN0X2luX2F0GAwgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcEgEiAEBEjQKC2xhc3Rfb3V0X2F0GA0gASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcEgFiAEBEi4KCmNyZWF0ZWRfYXQYDiABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEi4KCnVwZGF0ZWRfYXQYDyABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wQhAKDl90b19pbnB1dF9uYW1lQgwKCl9pbl9kaWdlc3RCDQoLX291dF9kaWdlc3RCEgoQX21vY2tfdmFsdWVfanNvbkINCgtfbGFzdF9pbl9hdEIOCgxfbGFzdF9vdXRfYXQiKwoJT3V0cHV0S2V5EgsKA2tleRgBIAEoCRIRCglzZW5zaXRpdmUYAiABKAgiRgoXTGlzdFN0YXRlT3V0cHV0c1JlcXVlc3QSEgoIbG9naWNfaWQYASABKAlIABIOCgRndWlkGAIgASgJSABCBwoFc3RhdGUibAoYTGlzdFN0YXRlT3V0cHV0c1Jlc3BvbnNlEhIKCnN0YXRlX2d1aWQYASABKAkSFgoOc3RhdGVfbG9naWNfaWQYAiABKAkSJAoHb3V0cHV0cxgDIAMoCzITLnN0YXRlLnYxLk91dHB1dEtleSJCChNHZXRTdGF0ZUluZm9SZXF1ZXN0EhIKCGxvZ2ljX2lkGAEgASgJSAASDgoEZ3VpZBgCIAEoCUgAQgcKBXN0YXRlIssCChRHZXRTdGF0ZUluZm9SZXNwb25zZRIMCgRndWlkGAEgASgJEhAKCGxvZ2ljX2lkGAIgASgJEi8KDmJhY2tlbmRfY29uZmlnGAMgASgLMhcuc3RhdGUudjEuQmFja2VuZENvbmZpZxIuCgxkZXBlbmRlbmNpZXMYBCADKAsyGC5zdGF0ZS52MS5EZXBlbmRlbmN5RWRnZRIsCgpkZXBlbmRlbnRzGAUgAygLMhguc3RhdGUudjEuRGVwZW5kZW5jeUVkZ2USJAoHb3V0cHV0cxgGIAMoCzITLnN0YXRlLnYxLk91dHB1dEtleRIuCgpjcmVhdGVkX2F0GAcgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIuCgp1cGRhdGVkX2F0GAggASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcDKJCgoMU3RhdGVTZXJ2aWNlEkoKC0NyZWF0ZVN0YXRlEhwuc3RhdGUudjEuQ3JlYXRlU3RhdGVSZXF1ZXN0Gh0uc3RhdGUudjEuQ3JlYXRlU3RhdGVSZXNwb25zZRJHCgpMaXN0U3RhdGVzEhsuc3RhdGUudjEuTGlzdFN0YXRlc1JlcXVlc3QaHC5zdGF0ZS52MS5MaXN0U3RhdGVzUmVzcG9uc2USUwoOR2V0U3RhdGVDb25maWcSHy5zdGF0ZS52MS5HZXRTdGF0ZUNvbmZpZ1JlcXVlc3QaIC5zdGF0ZS52MS5HZXRTdGF0ZUNvbmZpZ1Jlc3BvbnNlEk0KDEdldFN0YXRlTG9jaxIdLnN0YXRlLnYxLkdldFN0YXRlTG9ja1JlcXVlc3QaHi5zdGF0ZS52MS5HZXRTdGF0ZUxvY2tSZXNwb25zZRJKCgtVbmxvY2tTdGF0ZRIcLnN0YXRlLnYxLlVubG9ja1N0YXRlUmVxdWVzdBodLnN0YXRlLnYxLlVubG9ja1N0YXRlUmVzcG9uc2USUAoNQWRkRGVwZW5kZW5jeRIeLnN0YXRlLnYxLkFkZERlcGVuZGVuY3lSZXF1ZXN0Gh8uc3RhdGUudjEuQWRkRGVwZW5kZW5jeVJlc3BvbnNlElkKEFJlbW92ZURlcGVuZGVuY3kSIS5zdGF0ZS52MS5SZW1vdmVEZXBlbmRlbmN5UmVxdWVzdBoiLnN0YXRlLnYxLlJlbW92ZURlcGVuZGVuY3lSZXNwb25zZRJZChBMaXN0RGVwZW5kZW5jaWVzEiEuc3RhdGUudjEuTGlzdERlcGVuZGVuY2llc1JlcXVlc3QaIi5zdGF0ZS52MS5MaXN0RGVwZW5kZW5jaWVzUmVzcG9uc2USUwoOTGlzdERlcGVuZGVudHMSHy5zdGF0ZS52MS5MaXN0RGVwZW5kZW50c1JlcXVlc3QaIC5zdGF0ZS52MS5MaXN0RGVwZW5kZW50c1Jlc3BvbnNlElMKDlNlYXJjaEJ5T3V0cHV0Eh8uc3RhdGUudjEuU2VhcmNoQnlPdXRwdXRSZXF1ZXN0GiAuc3RhdGUudjEuU2VhcmNoQnlPdXRwdXRSZXNwb25zZRJiChNHZXRUb3BvbG9naWNhbE9yZGVyEiQuc3RhdGUudjEuR2V0VG9wb2xvZ2ljYWxPcmRlclJlcXVlc3QaJS5zdGF0ZS52MS5HZXRUb3BvbG9naWNhbE9yZGVyUmVzcG9uc2USUwoOR2V0U3RhdGVTdGF0dXMSHy5zdGF0ZS52MS5HZXRTdGF0ZVN0YXR1c1JlcXVlc3QaIC5zdGF0ZS52MS5HZXRTdGF0ZVN0YXR1c1Jlc3BvbnNlEl8KEkdldERlcGVuZGVuY3lHcmFwaBIjLnN0YXRlLnYxLkdldERlcGVuZGVuY3lHcmFwaFJlcXVlc3QaJC5zdGF0ZS52MS5HZXREZXBlbmRlbmN5R3JhcGhSZXNwb25zZRJZChBMaXN0U3RhdGVPdXRwdXRzEiEuc3RhdGUudjEuTGlzdFN0YXRlT3V0cHV0c1JlcXVlc3QaIi5zdGF0ZS52MS5MaXN0U3RhdGVPdXRwdXRzUmVzcG9uc2USTQoMR2V0U3RhdGVJbmZvEh0uc3RhdGUudjEuR2V0U3RhdGVJbmZvUmVxdWVzdBoeLnN0YXRlLnYxLkdldFN0YXRlSW5mb1Jlc3BvbnNlQjZaNGdpdGh1Yi5jb20vdGVycmFjb25zdHJ1Y3RzL2dyaWQvYXBpL3N0YXRlL3YxO3N0YXRldjFiBnByb3RvMw", [file_google_protobuf_timestamp]);
 
 /**
  * CreateStateRequest creates a new state using a client-generated GUID.
@@ -138,7 +138,7 @@ export type StateInfo = Message<"state.v1.StateInfo"> & {
   sizeBytes: bigint;
 
   /**
-   * NEW: Derived status fields for quick indicators
+   * Derived status fields for quick indicators
    *
    * "clean", "stale", "potentially-stale"
    *
@@ -1131,6 +1131,212 @@ export const DependencyEdgeSchema: GenMessage<DependencyEdge> = /*@__PURE__*/
   messageDesc(file_state_v1_state, 35);
 
 /**
+ * OutputKey represents a single Terraform/OpenTofu output name and metadata.
+ *
+ * @generated from message state.v1.OutputKey
+ */
+export type OutputKey = Message<"state.v1.OutputKey"> & {
+  /**
+   * Output name from Terraform state JSON (e.g., "vpc_id", "db_password")
+   *
+   * @generated from field: string key = 1;
+   */
+  key: string;
+
+  /**
+   * Whether output is marked sensitive in Terraform state metadata
+   * Used by CLI to display warning: "⚠️  sensitive" next to output name
+   *
+   * @generated from field: bool sensitive = 2;
+   */
+  sensitive: boolean;
+};
+
+/**
+ * Describes the message state.v1.OutputKey.
+ * Use `create(OutputKeySchema)` to create a new message.
+ */
+export const OutputKeySchema: GenMessage<OutputKey> = /*@__PURE__*/
+  messageDesc(file_state_v1_state, 36);
+
+/**
+ * ListStateOutputsRequest fetches output keys for a state.
+ *
+ * @generated from message state.v1.ListStateOutputsRequest
+ */
+export type ListStateOutputsRequest = Message<"state.v1.ListStateOutputsRequest"> & {
+  /**
+   * State identifier (prefer logic_id for UX, guid for precision)
+   *
+   * @generated from oneof state.v1.ListStateOutputsRequest.state
+   */
+  state: {
+    /**
+     * User-friendly state identifier
+     *
+     * @generated from field: string logic_id = 1;
+     */
+    value: string;
+    case: "logicId";
+  } | {
+    /**
+     * Immutable UUIDv7 identifier
+     *
+     * @generated from field: string guid = 2;
+     */
+    value: string;
+    case: "guid";
+  } | { case: undefined; value?: undefined };
+};
+
+/**
+ * Describes the message state.v1.ListStateOutputsRequest.
+ * Use `create(ListStateOutputsRequestSchema)` to create a new message.
+ */
+export const ListStateOutputsRequestSchema: GenMessage<ListStateOutputsRequest> = /*@__PURE__*/
+  messageDesc(file_state_v1_state, 37);
+
+/**
+ * ListStateOutputsResponse returns output keys parsed from Terraform state JSON.
+ *
+ * @generated from message state.v1.ListStateOutputsResponse
+ */
+export type ListStateOutputsResponse = Message<"state.v1.ListStateOutputsResponse"> & {
+  /**
+   * State identifiers for confirmation
+   *
+   * @generated from field: string state_guid = 1;
+   */
+  stateGuid: string;
+
+  /**
+   * @generated from field: string state_logic_id = 2;
+   */
+  stateLogicId: string;
+
+  /**
+   * List of output keys available in this state's Terraform JSON
+   * Empty array if state has no outputs (not an error)
+   *
+   * @generated from field: repeated state.v1.OutputKey outputs = 3;
+   */
+  outputs: OutputKey[];
+};
+
+/**
+ * Describes the message state.v1.ListStateOutputsResponse.
+ * Use `create(ListStateOutputsResponseSchema)` to create a new message.
+ */
+export const ListStateOutputsResponseSchema: GenMessage<ListStateOutputsResponse> = /*@__PURE__*/
+  messageDesc(file_state_v1_state, 38);
+
+/**
+ * GetStateInfoRequest fetches full state information.
+ *
+ * @generated from message state.v1.GetStateInfoRequest
+ */
+export type GetStateInfoRequest = Message<"state.v1.GetStateInfoRequest"> & {
+  /**
+   * State identifier (prefer logic_id for UX, guid for precision)
+   *
+   * @generated from oneof state.v1.GetStateInfoRequest.state
+   */
+  state: {
+    /**
+     * User-friendly state identifier
+     *
+     * @generated from field: string logic_id = 1;
+     */
+    value: string;
+    case: "logicId";
+  } | {
+    /**
+     * Immutable UUIDv7 identifier
+     *
+     * @generated from field: string guid = 2;
+     */
+    value: string;
+    case: "guid";
+  } | { case: undefined; value?: undefined };
+};
+
+/**
+ * Describes the message state.v1.GetStateInfoRequest.
+ * Use `create(GetStateInfoRequestSchema)` to create a new message.
+ */
+export const GetStateInfoRequestSchema: GenMessage<GetStateInfoRequest> = /*@__PURE__*/
+  messageDesc(file_state_v1_state, 39);
+
+/**
+ * GetStateInfoResponse returns comprehensive state view.
+ *
+ * @generated from message state.v1.GetStateInfoResponse
+ */
+export type GetStateInfoResponse = Message<"state.v1.GetStateInfoResponse"> & {
+  /**
+   * State identifiers
+   *
+   * @generated from field: string guid = 1;
+   */
+  guid: string;
+
+  /**
+   * @generated from field: string logic_id = 2;
+   */
+  logicId: string;
+
+  /**
+   * Terraform HTTP backend configuration
+   *
+   * @generated from field: state.v1.BackendConfig backend_config = 3;
+   */
+  backendConfig?: BackendConfig;
+
+  /**
+   * Incoming dependency edges (this state consumes outputs from these states)
+   * Equivalent to: SELECT * FROM edges WHERE to_guid = this.guid
+   *
+   * @generated from field: repeated state.v1.DependencyEdge dependencies = 4;
+   */
+  dependencies: DependencyEdge[];
+
+  /**
+   * Outgoing dependency edges (other states consume this state's outputs)
+   * Equivalent to: SELECT * FROM edges WHERE from_guid = this.guid
+   *
+   * @generated from field: repeated state.v1.DependencyEdge dependents = 5;
+   */
+  dependents: DependencyEdge[];
+
+  /**
+   * Available outputs from this state's Terraform JSON (keys only, no values)
+   * Empty array if state has no Terraform state JSON uploaded yet
+   *
+   * @generated from field: repeated state.v1.OutputKey outputs = 6;
+   */
+  outputs: OutputKey[];
+
+  /**
+   * State lifecycle timestamps
+   *
+   * @generated from field: google.protobuf.Timestamp created_at = 7;
+   */
+  createdAt?: Timestamp;
+
+  /**
+   * @generated from field: google.protobuf.Timestamp updated_at = 8;
+   */
+  updatedAt?: Timestamp;
+};
+
+/**
+ * Describes the message state.v1.GetStateInfoResponse.
+ * Use `create(GetStateInfoResponseSchema)` to create a new message.
+ */
+export const GetStateInfoResponseSchema: GenMessage<GetStateInfoResponse> = /*@__PURE__*/
+  messageDesc(file_state_v1_state, 40);
+
+/**
  * StateService provides remote state management for Terraform/OpenTofu clients.
  *
  * @generated from service state.v1.StateService
@@ -1266,6 +1472,35 @@ export const StateService: GenService<{
     methodKind: "unary";
     input: typeof GetDependencyGraphRequestSchema;
     output: typeof GetDependencyGraphResponseSchema;
+  },
+  /**
+   * ListStateOutputs returns available output keys from a state's Terraform/OpenTofu JSON.
+   * Output values are NOT returned (security/size concerns); only keys and sensitive flags.
+   * Used by CLI for interactive output selection when creating dependencies.
+   *
+   * @generated from rpc state.v1.StateService.ListStateOutputs
+   */
+  listStateOutputs: {
+    methodKind: "unary";
+    input: typeof ListStateOutputsRequestSchema;
+    output: typeof ListStateOutputsResponseSchema;
+  },
+  /**
+   * GetStateInfo retrieves comprehensive state information including:
+   * - Basic metadata (GUID, logic-id, timestamps)
+   * - Backend configuration (Terraform HTTP backend URLs)
+   * - Dependencies (incoming edges: states this state depends on)
+   * - Dependents (outgoing edges: states that depend on this state)
+   * - Outputs (available Terraform output keys from state JSON)
+   *
+   * This consolidates information previously requiring multiple RPC calls.
+   *
+   * @generated from rpc state.v1.StateService.GetStateInfo
+   */
+  getStateInfo: {
+    methodKind: "unary";
+    input: typeof GetStateInfoRequestSchema;
+    output: typeof GetStateInfoResponseSchema;
   },
 }> = /*@__PURE__*/
   serviceDesc(file_state_v1_state, 0);

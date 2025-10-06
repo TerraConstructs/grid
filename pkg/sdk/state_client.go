@@ -163,3 +163,79 @@ func (c *Client) UnlockState(ctx context.Context, guid, lockID string) (StateLoc
 
 	return stateLockFromProto(resp.Msg.GetLock()), nil
 }
+
+// ListStateOutputs returns the output keys from a state's Terraform JSON.
+// Output values are not returned for security/size reasons - only keys and sensitive flags.
+func (c *Client) ListStateOutputs(ctx context.Context, ref StateReference) ([]OutputKey, error) {
+	if ref.LogicID == "" && ref.GUID == "" {
+		return nil, fmt.Errorf("state reference requires guid or logic ID")
+	}
+
+	req := connect.NewRequest(&statev1.ListStateOutputsRequest{})
+	if ref.LogicID != "" {
+		req.Msg.State = &statev1.ListStateOutputsRequest_LogicId{LogicId: ref.LogicID}
+	} else {
+		req.Msg.State = &statev1.ListStateOutputsRequest_Guid{Guid: ref.GUID}
+	}
+
+	resp, err := c.rpc.ListStateOutputs(ctx, req)
+	if err != nil {
+		return nil, err
+	}
+
+	return outputKeysFromProto(resp.Msg.GetOutputs()), nil
+}
+
+// GetStateInfo retrieves comprehensive state information including dependencies, dependents, and outputs.
+// This consolidates information that would otherwise require multiple RPC calls.
+func (c *Client) GetStateInfo(ctx context.Context, ref StateReference) (*StateInfo, error) {
+	if ref.LogicID == "" && ref.GUID == "" {
+		return nil, fmt.Errorf("state reference requires guid or logic ID")
+	}
+
+	req := connect.NewRequest(&statev1.GetStateInfoRequest{})
+	if ref.LogicID != "" {
+		req.Msg.State = &statev1.GetStateInfoRequest_LogicId{LogicId: ref.LogicID}
+	} else {
+		req.Msg.State = &statev1.GetStateInfoRequest_Guid{Guid: ref.GUID}
+	}
+
+	resp, err := c.rpc.GetStateInfo(ctx, req)
+	if err != nil {
+		return nil, err
+	}
+
+	msg := resp.Msg
+
+	// Convert dependencies
+	dependencies := make([]DependencyEdge, 0, len(msg.GetDependencies()))
+	for _, dep := range msg.GetDependencies() {
+		dependencies = append(dependencies, dependencyEdgeFromProto(dep))
+	}
+
+	// Convert dependents
+	dependents := make([]DependencyEdge, 0, len(msg.GetDependents()))
+	for _, dep := range msg.GetDependents() {
+		dependents = append(dependents, dependencyEdgeFromProto(dep))
+	}
+
+	stateInfo := &StateInfo{
+		State: StateReference{
+			GUID:    msg.GetGuid(),
+			LogicID: msg.GetLogicId(),
+		},
+		BackendConfig: backendConfigFromProto(msg.GetBackendConfig()),
+		Dependencies:  dependencies,
+		Dependents:    dependents,
+		Outputs:       outputKeysFromProto(msg.GetOutputs()),
+	}
+
+	if msg.CreatedAt != nil {
+		stateInfo.CreatedAt = msg.CreatedAt.AsTime()
+	}
+	if msg.UpdatedAt != nil {
+		stateInfo.UpdatedAt = msg.UpdatedAt.AsTime()
+	}
+
+	return stateInfo, nil
+}

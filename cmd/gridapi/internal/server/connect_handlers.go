@@ -605,3 +605,128 @@ func (h *StateServiceHandler) stateByGUID(ctx context.Context, guid string, cach
 	cache[guid] = state
 	return state, nil
 }
+
+// ListStateOutputs returns cached output keys with sensitive flags for a state.
+func (h *StateServiceHandler) ListStateOutputs(
+	ctx context.Context,
+	req *connect.Request[statev1.ListStateOutputsRequest],
+) (*connect.Response[statev1.ListStateOutputsResponse], error) {
+	// Resolve state GUID from logic_id or guid
+	var guid, logicID string
+	if state, ok := req.Msg.State.(*statev1.ListStateOutputsRequest_LogicId); ok {
+		logicID = state.LogicId
+		// Resolve logic_id to guid
+		stateGUID, _, err := h.service.GetStateConfig(ctx, logicID)
+		if err != nil {
+			return nil, mapServiceError(err)
+		}
+		guid = stateGUID
+	} else if state, ok := req.Msg.State.(*statev1.ListStateOutputsRequest_Guid); ok {
+		guid = state.Guid
+		// Get logic_id for response
+		stateRecord, err := h.service.GetStateByGUID(ctx, guid)
+		if err != nil {
+			return nil, mapServiceError(err)
+		}
+		logicID = stateRecord.LogicID
+	} else {
+		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("state reference required (logic_id or guid)"))
+	}
+
+	// Get output keys from service (cache or parse)
+	outputs, err := h.service.GetOutputKeys(ctx, guid)
+	if err != nil {
+		return nil, mapServiceError(err)
+	}
+
+	// Convert to proto
+	protoOutputs := make([]*statev1.OutputKey, len(outputs))
+	for i, out := range outputs {
+		protoOutputs[i] = &statev1.OutputKey{
+			Key:       out.Key,
+			Sensitive: out.Sensitive,
+		}
+	}
+
+	resp := &statev1.ListStateOutputsResponse{
+		StateGuid:    guid,
+		StateLogicId: logicID,
+		Outputs:      protoOutputs,
+	}
+
+	return connect.NewResponse(resp), nil
+}
+
+// GetStateInfo retrieves comprehensive state information including dependencies, dependents, and outputs.
+func (h *StateServiceHandler) GetStateInfo(
+	ctx context.Context,
+	req *connect.Request[statev1.GetStateInfoRequest],
+) (*connect.Response[statev1.GetStateInfoResponse], error) {
+	// Resolve state reference from logic_id or guid
+	var logicID, guid string
+	if state, ok := req.Msg.State.(*statev1.GetStateInfoRequest_LogicId); ok {
+		logicID = state.LogicId
+	} else if state, ok := req.Msg.State.(*statev1.GetStateInfoRequest_Guid); ok {
+		guid = state.Guid
+	} else {
+		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("state reference required (logic_id or guid)"))
+	}
+
+	// Get comprehensive state info from service
+	info, err := h.service.GetStateInfo(ctx, logicID, guid)
+	if err != nil {
+		return nil, mapServiceError(err)
+	}
+
+	// Convert dependencies to proto
+	protoDependencies := make([]*statev1.DependencyEdge, 0, len(info.Dependencies))
+	for i := range info.Dependencies {
+		protoEdge, err := h.edgeToProto(ctx, &info.Dependencies[i], nil)
+		if err != nil {
+			return nil, connect.NewError(connect.CodeInternal, err)
+		}
+		protoDependencies = append(protoDependencies, protoEdge)
+	}
+
+	// Convert dependents to proto
+	protoDependents := make([]*statev1.DependencyEdge, 0, len(info.Dependents))
+	for i := range info.Dependents {
+		protoEdge, err := h.edgeToProto(ctx, &info.Dependents[i], nil)
+		if err != nil {
+			return nil, connect.NewError(connect.CodeInternal, err)
+		}
+		protoDependents = append(protoDependents, protoEdge)
+	}
+
+	// Convert outputs to proto
+	protoOutputs := make([]*statev1.OutputKey, len(info.Outputs))
+	for i, out := range info.Outputs {
+		protoOutputs[i] = &statev1.OutputKey{
+			Key:       out.Key,
+			Sensitive: out.Sensitive,
+		}
+	}
+
+	// Build response
+	resp := &statev1.GetStateInfoResponse{
+		Guid:    info.GUID,
+		LogicId: info.LogicID,
+		BackendConfig: &statev1.BackendConfig{
+			Address:       info.BackendConfig.Address,
+			LockAddress:   info.BackendConfig.LockAddress,
+			UnlockAddress: info.BackendConfig.UnlockAddress,
+		},
+		Dependencies: protoDependencies,
+		Dependents:   protoDependents,
+		Outputs:      protoOutputs,
+	}
+
+	if !info.CreatedAt.IsZero() {
+		resp.CreatedAt = timestamppb.New(info.CreatedAt)
+	}
+	if !info.UpdatedAt.IsZero() {
+		resp.UpdatedAt = timestamppb.New(info.UpdatedAt)
+	}
+
+	return connect.NewResponse(resp), nil
+}

@@ -49,9 +49,22 @@ service StateService {
 
   // GetDependencyGraph returns full dependency graph data for client-side HCL generation.
   rpc GetDependencyGraph(GetDependencyGraphRequest) returns (GetDependencyGraphResponse);
-}
 
-// --- Existing messages (unchanged) ---
+  // ListStateOutputs returns available output keys from a state's Terraform/OpenTofu JSON.
+  // Output values are NOT returned (security/size concerns); only keys and sensitive flags.
+  // Used by CLI for interactive output selection when creating dependencies.
+  rpc ListStateOutputs(ListStateOutputsRequest) returns (ListStateOutputsResponse);
+
+  // GetStateInfo retrieves comprehensive state information including:
+  // - Basic metadata (GUID, logic-id, timestamps)
+  // - Backend configuration (Terraform HTTP backend URLs)
+  // - Dependencies (incoming edges: states this state depends on)
+  // - Dependents (outgoing edges: states that depend on this state)
+  // - Outputs (available Terraform output keys from state JSON)
+  //
+  // This consolidates information previously requiring multiple RPC calls.
+  rpc GetStateInfo(GetStateInfoRequest) returns (GetStateInfoResponse);
+}
 
 // CreateStateRequest creates a new state using a client-generated GUID.
 message CreateStateRequest {
@@ -333,4 +346,71 @@ message DependencyEdge {
   optional google.protobuf.Timestamp last_out_at = 13;
   google.protobuf.Timestamp created_at = 14;
   google.protobuf.Timestamp updated_at = 15;
+}
+
+// --- Outputs Caching Messages ---
+
+// OutputKey represents a single Terraform/OpenTofu output name and metadata.
+message OutputKey {
+  // Output name from Terraform state JSON (e.g., "vpc_id", "db_password")
+  string key = 1;
+
+  // Whether output is marked sensitive in Terraform state metadata
+  // Used by CLI to display warning: "⚠️  sensitive" next to output name
+  bool sensitive = 2;
+}
+
+// ListStateOutputsRequest fetches output keys for a state.
+message ListStateOutputsRequest {
+  // State identifier (prefer logic_id for UX, guid for precision)
+  oneof state {
+    string logic_id = 1; // User-friendly state identifier
+    string guid = 2; // Immutable UUIDv7 identifier
+  }
+}
+
+// ListStateOutputsResponse returns output keys parsed from Terraform state JSON.
+message ListStateOutputsResponse {
+  // State identifiers for confirmation
+  string state_guid = 1;
+  string state_logic_id = 2;
+
+  // List of output keys available in this state's Terraform JSON
+  // Empty array if state has no outputs (not an error)
+  repeated OutputKey outputs = 3;
+}
+
+// GetStateInfoRequest fetches full state information.
+message GetStateInfoRequest {
+  // State identifier (prefer logic_id for UX, guid for precision)
+  oneof state {
+    string logic_id = 1; // User-friendly state identifier
+    string guid = 2; // Immutable UUIDv7 identifier
+  }
+}
+
+// GetStateInfoResponse returns comprehensive state view.
+message GetStateInfoResponse {
+  // State identifiers
+  string guid = 1;
+  string logic_id = 2;
+
+  // Terraform HTTP backend configuration
+  BackendConfig backend_config = 3;
+
+  // Incoming dependency edges (this state consumes outputs from these states)
+  // Equivalent to: SELECT * FROM edges WHERE to_guid = this.guid
+  repeated DependencyEdge dependencies = 4;
+
+  // Outgoing dependency edges (other states consume this state's outputs)
+  // Equivalent to: SELECT * FROM edges WHERE from_guid = this.guid
+  repeated DependencyEdge dependents = 5;
+
+  // Available outputs from this state's Terraform JSON (keys only, no values)
+  // Empty array if state has no Terraform state JSON uploaded yet
+  repeated OutputKey outputs = 6;
+
+  // State lifecycle timestamps
+  google.protobuf.Timestamp created_at = 7;
+  google.protobuf.Timestamp updated_at = 8;
 }

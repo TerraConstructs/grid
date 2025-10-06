@@ -16,7 +16,7 @@ import (
 // StateService defines the interface for state operations needed by Terraform handlers
 type StateService interface {
 	GetStateByGUID(ctx context.Context, guid string) (*models.State, error)
-	UpdateStateContent(ctx context.Context, guid string, content []byte, lockID string) (*statepkg.StateSummary, error)
+	UpdateStateContent(ctx context.Context, guid string, content []byte, lockID string) (*statepkg.StateUpdateResult, error)
 	LockState(ctx context.Context, guid string, lockInfo *models.LockInfo) error
 	UnlockState(ctx context.Context, guid string, lockID string) error
 	GetStateLock(ctx context.Context, guid string) (*models.LockInfo, error)
@@ -107,7 +107,7 @@ func (h *TerraformHandlers) UpdateState(w http.ResponseWriter, r *http.Request) 
 	lockID := r.URL.Query().Get("ID")
 
 	// Update state content via service (service will verify lock ID if state is locked)
-	summary, err := h.service.UpdateStateContent(r.Context(), guid, body, lockID)
+	result, err := h.service.UpdateStateContent(r.Context(), guid, body, lockID)
 	if err != nil {
 		if isNotFoundError(err) {
 			http.Error(w, fmt.Sprintf("state not found: %s", guid), http.StatusNotFound)
@@ -119,14 +119,16 @@ func (h *TerraformHandlers) UpdateState(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	// Trigger EdgeUpdateJob asynchronously (best effort, fire-and-forget)
-	if h.edgeUpdater != nil {
-		go h.edgeUpdater.UpdateEdges(context.Background(), guid, body)
+	// Trigger EdgeUpdateJob asynchronously with pre-parsed outputs (best effort, fire-and-forget)
+	// NOTE: Output caching is now handled synchronously in service.UpdateStateContent
+	// NOTE: Using UpdateEdgesWithOutputs avoids double-parsing of state JSON
+	if h.edgeUpdater != nil && result.OutputValues != nil {
+		go h.edgeUpdater.UpdateEdgesWithOutputs(context.Background(), guid, result.OutputValues)
 	}
 
 	// Check if size threshold exceeded (10MB warning)
-	if summary.SizeBytes > models.StateSizeWarningThreshold {
-		w.Header().Set("X-Grid-State-Size-Warning", fmt.Sprintf("State size (%d bytes) exceeds recommended threshold (%d bytes)", summary.SizeBytes, models.StateSizeWarningThreshold))
+	if result.Summary.SizeBytes > models.StateSizeWarningThreshold {
+		w.Header().Set("X-Grid-State-Size-Warning", fmt.Sprintf("State size (%d bytes) exceeds recommended threshold (%d bytes)", result.Summary.SizeBytes, models.StateSizeWarningThreshold))
 	}
 
 	w.WriteHeader(http.StatusOK)

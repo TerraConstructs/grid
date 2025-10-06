@@ -15,6 +15,10 @@ type StateRepository interface {
 	List(ctx context.Context) ([]models.State, error)
 	Lock(ctx context.Context, guid string, lockInfo *models.LockInfo) error
 	Unlock(ctx context.Context, guid string, lockID string) error
+
+	// UpdateContentAndUpsertOutputs atomically updates state content and output cache in one transaction.
+	// This ensures FR-027 compliance: cache and state are always consistent.
+	UpdateContentAndUpsertOutputs(ctx context.Context, guid string, content []byte, lockID string, serial int64, outputs []OutputKey) error
 }
 
 // EdgeRepository exposes persistence operations for dependency edges.
@@ -33,4 +37,37 @@ type EdgeRepository interface {
 
 	// Cycle detection (application-layer pre-check, DB trigger is safety net)
 	WouldCreateCycle(ctx context.Context, fromState, toState string) (bool, error)
+}
+
+// OutputKey represents a Terraform output name and metadata.
+type OutputKey struct {
+	Key       string
+	Sensitive bool
+}
+
+// StateOutputRef represents a state reference with an output key.
+type StateOutputRef struct {
+	StateGUID    string
+	StateLogicID string
+	OutputKey    string
+	Sensitive    bool
+}
+
+// StateOutputRepository exposes persistence operations for cached Terraform outputs.
+type StateOutputRepository interface {
+	// UpsertOutputs atomically replaces all outputs for a state
+	// Deletes old outputs where state_serial != serial, inserts new ones
+	UpsertOutputs(ctx context.Context, stateGUID string, serial int64, outputs []OutputKey) error
+
+	// GetOutputsByState returns all cached outputs for a state
+	// Returns empty slice if no outputs exist (not an error)
+	GetOutputsByState(ctx context.Context, stateGUID string) ([]OutputKey, error)
+
+	// SearchOutputsByKey finds all states with output matching key (exact match)
+	// Used for cross-state dependency discovery
+	SearchOutputsByKey(ctx context.Context, outputKey string) ([]StateOutputRef, error)
+
+	// DeleteOutputsByState removes all cached outputs for a state
+	// Cascade handles this on state deletion, but explicit method useful for testing
+	DeleteOutputsByState(ctx context.Context, stateGUID string) error
 }

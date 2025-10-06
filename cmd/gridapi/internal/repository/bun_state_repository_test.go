@@ -437,6 +437,154 @@ func TestBunStateRepository_Unlock(t *testing.T) {
 	})
 }
 
+func TestBunStateRepository_UpdateContentAndUpsertOutputs(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+	defer cleanupTestData(t, db)
+
+	repo := NewBunStateRepository(db)
+	outputRepo := NewBunStateOutputRepository(db)
+	ctx := context.Background()
+
+	t.Run("atomic update of state and outputs", func(t *testing.T) {
+		state := &models.State{
+			GUID:    uuid.NewString(),
+			LogicID: "test-" + uuid.NewString()[:8],
+		}
+		err := repo.Create(ctx, state)
+		require.NoError(t, err)
+
+		// Update with outputs
+		stateContent := []byte(`{"version": 4, "serial": 1, "outputs": {"vpc_id": {"value": "vpc-123", "sensitive": false}}}`)
+		outputs := []OutputKey{
+			{Key: "vpc_id", Sensitive: false},
+		}
+		err = repo.UpdateContentAndUpsertOutputs(ctx, state.GUID, stateContent, "", 1, outputs)
+		require.NoError(t, err)
+
+		// Verify state content updated
+		retrieved, err := repo.GetByGUID(ctx, state.GUID)
+		require.NoError(t, err)
+		assert.Equal(t, stateContent, retrieved.StateContent)
+
+		// Verify outputs inserted
+		cachedOutputs, err := outputRepo.GetOutputsByState(ctx, state.GUID)
+		require.NoError(t, err)
+		assert.Len(t, cachedOutputs, 1)
+		assert.Equal(t, "vpc_id", cachedOutputs[0].Key)
+		assert.False(t, cachedOutputs[0].Sensitive)
+	})
+
+	t.Run("serial-based output invalidation", func(t *testing.T) {
+		state := &models.State{
+			GUID:    uuid.NewString(),
+			LogicID: "test-" + uuid.NewString()[:8],
+		}
+		err := repo.Create(ctx, state)
+		require.NoError(t, err)
+
+		// Insert initial outputs at serial 1
+		stateContent1 := []byte(`{"version": 4, "serial": 1}`)
+		outputs1 := []OutputKey{
+			{Key: "output_a", Sensitive: false},
+			{Key: "output_b", Sensitive: false},
+		}
+		err = repo.UpdateContentAndUpsertOutputs(ctx, state.GUID, stateContent1, "", 1, outputs1)
+		require.NoError(t, err)
+
+		// Update with serial 2 (output_a removed, output_c added)
+		stateContent2 := []byte(`{"version": 4, "serial": 2}`)
+		outputs2 := []OutputKey{
+			{Key: "output_b", Sensitive: false},
+			{Key: "output_c", Sensitive: true},
+		}
+		err = repo.UpdateContentAndUpsertOutputs(ctx, state.GUID, stateContent2, "", 2, outputs2)
+		require.NoError(t, err)
+
+		// Verify only serial 2 outputs exist
+		cachedOutputs, err := outputRepo.GetOutputsByState(ctx, state.GUID)
+		require.NoError(t, err)
+		assert.Len(t, cachedOutputs, 2)
+
+		keys := make([]string, len(cachedOutputs))
+		for i, out := range cachedOutputs {
+			keys[i] = out.Key
+		}
+		assert.Contains(t, keys, "output_b")
+		assert.Contains(t, keys, "output_c")
+		assert.NotContains(t, keys, "output_a")
+	})
+
+	t.Run("locked state with correct lock ID", func(t *testing.T) {
+		state := &models.State{
+			GUID:    uuid.NewString(),
+			LogicID: "test-" + uuid.NewString()[:8],
+		}
+		err := repo.Create(ctx, state)
+		require.NoError(t, err)
+
+		// Lock the state
+		lockInfo := &models.LockInfo{
+			ID:        "lock-123",
+			Operation: "apply",
+			Who:       "test@localhost",
+			Version:   "1.5.0",
+			Created:   time.Now(),
+			Path:      state.LogicID,
+		}
+		err = repo.Lock(ctx, state.GUID, lockInfo)
+		require.NoError(t, err)
+
+		// Update with correct lock ID should succeed
+		stateContent := []byte(`{"version": 4, "serial": 1}`)
+		outputs := []OutputKey{{Key: "test", Sensitive: false}}
+		err = repo.UpdateContentAndUpsertOutputs(ctx, state.GUID, stateContent, "lock-123", 1, outputs)
+		require.NoError(t, err)
+
+		// Verify update succeeded
+		retrieved, err := repo.GetByGUID(ctx, state.GUID)
+		require.NoError(t, err)
+		assert.Equal(t, stateContent, retrieved.StateContent)
+	})
+
+	t.Run("locked state without lock ID fails", func(t *testing.T) {
+		state := &models.State{
+			GUID:    uuid.NewString(),
+			LogicID: "test-" + uuid.NewString()[:8],
+		}
+		err := repo.Create(ctx, state)
+		require.NoError(t, err)
+
+		// Lock the state
+		lockInfo := &models.LockInfo{
+			ID:        "lock-456",
+			Operation: "apply",
+			Who:       "test@localhost",
+			Version:   "1.5.0",
+			Created:   time.Now(),
+			Path:      state.LogicID,
+		}
+		err = repo.Lock(ctx, state.GUID, lockInfo)
+		require.NoError(t, err)
+
+		// Update without lock ID should fail
+		stateContent := []byte(`{"version": 4, "serial": 1}`)
+		outputs := []OutputKey{{Key: "test", Sensitive: false}}
+		err = repo.UpdateContentAndUpsertOutputs(ctx, state.GUID, stateContent, "", 1, outputs)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "locked")
+	})
+
+	t.Run("state not found", func(t *testing.T) {
+		nonExistentGUID := uuid.NewString()
+		stateContent := []byte(`{"version": 4, "serial": 1}`)
+		outputs := []OutputKey{{Key: "test", Sensitive: false}}
+		err := repo.UpdateContentAndUpsertOutputs(ctx, nonExistentGUID, stateContent, "", 1, outputs)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "not found")
+	})
+}
+
 func TestStateSizeWarning(t *testing.T) {
 	tests := []struct {
 		name     string

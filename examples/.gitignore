@@ -1,0 +1,4 @@
+.terraform*
+.grid
+grid_dependencies.tf
+backend.tf

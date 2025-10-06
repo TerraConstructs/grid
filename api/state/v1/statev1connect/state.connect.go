@@ -71,6 +71,12 @@ const (
 	// StateServiceGetDependencyGraphProcedure is the fully-qualified name of the StateService's
 	// GetDependencyGraph RPC.
 	StateServiceGetDependencyGraphProcedure = "/state.v1.StateService/GetDependencyGraph"
+	// StateServiceListStateOutputsProcedure is the fully-qualified name of the StateService's
+	// ListStateOutputs RPC.
+	StateServiceListStateOutputsProcedure = "/state.v1.StateService/ListStateOutputs"
+	// StateServiceGetStateInfoProcedure is the fully-qualified name of the StateService's GetStateInfo
+	// RPC.
+	StateServiceGetStateInfoProcedure = "/state.v1.StateService/GetStateInfo"
 )
 
 // StateServiceClient is a client for the state.v1.StateService service.
@@ -102,6 +108,19 @@ type StateServiceClient interface {
 	GetStateStatus(context.Context, *connect.Request[v1.GetStateStatusRequest]) (*connect.Response[v1.GetStateStatusResponse], error)
 	// GetDependencyGraph returns full dependency graph data for client-side HCL generation.
 	GetDependencyGraph(context.Context, *connect.Request[v1.GetDependencyGraphRequest]) (*connect.Response[v1.GetDependencyGraphResponse], error)
+	// ListStateOutputs returns available output keys from a state's Terraform/OpenTofu JSON.
+	// Output values are NOT returned (security/size concerns); only keys and sensitive flags.
+	// Used by CLI for interactive output selection when creating dependencies.
+	ListStateOutputs(context.Context, *connect.Request[v1.ListStateOutputsRequest]) (*connect.Response[v1.ListStateOutputsResponse], error)
+	// GetStateInfo retrieves comprehensive state information including:
+	// - Basic metadata (GUID, logic-id, timestamps)
+	// - Backend configuration (Terraform HTTP backend URLs)
+	// - Dependencies (incoming edges: states this state depends on)
+	// - Dependents (outgoing edges: states that depend on this state)
+	// - Outputs (available Terraform output keys from state JSON)
+	//
+	// This consolidates information previously requiring multiple RPC calls.
+	GetStateInfo(context.Context, *connect.Request[v1.GetStateInfoRequest]) (*connect.Response[v1.GetStateInfoResponse], error)
 }
 
 // NewStateServiceClient constructs a client for the state.v1.StateService service. By default, it
@@ -193,6 +212,18 @@ func NewStateServiceClient(httpClient connect.HTTPClient, baseURL string, opts .
 			connect.WithSchema(stateServiceMethods.ByName("GetDependencyGraph")),
 			connect.WithClientOptions(opts...),
 		),
+		listStateOutputs: connect.NewClient[v1.ListStateOutputsRequest, v1.ListStateOutputsResponse](
+			httpClient,
+			baseURL+StateServiceListStateOutputsProcedure,
+			connect.WithSchema(stateServiceMethods.ByName("ListStateOutputs")),
+			connect.WithClientOptions(opts...),
+		),
+		getStateInfo: connect.NewClient[v1.GetStateInfoRequest, v1.GetStateInfoResponse](
+			httpClient,
+			baseURL+StateServiceGetStateInfoProcedure,
+			connect.WithSchema(stateServiceMethods.ByName("GetStateInfo")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
@@ -211,6 +242,8 @@ type stateServiceClient struct {
 	getTopologicalOrder *connect.Client[v1.GetTopologicalOrderRequest, v1.GetTopologicalOrderResponse]
 	getStateStatus      *connect.Client[v1.GetStateStatusRequest, v1.GetStateStatusResponse]
 	getDependencyGraph  *connect.Client[v1.GetDependencyGraphRequest, v1.GetDependencyGraphResponse]
+	listStateOutputs    *connect.Client[v1.ListStateOutputsRequest, v1.ListStateOutputsResponse]
+	getStateInfo        *connect.Client[v1.GetStateInfoRequest, v1.GetStateInfoResponse]
 }
 
 // CreateState calls state.v1.StateService.CreateState.
@@ -278,6 +311,16 @@ func (c *stateServiceClient) GetDependencyGraph(ctx context.Context, req *connec
 	return c.getDependencyGraph.CallUnary(ctx, req)
 }
 
+// ListStateOutputs calls state.v1.StateService.ListStateOutputs.
+func (c *stateServiceClient) ListStateOutputs(ctx context.Context, req *connect.Request[v1.ListStateOutputsRequest]) (*connect.Response[v1.ListStateOutputsResponse], error) {
+	return c.listStateOutputs.CallUnary(ctx, req)
+}
+
+// GetStateInfo calls state.v1.StateService.GetStateInfo.
+func (c *stateServiceClient) GetStateInfo(ctx context.Context, req *connect.Request[v1.GetStateInfoRequest]) (*connect.Response[v1.GetStateInfoResponse], error) {
+	return c.getStateInfo.CallUnary(ctx, req)
+}
+
 // StateServiceHandler is an implementation of the state.v1.StateService service.
 type StateServiceHandler interface {
 	// CreateState creates a new state with client-generated GUID and logic ID.
@@ -307,6 +350,19 @@ type StateServiceHandler interface {
 	GetStateStatus(context.Context, *connect.Request[v1.GetStateStatusRequest]) (*connect.Response[v1.GetStateStatusResponse], error)
 	// GetDependencyGraph returns full dependency graph data for client-side HCL generation.
 	GetDependencyGraph(context.Context, *connect.Request[v1.GetDependencyGraphRequest]) (*connect.Response[v1.GetDependencyGraphResponse], error)
+	// ListStateOutputs returns available output keys from a state's Terraform/OpenTofu JSON.
+	// Output values are NOT returned (security/size concerns); only keys and sensitive flags.
+	// Used by CLI for interactive output selection when creating dependencies.
+	ListStateOutputs(context.Context, *connect.Request[v1.ListStateOutputsRequest]) (*connect.Response[v1.ListStateOutputsResponse], error)
+	// GetStateInfo retrieves comprehensive state information including:
+	// - Basic metadata (GUID, logic-id, timestamps)
+	// - Backend configuration (Terraform HTTP backend URLs)
+	// - Dependencies (incoming edges: states this state depends on)
+	// - Dependents (outgoing edges: states that depend on this state)
+	// - Outputs (available Terraform output keys from state JSON)
+	//
+	// This consolidates information previously requiring multiple RPC calls.
+	GetStateInfo(context.Context, *connect.Request[v1.GetStateInfoRequest]) (*connect.Response[v1.GetStateInfoResponse], error)
 }
 
 // NewStateServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -394,6 +450,18 @@ func NewStateServiceHandler(svc StateServiceHandler, opts ...connect.HandlerOpti
 		connect.WithSchema(stateServiceMethods.ByName("GetDependencyGraph")),
 		connect.WithHandlerOptions(opts...),
 	)
+	stateServiceListStateOutputsHandler := connect.NewUnaryHandler(
+		StateServiceListStateOutputsProcedure,
+		svc.ListStateOutputs,
+		connect.WithSchema(stateServiceMethods.ByName("ListStateOutputs")),
+		connect.WithHandlerOptions(opts...),
+	)
+	stateServiceGetStateInfoHandler := connect.NewUnaryHandler(
+		StateServiceGetStateInfoProcedure,
+		svc.GetStateInfo,
+		connect.WithSchema(stateServiceMethods.ByName("GetStateInfo")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/state.v1.StateService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case StateServiceCreateStateProcedure:
@@ -422,6 +490,10 @@ func NewStateServiceHandler(svc StateServiceHandler, opts ...connect.HandlerOpti
 			stateServiceGetStateStatusHandler.ServeHTTP(w, r)
 		case StateServiceGetDependencyGraphProcedure:
 			stateServiceGetDependencyGraphHandler.ServeHTTP(w, r)
+		case StateServiceListStateOutputsProcedure:
+			stateServiceListStateOutputsHandler.ServeHTTP(w, r)
+		case StateServiceGetStateInfoProcedure:
+			stateServiceGetStateInfoHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -481,4 +553,12 @@ func (UnimplementedStateServiceHandler) GetStateStatus(context.Context, *connect
 
 func (UnimplementedStateServiceHandler) GetDependencyGraph(context.Context, *connect.Request[v1.GetDependencyGraphRequest]) (*connect.Response[v1.GetDependencyGraphResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("state.v1.StateService.GetDependencyGraph is not implemented"))
+}
+
+func (UnimplementedStateServiceHandler) ListStateOutputs(context.Context, *connect.Request[v1.ListStateOutputsRequest]) (*connect.Response[v1.ListStateOutputsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("state.v1.StateService.ListStateOutputs is not implemented"))
+}
+
+func (UnimplementedStateServiceHandler) GetStateInfo(context.Context, *connect.Request[v1.GetStateInfoRequest]) (*connect.Response[v1.GetStateInfoResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("state.v1.StateService.GetStateInfo is not implemented"))
 }

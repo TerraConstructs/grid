@@ -7,6 +7,8 @@ import (
 var (
 	// ServerURL is the Grid API server URL, set by the root command
 	ServerURL string
+	// NonInteractive controls whether interactive prompts are disabled
+	NonInteractive bool
 )
 
 // DepsCmd is the parent command for dependency operations
@@ -30,4 +32,9 @@ func init() {
 // SetServerURL sets the server URL for all deps commands
 func SetServerURL(url string) {
 	ServerURL = url
+}
+
+// SetNonInteractive sets the non-interactive mode for all deps commands
+func SetNonInteractive(value bool) {
+	NonInteractive = value
 }
