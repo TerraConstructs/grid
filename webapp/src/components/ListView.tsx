@@ -1,4 +1,4 @@
-import { StateInfo, DependencyEdge } from '../services/mockApi';
+import type { StateInfo, DependencyEdge } from '@tcons/grid';
 import { Database, GitBranch, ArrowRight, Lock, CheckCircle2, AlertCircle, Clock } from 'lucide-react';
 
 interface ListViewProps {

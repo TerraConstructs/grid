@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { StateInfo, DependencyEdge } from '../services/mockApi';
+import type { StateInfo, DependencyEdge } from '@tcons/grid';
 
 interface GraphViewProps {
   states: StateInfo[];

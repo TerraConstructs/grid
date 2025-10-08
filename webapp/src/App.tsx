@@ -1,41 +1,24 @@
 import { useEffect, useState } from 'react';
-import { mockApi, StateInfo, DependencyEdge } from './services/mockApi';
+import type { StateInfo, DependencyEdge } from '@tcons/grid';
+import { useGridData } from './hooks/useGridData';
 import { GraphView } from './components/GraphView';
 import { ListView } from './components/ListView';
 import { DetailView } from './components/DetailView';
-import { Network, List, Loader2 } from 'lucide-react';
+import { Network, List, Loader2, RefreshCw, AlertCircle } from 'lucide-react';
 
 type View = 'graph' | 'list';
 
 function App() {
   const [view, setView] = useState<View>('graph');
-  const [states, setStates] = useState<StateInfo[]>([]);
-  const [edges, setEdges] = useState<DependencyEdge[]>([]);
   const [selectedState, setSelectedState] = useState<StateInfo | null>(null);
-  const [loading, setLoading] = useState(true);
+  const { states, edges, loading, error, loadData, getStateInfo } = useGridData();
 
   useEffect(() => {
     loadData();
-  }, []);
-
-  const loadData = async () => {
-    setLoading(true);
-    try {
-      const [statesData, edgesData] = await Promise.all([
-        mockApi.listStates(),
-        mockApi.getAllEdges(),
-      ]);
-      setStates(statesData);
-      setEdges(edgesData);
-    } catch (error) {
-      console.error('Failed to load data:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
+  }, [loadData]);
 
   const handleStateClick = async (logicId: string) => {
-    const state = await mockApi.getStateInfo(logicId);
+    const state = await getStateInfo(logicId);
     if (state) {
       setSelectedState(state);
     }
@@ -46,9 +29,24 @@ function App() {
   };
 
   const handleNavigate = async (logicId: string) => {
-    const state = await mockApi.getStateInfo(logicId);
+    const state = await getStateInfo(logicId);
     if (state) {
       setSelectedState(state);
+    }
+  };
+
+  const handleRefresh = async () => {
+    const currentSelectedLogicId = selectedState?.logic_id;
+    await loadData();
+
+    // Preserve selected state after refresh
+    if (currentSelectedLogicId) {
+      const refreshedState = await getStateInfo(currentSelectedLogicId);
+      if (refreshedState) {
+        setSelectedState(refreshedState);
+      } else {
+        setSelectedState(null);
+      }
     }
   };
 
@@ -109,9 +107,36 @@ function App() {
             <div className="text-gray-400">
               <span className="text-white font-semibold">{edges.length}</span> edges
             </div>
+            <button
+              onClick={handleRefresh}
+              disabled={loading}
+              className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium bg-gray-700 text-gray-300 hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              title="Refresh data"
+            >
+              <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+              Refresh
+            </button>
           </div>
         </div>
       </header>
+
+      {error && (
+        <div className="bg-red-900/50 border-b border-red-700">
+          <div className="max-w-7xl mx-auto px-4 py-3 flex items-center gap-3">
+            <AlertCircle className="w-5 h-5 text-red-400" />
+            <div className="flex-1">
+              <p className="text-sm font-medium text-red-200">Failed to load data</p>
+              <p className="text-xs text-red-300">{error}</p>
+            </div>
+            <button
+              onClick={handleRefresh}
+              className="text-sm text-red-200 hover:text-white font-medium"
+            >
+              Retry
+            </button>
+          </div>
+        </div>
+      )}
 
       <main className="flex-1 overflow-hidden">
         {view === 'graph' ? (

@@ -1,5 +1,5 @@
-import { StateInfo, DependencyEdge } from '../services/mockApi';
-import { X, Database, GitBranch, FileJson, ArrowRight, ArrowLeft, Lock, ExternalLink } from 'lucide-react';
+import type { StateInfo } from '@tcons/grid';
+import { X, Database, FileJson, ArrowRight, ArrowLeft, Lock, ExternalLink } from 'lucide-react';
 import { useState } from 'react';
 
 interface DetailViewProps {
@@ -86,7 +86,7 @@ export function DetailView({ state, onClose, onNavigate }: DetailViewProps) {
                 <div>
                   <h3 className="text-sm font-medium text-gray-500 mb-2">Size</h3>
                   <p className="text-lg font-semibold text-gray-900">
-                    {(state.size_bytes / 1024).toFixed(1)} KB
+                    {(state.size_bytes ?? 0 / 1024).toFixed(1)} KB
                   </p>
                 </div>
 
