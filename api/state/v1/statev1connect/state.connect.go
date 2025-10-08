@@ -77,6 +77,9 @@ const (
 	// StateServiceGetStateInfoProcedure is the fully-qualified name of the StateService's GetStateInfo
 	// RPC.
 	StateServiceGetStateInfoProcedure = "/state.v1.StateService/GetStateInfo"
+	// StateServiceListAllEdgesProcedure is the fully-qualified name of the StateService's ListAllEdges
+	// RPC.
+	StateServiceListAllEdgesProcedure = "/state.v1.StateService/ListAllEdges"
 )
 
 // StateServiceClient is a client for the state.v1.StateService service.
@@ -121,6 +124,10 @@ type StateServiceClient interface {
 	//
 	// This consolidates information previously requiring multiple RPC calls.
 	GetStateInfo(context.Context, *connect.Request[v1.GetStateInfoRequest]) (*connect.Response[v1.GetStateInfoResponse], error)
+	// ListAllEdges returns all dependency edges in the system.
+	// Used by dashboards and monitoring tools to visualize complete topology.
+	// Returns edges in ascending order by ID (database insertion order).
+	ListAllEdges(context.Context, *connect.Request[v1.ListAllEdgesRequest]) (*connect.Response[v1.ListAllEdgesResponse], error)
 }
 
 // NewStateServiceClient constructs a client for the state.v1.StateService service. By default, it
@@ -224,6 +231,12 @@ func NewStateServiceClient(httpClient connect.HTTPClient, baseURL string, opts .
 			connect.WithSchema(stateServiceMethods.ByName("GetStateInfo")),
 			connect.WithClientOptions(opts...),
 		),
+		listAllEdges: connect.NewClient[v1.ListAllEdgesRequest, v1.ListAllEdgesResponse](
+			httpClient,
+			baseURL+StateServiceListAllEdgesProcedure,
+			connect.WithSchema(stateServiceMethods.ByName("ListAllEdges")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
@@ -244,6 +257,7 @@ type stateServiceClient struct {
 	getDependencyGraph  *connect.Client[v1.GetDependencyGraphRequest, v1.GetDependencyGraphResponse]
 	listStateOutputs    *connect.Client[v1.ListStateOutputsRequest, v1.ListStateOutputsResponse]
 	getStateInfo        *connect.Client[v1.GetStateInfoRequest, v1.GetStateInfoResponse]
+	listAllEdges        *connect.Client[v1.ListAllEdgesRequest, v1.ListAllEdgesResponse]
 }
 
 // CreateState calls state.v1.StateService.CreateState.
@@ -321,6 +335,11 @@ func (c *stateServiceClient) GetStateInfo(ctx context.Context, req *connect.Requ
 	return c.getStateInfo.CallUnary(ctx, req)
 }
 
+// ListAllEdges calls state.v1.StateService.ListAllEdges.
+func (c *stateServiceClient) ListAllEdges(ctx context.Context, req *connect.Request[v1.ListAllEdgesRequest]) (*connect.Response[v1.ListAllEdgesResponse], error) {
+	return c.listAllEdges.CallUnary(ctx, req)
+}
+
 // StateServiceHandler is an implementation of the state.v1.StateService service.
 type StateServiceHandler interface {
 	// CreateState creates a new state with client-generated GUID and logic ID.
@@ -363,6 +382,10 @@ type StateServiceHandler interface {
 	//
 	// This consolidates information previously requiring multiple RPC calls.
 	GetStateInfo(context.Context, *connect.Request[v1.GetStateInfoRequest]) (*connect.Response[v1.GetStateInfoResponse], error)
+	// ListAllEdges returns all dependency edges in the system.
+	// Used by dashboards and monitoring tools to visualize complete topology.
+	// Returns edges in ascending order by ID (database insertion order).
+	ListAllEdges(context.Context, *connect.Request[v1.ListAllEdgesRequest]) (*connect.Response[v1.ListAllEdgesResponse], error)
 }
 
 // NewStateServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -462,6 +485,12 @@ func NewStateServiceHandler(svc StateServiceHandler, opts ...connect.HandlerOpti
 		connect.WithSchema(stateServiceMethods.ByName("GetStateInfo")),
 		connect.WithHandlerOptions(opts...),
 	)
+	stateServiceListAllEdgesHandler := connect.NewUnaryHandler(
+		StateServiceListAllEdgesProcedure,
+		svc.ListAllEdges,
+		connect.WithSchema(stateServiceMethods.ByName("ListAllEdges")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/state.v1.StateService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case StateServiceCreateStateProcedure:
@@ -494,6 +523,8 @@ func NewStateServiceHandler(svc StateServiceHandler, opts ...connect.HandlerOpti
 			stateServiceListStateOutputsHandler.ServeHTTP(w, r)
 		case StateServiceGetStateInfoProcedure:
 			stateServiceGetStateInfoHandler.ServeHTTP(w, r)
+		case StateServiceListAllEdgesProcedure:
+			stateServiceListAllEdgesHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -561,4 +592,8 @@ func (UnimplementedStateServiceHandler) ListStateOutputs(context.Context, *conne
 
 func (UnimplementedStateServiceHandler) GetStateInfo(context.Context, *connect.Request[v1.GetStateInfoRequest]) (*connect.Response[v1.GetStateInfoResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("state.v1.StateService.GetStateInfo is not implemented"))
+}
+
+func (UnimplementedStateServiceHandler) ListAllEdges(context.Context, *connect.Request[v1.ListAllEdgesRequest]) (*connect.Response[v1.ListAllEdgesResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("state.v1.StateService.ListAllEdges is not implemented"))
 }

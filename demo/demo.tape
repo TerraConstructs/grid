@@ -19,10 +19,10 @@ Type `make db-reset` Enter
 Sleep 2s
 
 Type `gridapi db init` Enter
-Sleep 1s
+Sleep 3s
 
 Type `gridapi db migrate` Enter
-Sleep 1s
+Sleep 2s
 
 Hide
 Type `Start API`

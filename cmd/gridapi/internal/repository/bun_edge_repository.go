@@ -133,12 +133,12 @@ func (r *BunEdgeRepository) GetIncomingEdges(ctx context.Context, toStateGUID st
 	return edges, nil
 }
 
-// GetAllEdges fetches all edges in the system.
+// GetAllEdges fetches all edges in the system, ordered by ID (insertion order).
 func (r *BunEdgeRepository) GetAllEdges(ctx context.Context) ([]models.Edge, error) {
 	var edges []models.Edge
 	err := r.db.NewSelect().
 		Model(&edges).
-		Order("created_at ASC").
+		Order("id ASC").
 		Scan(ctx)
 
 	if err != nil {

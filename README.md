@@ -5,6 +5,7 @@ Grid is a remote Terraform/OpenTofu state service paired with a friendly CLI tha
 ## Highlights
 - Remote state API (`gridapi`) that speaks the Terraform HTTP backend protocol and persists state in PostgreSQL
 - Directory-aware CLI (`gridctl`) that creates states, generates backend config, and manages cross-state dependencies
+- Dashboard to visualize states and their dependencies (`webapp`)
 - Go and TypeScript SDKs for programmatic access and automation
 
 ## Demo

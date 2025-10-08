@@ -150,6 +150,11 @@ func (s *Service) SearchByOutput(ctx context.Context, outputKey string) ([]model
 	return s.edgeRepo.FindByOutput(ctx, outputKey)
 }
 
+// ListAllEdges returns all dependency edges in the system, ordered by ID.
+func (s *Service) ListAllEdges(ctx context.Context) ([]models.Edge, error) {
+	return s.edgeRepo.GetAllEdges(ctx)
+}
+
 // GetTopologicalOrder computes layered ordering
 func (s *Service) GetTopologicalOrder(ctx context.Context, logicID, guid, direction string) ([]graph.Layer, error) {
 	state, err := s.resolveState(ctx, logicID, guid)

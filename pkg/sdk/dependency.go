@@ -95,6 +95,17 @@ func (c *Client) ListDependents(ctx context.Context, ref StateReference) ([]Depe
 	return edgesFromProto(resp.Msg.GetEdges()), nil
 }
 
+// ListAllEdges returns all dependency edges in the system, ordered by ID.
+// Used by dashboards and monitoring tools to visualize complete topology.
+func (c *Client) ListAllEdges(ctx context.Context) ([]DependencyEdge, error) {
+	resp, err := c.rpc.ListAllEdges(ctx, connect.NewRequest(&statev1.ListAllEdgesRequest{}))
+	if err != nil {
+		return nil, err
+	}
+
+	return edgesFromProto(resp.Msg.GetEdges()), nil
+}
+
 // SearchByOutput finds every dependency edge that consumes a specific producer output key.
 func (c *Client) SearchByOutput(ctx context.Context, outputKey string) ([]DependencyEdge, error) {
 	if outputKey == "" {

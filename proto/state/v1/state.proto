@@ -64,6 +64,11 @@ service StateService {
   //
   // This consolidates information previously requiring multiple RPC calls.
   rpc GetStateInfo(GetStateInfoRequest) returns (GetStateInfoResponse);
+
+  // ListAllEdges returns all dependency edges in the system.
+  // Used by dashboards and monitoring tools to visualize complete topology.
+  // Returns edges in ascending order by ID (database insertion order).
+  rpc ListAllEdges(ListAllEdgesRequest) returns (ListAllEdgesResponse);
 }
 
 // CreateStateRequest creates a new state using a client-generated GUID.
@@ -413,4 +418,27 @@ message GetStateInfoResponse {
   // State lifecycle timestamps
   google.protobuf.Timestamp created_at = 7;
   google.protobuf.Timestamp updated_at = 8;
+
+  // Computed status based on incoming dependency edges
+  optional string computed_status = 9; // "clean", "stale", "potentially-stale"
+}
+
+// ListAllEdgesRequest currently has no parameters.
+// Future: Add filtering, pagination, sorting options.
+message ListAllEdgesRequest {
+  // No fields for PoC (returns all edges)
+
+  // Future enhancements (not in PoC):
+  // optional string status_filter = 1;  // e.g., "dirty", "clean"
+  // optional int32 page_size = 2;
+  // optional string page_token = 3;
+}
+
+// ListAllEdgesResponse contains all dependency edges.
+message ListAllEdgesResponse {
+  repeated DependencyEdge edges = 1;
+
+  // Future enhancements (not in PoC):
+  // optional string next_page_token = 2;
+  // optional int32 total_count = 3;
 }

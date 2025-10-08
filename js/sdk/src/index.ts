@@ -1,11 +1,19 @@
 /**
  * Grid TypeScript SDK for Terraform state management
  *
- * This SDK provides a simple re-export of the generated protobuf types.
- * Consumers should use Connect RPC client libraries (@connectrpc/connect) to interact with the API.
+ * This SDK provides both low-level Connect RPC access and a high-level
+ * adapter interface for dashboard and UI integration.
  *
  * @example
  * ```typescript
+ * // High-level adapter (recommended for dashboards)
+ * import { GridApiAdapter, createGridTransport } from "@tcons/grid";
+ *
+ * const transport = createGridTransport("http://localhost:8080");
+ * const api = new GridApiAdapter(transport);
+ * const states = await api.listStates();
+ *
+ * // Low-level Connect RPC client
  * import { createPromiseClient } from "@connectrpc/connect";
  * import { createConnectTransport } from "@connectrpc/connect-node";
  * import { StateService } from "@tcons/grid";
@@ -15,83 +23,61 @@
  * ```
  */
 
-import { createClient, Client, Transport } from "@connectrpc/connect";
-import { StateService } from "../gen/state/v1/state_connect.js";
-import type {
-  CreateStateRequest,
-  CreateStateResponse,
-  ListStatesRequest,
-  ListStatesResponse,
-  GetStateConfigRequest,
-  GetStateConfigResponse,
-  GetStateLockRequest,
-  GetStateLockResponse,
-  UnlockStateRequest,
-  UnlockStateResponse,
-} from "../gen/state/v1/state_pb.js";
-
-// Re-export the Connect service definition
-export { StateService } from "../gen/state/v1/state_connect.js";
-
-// Re-export all protobuf message classes and types
-export {
-  CreateStateRequest,
-  CreateStateResponse,
-  ListStatesRequest,
-  ListStatesResponse,
-  GetStateConfigRequest,
-  GetStateConfigResponse,
-  GetStateLockRequest,
-  GetStateLockResponse,
-  UnlockStateRequest,
-  UnlockStateResponse,
-  StateInfo,
-  BackendConfig,
-  StateLock,
-  LockInfo,
-} from "../gen/state/v1/state_pb.js";
+// ===== High-level API (Dashboard/UI) =====
 
 /**
- * GridClient provides a convenient wrapper around the StateService Connect client.
- *
- * @example
- * ```typescript
- * import { GridClient } from "@tcons/grid";
- * import { createConnectTransport } from "@connectrpc/connect-node";
- *
- * const transport = createConnectTransport({ baseUrl: "http://localhost:8080" });
- * const client = new GridClient("http://localhost:8080", transport);
- *
- * const response = await client.createState({
- *   guid: "018e8c5e-7890-7000-8000-123456789abc",
- *   logicId: "production-us-east"
- * });
- * ```
+ * GridApiAdapter - Main interface for dashboard integration
+ * Provides mockApi-compatible methods with plain TypeScript types
  */
-export class GridClient {
-  private client: Client<typeof StateService>;
+export { GridApiAdapter } from './adapter.js';
 
-  constructor(baseUrl: string, transport: Transport) {
-    this.client = createClient(StateService, transport);
-  }
+/**
+ * Transport and client factories
+ */
+export { createGridTransport, createGridClient } from './client.js';
+export type { StateServiceClient } from './client.js';
 
-  async createState(request: CreateStateRequest): Promise<CreateStateResponse> {
-    return this.client.createState(request);
-  }
+/**
+ * Plain TypeScript model types (not protobuf)
+ */
+export type {
+  StateInfo,
+  BackendConfig,
+  DependencyEdge,
+  EdgeStatus,
+  OutputKey,
+} from './types.js';
 
-  async listStates(request: ListStatesRequest): Promise<ListStatesResponse> {
-    return this.client.listStates(request);
-  }
+/**
+ * Error handling utilities
+ */
+export { normalizeConnectError } from './errors.js';
+export type { UserFriendlyError } from './errors.js';
 
-  async getStateConfig(request: GetStateConfigRequest): Promise<GetStateConfigResponse> {
-    return this.client.getStateConfig(request);
-  }
+// ===== Low-level Connect RPC API =====
 
-  async getStateLock(request: GetStateLockRequest): Promise<GetStateLockResponse> {
-    return this.client.getStateLock(request);
-  }
+/**
+ * Connect service definition
+ */
+export { StateService } from "../gen/state/v1/state_pb.js";
 
-  async unlockState(request: UnlockStateRequest): Promise<UnlockStateResponse> {
-    return this.client.unlockState(request);
-  }
-}
+/**
+ * Generated protobuf message types
+ */
+export type {
+  CreateStateRequest,
+  CreateStateResponse,
+  ListStatesRequest,
+  ListStatesResponse,
+  GetStateConfigRequest,
+  GetStateConfigResponse,
+  GetStateLockRequest,
+  GetStateLockResponse,
+  UnlockStateRequest,
+  UnlockStateResponse,
+  GetStateInfoRequest,
+  GetStateInfoResponse,
+  DependencyEdge as ProtoDependencyEdge,
+  OutputKey as ProtoOutputKey,
+  BackendConfig as ProtoBackendConfig,
+} from "../gen/state/v1/state_pb.js";

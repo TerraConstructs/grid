@@ -10,7 +10,6 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/spf13/cobra"
 	"github.com/terraconstructs/grid/cmd/gridapi/internal/db/bunx"
@@ -18,6 +17,8 @@ import (
 	"github.com/terraconstructs/grid/cmd/gridapi/internal/repository"
 	"github.com/terraconstructs/grid/cmd/gridapi/internal/server"
 	"github.com/terraconstructs/grid/cmd/gridapi/internal/state"
+	"golang.org/x/net/http2"
+	"golang.org/x/net/http2/h2c"
 )
 
 var serveCmd = &cobra.Command{
@@ -47,32 +48,24 @@ var serveCmd = &cobra.Command{
 			WithOutputRepository(outputRepo)
 		edgeUpdater := server.NewEdgeUpdateJob(edgeRepo, stateRepo)
 
-		// Create Chi router
-		r := chi.NewRouter()
+		// Assemble the shared router with the production-specific middleware.
+		routerOpts := server.RouterOptions{
+			Service:           svc,
+			DependencyService: depService,
+			EdgeUpdater:       edgeUpdater,
+			Middleware: []func(http.Handler) http.Handler{
+				middleware.Timeout(60 * time.Second),
+			},
+		}
+		r := server.NewRouter(routerOpts)
 
-		// Middleware
-		r.Use(middleware.RequestID)
-		r.Use(middleware.RealIP)
-		r.Use(middleware.Logger)
-		r.Use(middleware.Recoverer)
-		r.Use(middleware.Timeout(60 * time.Second))
-
-		// Mount Connect RPC handlers
-		server.MountConnectHandlers(r, svc, depService)
-
-		// Mount Terraform HTTP Backend handlers
-		server.MountTerraformBackend(r, svc, edgeUpdater)
-
-		// Health check endpoint
-		r.Get("/health", func(w http.ResponseWriter, r *http.Request) {
-			w.WriteHeader(http.StatusOK)
-			w.Write([]byte("OK"))
-		})
+		// Wrap router with h2c for HTTP/2 cleartext support (required for Connect RPC)
+		h2cHandler := h2c.NewHandler(r, &http2.Server{})
 
 		// Create HTTP server
 		srv := &http.Server{
 			Addr:         cfg.ServerAddr,
-			Handler:      r,
+			Handler:      h2cHandler,
 			ReadTimeout:  15 * time.Second,
 			WriteTimeout: 15 * time.Second,
 			IdleTimeout:  60 * time.Second,

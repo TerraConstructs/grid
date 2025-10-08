@@ -13,12 +13,6 @@ plugins:
   #   # Also generate any imported dependencies
   #   include_imports: true
   #   opt: target=ts
-  - remote: buf.build/connectrpc/es
-    out: js/sdk/gen
-    # Also generate any imported dependencies
-    include_imports: true
-    opt:
-      - target=ts
   - remote: buf.build/bufbuild/es:v2.2.0
     out: js/sdk/gen
     # Also generate any imported dependencies

@@ -20,7 +20,7 @@
     "build": "npm run clean && tsc -b tsconfig.build.json",
     "clean": "rimraf lib",
     "lint": "eslint \"src/**/*.ts\"",
-    "test": "vitest"
+    "test": "vitest run"
   },
   "devDependencies": {
     "@bufbuild/buf": "^1.57.2",
@@ -36,6 +36,5 @@
     "@connectrpc/connect": "2.1.0",
     "@connectrpc/connect-node": "2.1.0",
     "@connectrpc/connect-web": "2.1.0"
-  },
-  "packageManager": "pnpm@10.11.1"
+  }
 }

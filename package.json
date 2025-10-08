@@ -1,0 +1,8 @@
+{
+  "name": "grid-root",
+  "private": true,
+  "packageManager": "pnpm@10.18.0",
+  "devDependencies": {
+    "prettier": "^3.6.2"
+  }
+}

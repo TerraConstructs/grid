@@ -728,5 +728,37 @@ func (h *StateServiceHandler) GetStateInfo(
 		resp.UpdatedAt = timestamppb.New(info.UpdatedAt)
 	}
 
+	// Populate computed_status if dependency service is available
+	if h.depService != nil {
+		status, err := h.depService.GetStateStatus(ctx, info.LogicID, "")
+		if err == nil && status != nil {
+			resp.ComputedStatus = &status.Status
+		}
+	}
+
 	return connect.NewResponse(resp), nil
+}
+
+// ListAllEdges returns all dependency edges in the system.
+func (h *StateServiceHandler) ListAllEdges(
+	ctx context.Context,
+	req *connect.Request[statev1.ListAllEdgesRequest],
+) (*connect.Response[statev1.ListAllEdgesResponse], error) {
+	if h.depService == nil {
+		return nil, connect.NewError(connect.CodeUnimplemented, fmt.Errorf("dependency service not configured"))
+	}
+
+	// Get all edges from service
+	edges, err := h.depService.ListAllEdges(ctx)
+	if err != nil {
+		return nil, mapServiceError(err)
+	}
+
+	// Convert edges to proto
+	protoEdges, err := h.edgesToProto(ctx, edges)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+
+	return connect.NewResponse(&statev1.ListAllEdgesResponse{Edges: protoEdges}), nil
 }

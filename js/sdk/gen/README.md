@@ -15,13 +15,11 @@ buf generate
 
 ## Generated Files
 
-- `state/v1/state_pb.ts` - Protocol Buffer message definitions
-- `state/v1/state_connect.ts` - Connect RPC service definitions
+- `state/v1/state_pb.ts` - Protocol Buffer messages and service descriptors for the Grid API
 
 ## Dependencies
 
 Generated code requires:
 - `@bufbuild/protobuf` - Protocol Buffer runtime
-- `@connectrpc/connect` - Connect RPC runtime
 
-These are automatically included in the SDK's dependencies.
+The SDK packages already include the necessary runtime dependencies.
