@@ -105,6 +105,25 @@ func WriteGridContext(ctx *DirectoryContext) error {
 	return nil
 }
 
+// WriteGridContextWithValidation validates existing context and writes new context
+// Returns error if existing context points to different state and force=false
+func WriteGridContextWithValidation(ctx *DirectoryContext, force bool) error {
+	// Check for existing .grid context
+	existingCtx, err := ReadGridContext()
+	if err != nil {
+		// Corrupted file - will be overwritten
+		return WriteGridContext(ctx)
+	}
+
+	// If .grid exists and points to different state, require --force
+	if existingCtx != nil && existingCtx.StateGUID != ctx.StateGUID && !force {
+		return fmt.Errorf(".grid exists for state %s (GUID: %s); use --force to overwrite with %s (GUID: %s)",
+			existingCtx.StateLogicID, existingCtx.StateGUID, ctx.StateLogicID, ctx.StateGUID)
+	}
+
+	return WriteGridContext(ctx)
+}
+
 // TODO: Clean up - not used?
 
 // StateRef represents a state identifier (either logic_id or guid)

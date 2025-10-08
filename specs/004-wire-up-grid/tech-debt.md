@@ -35,3 +35,10 @@
 | updated UI/SDK.                                                                                                    |
 | A1                                                                                                                 | Ambiguity                                                                                                                                              | MEDIUM   | specs/004-wire-up-grid/spec.md:141                                      | FR-027’s “handle network connectivity issues gracefully” gives no measurable criteria.                                      | Specify expected fallback behavior (e.g., cached data display, retry             |
 | cadence) so tests can assert it.                                                                                   |
+
+After implementation:
+
+## Deferred Polish
+- [ ] T043 [P] Add `js/sdk/test/errors.test.ts` covering error normalization edge cases (NotFound, Internal, fallback)
+- [ ] T044 [P] (Deferred) Add repository benchmark `cmd/gridapi/internal/repository/list_all_edges_bench_test.go` measuring query latency for 1k edges
+- [ ] T045 [P] Update `webapp/README.md` with instructions for running vitest scenarios, live API setup, and expected manual QA steps

@@ -3,6 +3,8 @@ package state
 import (
 	"context"
 	"fmt"
+	"os"
+	"path/filepath"
 	"time"
 
 	"github.com/pterm/pterm"
@@ -14,6 +16,10 @@ import (
 var (
 	getLogicID string
 	getGUID    string
+	getLink    bool
+	getForce   bool
+	getPath    string
+	getFormat  string
 )
 
 var getCmd = &cobra.Command{
@@ -118,11 +124,70 @@ dependents, and outputs. Uses .grid context if no identifier is provided.`,
 		fmt.Printf("  Lock:    %s\n", info.BackendConfig.LockAddress)
 		fmt.Printf("  Unlock:  %s\n", info.BackendConfig.UnlockAddress)
 
+		// Handle --link flag: write .grid file
+		if getLink {
+			if err := linkDirectory(info, getPath, getForce); err != nil {
+				return err
+			}
+		}
+
 		return nil
 	},
+}
+
+// linkDirectory writes the .grid file to link a directory to a state
+func linkDirectory(info *sdk.StateInfo, path string, force bool) error {
+	// Default to current directory
+	if path == "" {
+		path = "."
+	}
+
+	// Resolve to absolute path
+	absPath, err := filepath.Abs(path)
+	if err != nil {
+		return fmt.Errorf("failed to resolve path: %w", err)
+	}
+
+	// Change to target directory for .grid file operations
+	originalDir, err := os.Getwd()
+	if err != nil {
+		return fmt.Errorf("failed to get current directory: %w", err)
+	}
+	defer os.Chdir(originalDir)
+
+	if err := os.Chdir(absPath); err != nil {
+		return fmt.Errorf("failed to change to directory %s: %w", absPath, err)
+	}
+
+	// Build .grid context
+	now := time.Now()
+	gridCtx := &dirctx.DirectoryContext{
+		Version:      dirctx.GridFileVersion,
+		StateGUID:    info.State.GUID,
+		StateLogicID: info.State.LogicID,
+		ServerURL:    ServerURL,
+		CreatedAt:    now,
+		UpdatedAt:    now,
+	}
+
+	// Write .grid context file using shared dirctx validation + write
+	if err := dirctx.WriteGridContextWithValidation(gridCtx, force); err != nil {
+		// Non-fatal: warn but don't fail the command
+		pterm.Warning.Printf("Warning: Cannot write .grid file (permission denied?), state context will not be saved: %v\n", err)
+		pterm.Info.Println("State retrieved successfully, but you'll need to specify --logic-id for subsequent commands")
+	} else {
+		pterm.Success.Printf("Saved state context to .grid file\n")
+		pterm.Info.Println("Subsequent commands in this directory will use this state automatically")
+	}
+
+	return nil
 }
 
 func init() {
 	getCmd.Flags().StringVar(&getLogicID, "logic-id", "", "State logic ID (overrides positional arg and context)")
 	getCmd.Flags().StringVar(&getGUID, "guid", "", "State GUID (overrides positional arg and context)")
+	getCmd.Flags().BoolVar(&getLink, "link", false, "Write (or rewrite) .grid file to link directory to this state")
+	getCmd.Flags().BoolVar(&getForce, "force", false, "Overwrite existing .grid file (used with --link)")
+	getCmd.Flags().StringVar(&getPath, "path", ".", "Directory path to write .grid file (used with --link)")
+	getCmd.Flags().StringVar(&getFormat, "format", "json", "Output format (json|yaml) - not yet implemented")
 }

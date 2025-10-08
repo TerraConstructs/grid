@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type { StateInfo, DependencyEdge } from '@tcons/grid';
 
 interface GraphViewProps {
@@ -12,6 +12,11 @@ interface NodePosition {
   y: number;
   state: StateInfo;
   layer: number;
+}
+
+interface DirectedEdgeGroup {
+  up: DependencyEdge[];
+  down: DependencyEdge[];
 }
 
 const getEdgeColor = (status: string): string => {
@@ -125,74 +130,172 @@ export function GraphView({ states, edges, onStateClick }: GraphViewProps) {
   const positions = computeLayout();
   const positionMap = new Map(positions.map(p => [p.state.guid, p]));
 
-  const renderEdge = (edge: DependencyEdge) => {
+  const parallelGroups = useMemo(() => {
+    const groups = new Map<string, DependencyEdge[]>();
+    edges.forEach(edge => {
+      const key = `${edge.from_guid}|${edge.to_guid}`;
+      const list = groups.get(key);
+      if (list) {
+        list.push(edge);
+      } else {
+        groups.set(key, [edge]);
+      }
+    });
+    return groups;
+  }, [edges]);
+
+  const outgoingGroups = useMemo(() => {
+    const groups = new Map<string, DirectedEdgeGroup>();
+
+    edges.forEach(edge => {
+      const fromPosition = positionMap.get(edge.from_guid);
+      const toPosition = positionMap.get(edge.to_guid);
+      if (!fromPosition || !toPosition) {
+        return;
+      }
+
+      let entry = groups.get(edge.from_guid);
+      if (!entry) {
+        entry = { up: [], down: [] };
+        groups.set(edge.from_guid, entry);
+      }
+
+      if (toPosition.y >= fromPosition.y) {
+        entry.down.push(edge);
+      } else {
+        entry.up.push(edge);
+      }
+    });
+
+    const sortByTargetX = (a: DependencyEdge, b: DependencyEdge) => {
+      const targetA = positionMap.get(a.to_guid);
+      const targetB = positionMap.get(b.to_guid);
+      return (targetA?.x ?? 0) - (targetB?.x ?? 0);
+    };
+
+    groups.forEach(entry => {
+      entry.down.sort(sortByTargetX);
+      entry.up.sort(sortByTargetX);
+    });
+
+    return groups;
+  }, [edges, positions]);
+
+  const getEdgePathData = (edge: DependencyEdge) => {
     const from = positionMap.get(edge.from_guid);
     const to = positionMap.get(edge.to_guid);
     if (!from || !to) return null;
 
     const nodeWidth = 200;
     const nodeHeight = 80;
-    const fromX = from.x + nodeWidth / 2;
-    const fromY = from.y + nodeHeight;
-    const toX = to.x + nodeWidth / 2;
-    const toY = to.y;
+    const fromCenterX = from.x + nodeWidth / 2;
+    const toCenterX = to.x + nodeWidth / 2;
+    const isDownward = to.y >= from.y;
+    const fromAnchorY = isDownward ? from.y + nodeHeight : from.y;
+    const toAnchorY = isDownward ? to.y : to.y + nodeHeight;
+
+    const parallelKey = `${edge.from_guid}|${edge.to_guid}`;
+    const parallelGroup = parallelGroups.get(parallelKey) ?? [edge];
+    const parallelIndex = parallelGroup.findIndex(e => e.id === edge.id);
+    const parallelSlots = parallelGroup.length || 1;
+    const parallelStep = 14;
+    const parallelOffset = (parallelIndex - (parallelSlots - 1) / 2) * parallelStep;
+
+    const directedGroup = outgoingGroups.get(edge.from_guid);
+    const outgoingGroup = directedGroup
+      ? (isDownward ? directedGroup.down : directedGroup.up)
+      : [];
+
+    const outgoingIndex = outgoingGroup.findIndex(e => e.id === edge.id);
+    const slotCount = outgoingGroup.length;
+    const slotPosition = outgoingIndex >= 0 ? outgoingIndex : 0;
+    const horizontalMargin = 28;
+    const availableWidth = Math.max(nodeWidth - horizontalMargin * 2, 0);
+    const slotSpacing = slotCount > 1 ? availableWidth / (slotCount - 1) : 0;
+    const fromAnchorX = slotCount > 1
+      ? from.x + horizontalMargin + slotPosition * slotSpacing
+      : fromCenterX;
+
+    const elbowOffset = 24;
+    const direction = isDownward ? 1 : -1;
+    const elbowY = fromAnchorY + direction * elbowOffset;
+    const toX = toCenterX + parallelOffset;
+    const tooltipX = fromAnchorX + (toX - fromAnchorX) / 2;
+    const tooltipY = (elbowY + toAnchorY) / 2;
+    const path = [
+      `M ${fromAnchorX} ${fromAnchorY}`,
+      `L ${fromAnchorX} ${elbowY}`,
+      `L ${toX} ${elbowY}`,
+      `L ${toX} ${toAnchorY}`,
+    ].join(' ');
+
+    return { path, tooltipX, tooltipY };
+  };
+
+  const renderEdge = (edge: DependencyEdge) => {
+    const data = getEdgePathData(edge);
+    if (!data) return null;
 
     const isHovered = hoveredEdge === edge.id;
     const color = getEdgeColor(edge.status);
     const strokeWidth = isHovered ? 3 : 2;
 
-    const midY = (fromY + toY) / 2;
-    const path = `M ${fromX} ${fromY}
-                  L ${fromX} ${midY}
-                  L ${toX} ${midY}
-                  L ${toX} ${toY}`;
+    return (
+      <path
+        key={edge.id}
+        d={data.path}
+        stroke={color}
+        strokeWidth={strokeWidth}
+        fill="none"
+        markerEnd="url(#arrowhead)"
+        className="transition-all cursor-pointer"
+        onMouseEnter={() => setHoveredEdge(edge.id)}
+        onMouseLeave={() => setHoveredEdge(null)}
+        opacity={isHovered ? 1 : 0.7}
+        style={{ color }}
+      />
+    );
+  };
+
+  const renderTooltip = (edge: DependencyEdge) => {
+    if (hoveredEdge !== edge.id) return null;
+
+    const data = getEdgePathData(edge);
+    if (!data) return null;
+
+    const color = getEdgeColor(edge.status);
 
     return (
-      <g key={edge.id}>
-        <path
-          d={path}
+      <g key={edge.id} style={{ pointerEvents: 'none' }}>
+        <rect
+          x={data.tooltipX - 70}
+          y={data.tooltipY - 25}
+          width={140}
+          height={50}
+          fill="white"
           stroke={color}
-          strokeWidth={strokeWidth}
-          fill="none"
-          markerEnd="url(#arrowhead)"
-          className="transition-all cursor-pointer"
-          onMouseEnter={() => setHoveredEdge(edge.id)}
-          onMouseLeave={() => setHoveredEdge(null)}
-          opacity={isHovered ? 1 : 0.7}
+          strokeWidth={2}
+          rx={4}
+          filter="url(#tooltip-shadow)"
         />
-        {isHovered && (
-          <g style={{ pointerEvents: 'none' }}>
-            <rect
-              x={toX - 70}
-              y={midY - 25}
-              width={140}
-              height={50}
-              fill="white"
-              stroke={color}
-              strokeWidth={2}
-              rx={4}
-              filter="url(#tooltip-shadow)"
-            />
-            <text
-              x={toX}
-              y={midY - 8}
-              textAnchor="middle"
-              className="text-xs font-semibold"
-              fill="#1f2937"
-            >
-              {edge.from_output}
-            </text>
-            <text
-              x={toX}
-              y={midY + 8}
-              textAnchor="middle"
-              className="text-xs"
-              fill="#6b7280"
-            >
-              {edge.status}
-            </text>
-          </g>
-        )}
+        <text
+          x={data.tooltipX}
+          y={data.tooltipY - 8}
+          textAnchor="middle"
+          className="text-xs font-semibold"
+          fill="#1f2937"
+        >
+          {edge.from_output}
+        </text>
+        <text
+          x={data.tooltipX}
+          y={data.tooltipY + 8}
+          textAnchor="middle"
+          className="text-xs"
+          fill="#6b7280"
+        >
+          {edge.status}
+        </text>
       </g>
     );
   };
@@ -275,7 +378,7 @@ export function GraphView({ states, edges, onStateClick }: GraphViewProps) {
             refY="3"
             orient="auto"
           >
-            <polygon points="0 0, 10 3, 0 6" fill="#6b7280" />
+            <polygon points="0 0, 10 3, 0 6" fill="currentColor" />
           </marker>
           <filter id="shadow" x="-50%" y="-50%" width="200%" height="200%">
             <feGaussianBlur in="SourceAlpha" stdDeviation="3" />
@@ -303,6 +406,7 @@ export function GraphView({ states, edges, onStateClick }: GraphViewProps) {
 
         {edges.map(renderEdge)}
         {positions.map(renderNode)}
+        {edges.map(renderTooltip)}
       </svg>
 
       <div className="fixed bottom-4 right-4 bg-white rounded-lg shadow-lg p-3 space-y-1.5 z-10">

@@ -50,12 +50,12 @@ If logic-id is not provided, the .grid context will be used (if available).`,
 			}
 		}
 
-		// If .grid exists and logic-id is different, require --force
-		if existingCtx != nil && existingCtx.StateLogicID != logicID {
-			if !createForce {
-				return fmt.Errorf(".grid exists for state %s (GUID: %s); use --force to overwrite with %s",
-					existingCtx.StateLogicID, existingCtx.StateGUID, logicID)
-			}
+		// If .grid exists and logic-id is different, warn user
+		if existingCtx != nil && existingCtx.StateLogicID != logicID && !createForce {
+			return fmt.Errorf(".grid exists for state %s (GUID: %s); use --force to overwrite with %s",
+				existingCtx.StateLogicID, existingCtx.StateGUID, logicID)
+		}
+		if existingCtx != nil && existingCtx.StateLogicID != logicID && createForce {
 			pterm.Info.Printf("Replacing existing .grid context (was: %s, now: %s)\n", existingCtx.StateLogicID, logicID)
 		}
 

@@ -34,14 +34,14 @@
 - [ ] T006 [P] Add service test `cmd/gridapi/internal/dependency/service_list_all_edges_test.go` ensuring new service method maps repository edges to domain structs
 - [ ] T007 [P] Add handler test `cmd/gridapi/internal/server/connect_handlers_list_all_edges_test.go` using httptest to exercise Connect RPC and assert proto payload
 - [ ] T008 [P] Add SDK client test `pkg/sdk/state_client_list_all_edges_test.go` verifying `Client.ListAllEdges` invokes RPC and normalizes proto edges
-- [ ] T009 [P] Add adapter test `js/sdk/test/adapter.test.ts` using `createRouterTransport` to ensure `GridApiAdapter.getAllEdges()` converts bigints + timestamps correctly (author immediately after adapter implementation per exception)
-- [ ] T010 [P] Scenario 1 test `webapp/src/__tests__/dashboard_initial_load.test.tsx` validating initial load flow displays live states/edges from adapter (author after implementation per exception)
-- [ ] T011 [P] Scenario 2 test `webapp/src/__tests__/dashboard_list_view.test.tsx` verifying list view tables render counts, status badges, and detail drawer trigger (author after implementation per exception)
-- [ ] T012 [P] Scenario 3 test `webapp/src/__tests__/dashboard_detail_view.test.tsx` checking detail drawer shows dependencies, outputs, navigation flows, and sensitive-output redaction (author after implementation per exception)
-- [ ] T013 [P] Scenario 4 test `webapp/src/__tests__/dashboard_manual_refresh.test.tsx` covering manual refresh button behaviour (no polling) and preserving the selected state (author after implementation per exception)
-- [ ] T014 [P] Scenario 5 test `webapp/src/__tests__/dashboard_error_handling.test.tsx` asserting error toasts + fallback UI when adapter throws (author after implementation per exception)
-- [ ] T015 [P] Scenario 6 test `webapp/src/__tests__/dashboard_edge_status.test.tsx` ensuring graph/list reflect edge status colors + legends (author after implementation per exception)
-- [ ] T016 [P] Scenario 7 test `webapp/src/__tests__/dashboard_empty_state.test.tsx` validating empty + single-state cases render helper text without crashes (author after implementation per exception)
+- [x] T009 [P] Add adapter test `js/sdk/test/adapter.test.ts` using `createRouterTransport` to ensure `GridApiAdapter.getAllEdges()` converts bigints + timestamps correctly (author immediately after adapter implementation per exception)
+- [x] T010 [P] Scenario 1 test `webapp/src/__tests__/dashboard_initial_load.test.tsx` validating initial load flow displays live states/edges from adapter (author after implementation per exception)
+- [x] T011 [P] Scenario 2 test `webapp/src/__tests__/dashboard_list_view.test.tsx` verifying list view tables render counts, status badges, and detail drawer trigger (author after implementation per exception)
+- [x] T012 [P] Scenario 3 test `webapp/src/__tests__/dashboard_detail_view.test.tsx` checking detail drawer shows dependencies, outputs, navigation flows, and sensitive-output redaction (author after implementation per exception)
+- [x] T013 [P] Scenario 4 test `webapp/src/__tests__/dashboard_manual_refresh.test.tsx` covering manual refresh button behaviour (no polling) and preserving the selected state (author after implementation per exception)
+- [ ] T014 [P] Scenario 5 test `webapp/src/__tests__/dashboard_error_handling.test.tsx` asserting error toasts + fallback UI when adapter throws (Deferred)
+- [x] T015 [P] Scenario 6 test `webapp/src/__tests__/dashboard_edge_status.test.tsx` ensuring graph/list reflect edge status colors + legends (author after implementation per exception)
+- [ ] T016 [P] Scenario 7 test `webapp/src/__tests__/dashboard_empty_state.test.tsx` validating empty + single-state cases render helper text without crashes (Deferred)
 
 ## Phase 3.3: Core Implementation (after tests are failing)
 - [x] T017 [P] Create `js/sdk/src/models/state-info.ts` defining `StateInfo` interface per data-model (timestamps as ISO strings, nested relationships)
