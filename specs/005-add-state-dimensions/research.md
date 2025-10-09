@@ -1,11 +1,13 @@
 # Research: State Labels
 
 **Date**: 2025-10-08
-**Updated**: 2025-10-09 (Scope Reduction)
+**Updated**: 2025-10-09 (Scope Reduction + Constitution Alignment)
 **Feature Branch**: `005-add-state-dimensions`
 
 ## Summary
 Research confirms a **JSON column with in-memory bexpr filtering** approach best fits Grid's read-heavy Terraform state metadata needs at 100-500 state scale while minimizing implementation complexity. Analysis shows in-memory filtering performs sufficiently (<50ms p99) without requiring complex SQL translation, EAV normalization, or facet projection. We selected HashiCorp go-bexpr for filtering and a lightweight policy validator (regex + enums) over JSON Schema to avoid external dependencies.
+
+**Constitution Compliance** (2025-10-09): FR-045 mandates webapp → js/sdk → api dependency flow per Constitution Principle III. Dashboard components MUST consume TypeScript SDK wrappers, not generated Connect clients directly. Go SDK provides rich label-aware builders; TypeScript SDK provides lightweight bexpr string utilities.
 
 ## Data Model & Storage
 - **Decision (UPDATED 2025-10-09)**: Use a single JSON column (`labels`) on the `states` table. JSONB for PostgreSQL, TEXT (JSON1 extension) for SQLite. **No EAV tables, no facet projection.**
@@ -82,6 +84,16 @@ Research confirms a **JSON column with in-memory bexpr filtering** approach best
   - Optional CLI command to revalidate all states against current policy and report violations
   - Aligns with single-user alpha mode; deferred complex audit trail until RBAC/governance requirements emerge
 - **Future Enhancement**: Add audit log table tracking policy changes with diffs when governance requirements justify the complexity
+
+## SDK Architecture & Responsibilities
+- **Decision (UPDATED 2025-10-09)**: TypeScript SDK provides lightweight bexpr string utilities; GetLabelEnum RPC removed in favor of extracting enums from GetLabelPolicy.
+- **Rationale**:
+  - **Constitution Principle III enforcement**: webapp → js/sdk → api (never webapp → api directly)
+  - **Go SDK**: Rich builders (ConvertProtoLabels, BuildBexprFilter, SortLabels) for CLI and server-side consumers
+  - **TypeScript SDK**: Simple bexpr string concatenation utilities (buildEqualityFilter, buildInFilter, combineFilters) to avoid duplicating complex builder logic in JavaScript
+  - **Endpoint consolidation**: GetLabelPolicy returns full policy including enums; UI components extract enum values client-side rather than adding a dedicated GetLabelEnum RPC
+  - **Benefits**: Simpler API surface (one less RPC), reduced network calls (single policy fetch), aligns with read-heavy usage pattern
+- **CLI Output Format** (FR-015): State list displays labels as comma-separated key=value pairs truncated at 32 chars; info/get commands show full labels without truncation
 
 ## Implementation Notes
 - No existing deployments to migrate; single bun migration adds `labels` column and `label_policy` table

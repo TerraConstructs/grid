@@ -66,6 +66,13 @@ Filtering uses HashiCorp's go-bexpr grammar for in-memory evaluation, supporting
 ### Session 2025-10-09 (Grammar Research)
 - Q: Which special characters are safe in label keys for bexpr filtering? → A: go-bexpr default Identifier grammar (bexpr-grammar.peg:186) permits `[a-zA-Z][a-zA-Z0-9_/]*` only. Hyphens, dots, colons require quoted JSON-pointer selector syntax (bexpr-grammar.peg:182 `[\pL\pN-_.~:|]+`). To avoid quoting complexity, label keys should match `[a-z][a-z0-9_/]*` (lowercase + underscore + forward-slash). Label values have no character restrictions.
 
+### Session 2025-10-09 (Constitution & UX Alignment)
+- Q: Should FR-040–FR-044 (WebApp requirements) mandate that the dashboard MUST consume js/sdk helpers rather than calling generated Connect clients directly? → A: Yes - Add explicit FR requirement that webapp MUST use js/sdk wrappers (enforces Constitution).
+- Q: What helpers should js/sdk provide for bexpr filter construction? → A: Simple string concatenation utilities for bexpr syntax only.
+- Q: Which endpoint should the dashboard use to populate filter dropdowns? → A: GetLabelPolicy only - extract enums from full policy, remove FR-044 GetLabelEnum requirement.
+- Q: What format should `gridctl state list` use for the labels column? → A: Comma-separated key=value pairs (key1=val1,key2=val2) truncated at 32 chars.
+- Q: What should the DetailView labels tab display when a state has zero labels? → A: Placeholder message: "No labels".
+
 ### Pending Clarifications
 - None.
 
@@ -115,8 +122,8 @@ As an infrastructure operator managing Terraform states with Grid, I need to att
 - **FR-003a**: States created before any policy is defined MUST accept arbitrary label key/value pairs matching basic format constraints.
 - **FR-004**: Label updates MUST support atomic add, replace, and remove operations so partial failures do not leave states in inconsistent states.
 - **FR-005**: System MUST preserve label metadata when other state attributes change (e.g., logic-id updates or dependency recalculations).
-- **FR-006**: System MUST return the complete label map in all state retrieval responses, including list, detail, and export views (optional projection control supported).
-- **FR-007**: System MUST ensure label ordering is deterministic (e.g., alphabetical by key) to support consistent CLI and UI displays.
+- **FR-006**: System MUST return the complete label map in all state retrieval responses, including list, detail, and export views (see also FR-020 for API-specific requirements; optional projection control via FR-020a).
+- **FR-007**: System MUST ensure label ordering is deterministic (alphabetical by key) to support consistent CLI and UI displays.
 - **FR-008**: Label keys MUST match the pattern `[a-z][a-z0-9_/]{0,31}` (lowercase alphanumeric starting with letter, permitting underscore and forward-slash, up to 32 characters total) to ensure compatibility with go-bexpr default Identifier grammar without requiring quoted selectors; submissions outside this pattern or violating reserved namespaces (e.g., `grid.io/`) MUST be rejected, and label values MUST not exceed 256 characters.
 - **FR-008a**: Label values MUST support string, numeric (JSON number → float64), and boolean types; submissions with unsupported types MUST be rejected with explicit validation errors.
 - **FR-008b**: Each state MUST enforce a hard cap of 32 labels; attempts to exceed the cap MUST fail with clear guidance.
@@ -131,23 +138,22 @@ As an infrastructure operator managing Terraform states with Grid, I need to att
 - **FR-013**: `gridctl state set` MUST treat flag syntax `--label foo=bar` as an upsert and `--label -foo` as a removal.
 - **FR-014**: CLI MUST support applying multiple label mutations in a single invocation and report a summary of resulting labels.
 - **FR-014a**: When duplicate `--label` flags target the same key, the CLI MUST honor the user-supplied order (last value wins) and inform the user.
-- **FR-015**: CLI state listing and info commands MUST display associated labels in a readable layout (e.g., table or key=value pairs).
+- **FR-015**: CLI state listing MUST display labels as comma-separated key=value pairs (e.g., `env=prod,team=platform`) truncated at 32 characters when displayed in table columns; CLI info commands MUST display full labels without truncation.
 - **FR-016**: CLI MUST support filtering state listings using bexpr filter expressions via `--filter` flag (e.g., `--filter 'env in ["staging","prod"]'`).
 - **FR-016a**: CLI MUST support simplified filtering via repeated `--label key=value` flags that are internally converted to a bexpr AND expression.
-- **FR-017**: SDKs MUST expose label metadata in state responses and provide helpers for constructing bexpr filters so downstream tools can rely on consistent behavior.
+- **FR-017**: SDKs MUST expose label metadata in state responses and provide helpers for constructing bexpr filters so downstream tools can rely on consistent behavior; Go SDK provides rich label-aware builders, TypeScript SDK provides simple bexpr string concatenation utilities.
 - **FR-017a**: CLI MUST introduce a `gridctl policy` command group for managing the label policy (get, set, validate dry-run).
-- **FR-017b**: CLI MUST provide a `gridctl policy enum` command to retrieve allowed values for a specific key (useful for UI pickers and autocomplete).
-- **FR-017c**: OPTIONAL: CLI MAY expose a compliance report command that revalidates existing states against the current policy and lists non-compliant entries (deferred if not immediately needed).
+- **FR-017b**: CLI MUST provide a `gridctl policy compliance` command that revalidates existing states against the current policy and lists non-compliant entries (required per FR-028b).
 
 ### API & Protocol Coverage
 - **FR-018**: State creation APIs MUST accept optional label payloads (map of typed values) and validate them against the policy (if defined) before persisting the state.
 - **FR-019**: System MUST provide an RPC for updating labels on existing states, accepting a patch with upserts and removals.
-- **FR-020**: All state retrieval APIs (GetState, ListStates) MUST return the current label map alongside other metadata.
+- **FR-020**: All state retrieval APIs (GetState, ListStates) MUST return the current label map alongside other metadata (implements FR-006 at API layer).
 - **FR-020a**: ListStates MUST support an optional `include_labels` field (default true) to allow clients to opt out of label projection for bandwidth optimization.
 - **FR-021**: Protocol definitions MUST expose label metadata using a typed `LabelValue` message (oneof string/number/bool) in existing alpha messages without introducing a new API version.
 - **FR-021a**: ListStates RPC MUST add a `filter` field accepting bexpr filter expressions and pagination fields (`page_size`, `page_token`).
 - **FR-022**: API MUST evaluate bexpr filters in-memory against label maps after fetching states from the database.
-- **FR-023**: API MUST provide dedicated RPCs for label policy management (GetLabelPolicy, SetLabelPolicy, ValidateLabels dry-run, GetLabelEnum for key).
+- **FR-023**: API MUST provide dedicated RPCs for label policy management (GetLabelPolicy, SetLabelPolicy, ValidateLabels dry-run); enum values extracted from full policy response.
 - **FR-024**: API pagination MUST work correctly with in-memory filtering by over-fetching from database and trimming to page_size after filter evaluation.
 
 ### Label Policy & Validation
@@ -155,12 +161,11 @@ As an infrastructure operator managing Terraform states with Grid, I need to att
 - **FR-026**: Policy updates MUST persist in a single `label_policy` table row with versioning (version number, updated_at, policy JSON blob).
 - **FR-027**: System MUST validate every label mutation against the active policy synchronously before committing changes.
 - **FR-028**: Validation failures MUST return specific errors identifying the violated policy rule (unknown key, invalid value, exceeds cap, reserved namespace).
-- **FR-028a**: DEFERRED: When a policy update would invalidate existing labels, system MAY mark affected states for review (compliance tracking deferred, Manual state compliance report only).
-- **FR-028b**: System provides compliance report for states to validate if label values match label policy.
+- **FR-028a**: DEFERRED: When a policy update would invalidate existing labels, system MAY mark affected states for review (compliance tracking deferred).
+- **FR-028b**: System MUST provide a compliance report command (gridctl policy compliance per FR-017b) to revalidate all states against current policy and list non-compliant entries.
 - **FR-029**: Policy submissions MUST be validated for structure (valid JSON, correct schema) before activation.
 - **FR-030**: DEFERRED: System MAY record audit entries for policy changes (actor, timestamp, diff) for governance needs.
-- **FR-031**: Users MUST be able to retrieve the current policy via API/CLI.
-- **FR-031a**: Users MUST be able to retrieve allowed value enums for a specific key to support UI pickers and autocomplete.
+- **FR-031**: Users MUST be able to retrieve the current policy via API/CLI; UI components extract enum values from the full policy response.
 
 ### Query Performance & Filtering
 - **FR-037**: State list queries MUST use in-memory bexpr evaluation for filtering at 100-500 state scale.
@@ -172,11 +177,13 @@ As an infrastructure operator managing Terraform states with Grid, I need to att
 - Facet promotion/projection infrastructure
 
 ### WebApp & Visualization
-- **FR-040**: Web dashboard MUST display a dedicated labels section in the state detail view presenting all current labels.
-- **FR-041**: Web dashboard list and graph views MUST incorporate label metadata provided by the API without caching stale values.
+- **FR-040**: Web dashboard MUST display a dedicated labels section in the state detail view presenting all current labels (sorted alphabetically per FR-007).
+- **FR-041**: Web dashboard list view MUST show label count or preview in table rows; graph view incorporates label metadata from API for filtering but does NOT display labels visually on nodes (to avoid UI crowding).
+- **FR-041a**: Web dashboard list and graph views MUST support filtering states by labels using policy enum dropdowns (if enums defined) or free-text input (if no policy or no enums for key).
 - **FR-042**: Web dashboard MUST remain read-only for labels in this milestone, deferring inline editing to future phases.
-- **FR-043**: Web dashboard MUST gracefully handle states with no labels by presenting an empty-state message or placeholder.
-- **FR-044**: Web dashboard uses the label policy enum endpoint to display available filter options for UI pickers.
+- **FR-043**: Web dashboard MUST gracefully handle states with no labels by displaying the placeholder message "No labels".
+- **FR-044**: Web dashboard MUST fetch the full label policy (GetLabelPolicy per FR-031) and extract enum values to populate filter dropdowns; when no policy exists or key has no enums, provide free-text input for filter values.
+- **FR-045**: Web dashboard MUST consume the TypeScript SDK (js/sdk) for all API interactions rather than calling generated Connect clients directly, ensuring compliance with Constitution Principle III (webapp → js/sdk → api dependency flow).
 
 ### Non-Functional Requirements
 - **FR-049**: Label-filtered queries MUST complete within 50ms p99 latency for 100-500 state deployments using in-memory bexpr evaluation; load testing deferred to future phase.
@@ -186,6 +193,7 @@ As an infrastructure operator managing Terraform states with Grid, I need to att
 - JSON column storage (JSONB for Postgres, TEXT for SQLite) maintains database portability while keeping implementation simple.
 - In-memory bexpr filtering is acceptable for 100-500 state scale; SQL push-down deferred to avoid complexity of safe query translation.
 - HashiCorp go-bexpr provides battle-tested grammar and evaluation without additional dependencies beyond the standard library.
+- Constitution Principle III enforced: webapp depends on js/sdk, which depends on generated api clients; API server owns business logic and never imports SDK modules.
 
 ---
 

@@ -1,11 +1,13 @@
 
 # Implementation Plan: State Labels
 
-**Branch**: `005-add-state-dimensions` | **Date**: 2025-10-08 | **Updated**: 2025-10-09 | **Spec**: specs/005-add-state-dimensions/spec.md
+**Branch**: `005-add-state-dimensions` | **Date**: 2025-10-08 | **Updated**: 2025-10-09 (Constitution Alignment) | **Spec**: specs/005-add-state-dimensions/spec.md
 **Input**: Feature specification captured in `specs/005-add-state-dimensions/spec.md`
 
 ## Summary
 Extend Grid's state management so operators can attach validated typed labels and query using HashiCorp go-bexpr boolean expressions. The solution uses a simple JSON column (`labels`) on the `states` table, validates against a lightweight policy (regex + enum maps), and filters in-memory using go-bexpr. **EAV tables, JSON Schema validation, and facet projection all deferred** after scope reduction to minimize complexity.
+
+**Constitution Compliance** (FR-045): Dashboard MUST route all API calls through js/sdk wrappers (not generated Connect clients directly) per Principle III. TypeScript SDK provides lightweight bexpr string utilities; GetLabelEnum RPC removed (UIs extract enums from GetLabelPolicy).
 
 ## Technical Context
 **Language/Version**: Go 1.24.4 (cmd/gridapi, cmd/gridctl), TypeScript SDK consumers (read-only)
@@ -31,9 +33,9 @@ specs/005-add-state-dimensions/
 ├── data-model.md
 ├── quickstart.md
 └── contracts/
-    ├── state-tags.md
-    ├── state-schemas.md
-    └── state-facets.md
+    ├── state-tags.md          # Renamed to state labels; UpdateStateLabels RPC
+    ├── state-schemas.md       # DEFERRED: JSON Schema validation
+    └── state-facets.md        # DEFERRED: Facet projection
 ```
 
 ### Source Code (repository root)
@@ -100,6 +102,7 @@ Design artifacts produced:
 | Audit log infrastructure | Track policy changes | Simple versioning sufficient for now |
 | Compliance tracking system | Mark non-compliant states | Manual compliance report sufficient |
 | CLI `facets` and `audit` subcommands | Facet/audit management | Deferred with facet/audit infrastructure |
+| **GetLabelEnum RPC** (2025-10-09) | Dedicated endpoint for enum values | UIs extract enums from GetLabelPolicy; simpler API surface |
 
 ## Progress Tracking
 **Phase Status**:
