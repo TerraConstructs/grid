@@ -1,9 +1,9 @@
-# Quickstart: State Identity Dimensions
+# Quickstart: State Labels
 
 **Feature Branch**: `005-add-state-dimensions`
-**Last Updated**: 2025-10-09
+**Last Updated**: 2025-10-09 (Scope Reduction Applied)
 
-This quickstart verifies the tagging, schema validation, filtering, and compliance workflows end-to-end in a local environment. **Note**: Facet projection deferred to future milestone; all queries use indexed EAV joins.
+This quickstart verifies the label lifecycle, policy validation, bexpr filtering, and compliance workflows end-to-end in a local environment. **Note**: Uses JSON column storage with in-memory bexpr filtering; EAV tables and facet projection deferred.
 
 ## Prerequisites
 - Docker available for Postgres (`make db-up`)
@@ -12,67 +12,77 @@ This quickstart verifies the tagging, schema validation, filtering, and complian
 
 ## 1. Start services
 ```bash
-make db-up
+make db-reset && make build && ./bin/gridapi db init && ./bin/gridapi db migrate
 ./bin/gridapi serve --db-url "postgres://grid:gridpass@localhost:5432/grid?sslmode=disable"
 ```
 
-## 2. Seed baseline states with tags
+## 2. Seed baseline states with labels
 ```bash
-./bin/gridctl state create --name demo-staging --set env=staging --set team=core --set region=us-west
-./bin/gridctl state create --name demo-prod --set env=prod --set team=core --set region=us-east
-./bin/gridctl state create --name test-staging --set env=staging --set team=platform --set region=us-west
+./bin/gridctl state create demo-staging --label env=staging --label team=core --label region=us-west
+./bin/gridctl state create demo-prod --label env=prod --label team=core --label region=us-east
+./bin/gridctl state create test-staging --label env=staging --label team=platform --label region=us-west
 ./bin/gridctl state list
 ```
-- Expect: tags echoed in list output; keys/values normalized in `meta_keys`, `meta_values`, `state_metadata` dictionary tables
+- Expect: labels echoed in list output; labels stored in `labels` JSONB column on `states` table
 
-## 3. Upload initial schema & audit it
+## 3. Set label policy & retrieve enum values
 ```bash
-cat <<'EOF' > /tmp/state-schema.json
+cat <<'EOF' > /tmp/label-policy.json
 {
-  "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "type": "object",
-  "properties": {
-    "env": { "enum": ["staging", "prod"] },
-    "team": { "type": "string", "maxLength": 32 },
-    "region": { "enum": ["us-west", "us-east"] }
+  "allowed_keys": {"env": {}, "team": {}, "region": {}, "cost_center": {}},
+  "allowed_values": {
+    "env": ["staging", "prod"],
+    "region": ["us-west", "us-east", "eu-west-1"]
   },
-  "additionalProperties": false
+  "reserved_prefixes": ["grid.io/"],
+  "max_keys": 32,
+  "max_value_len": 256
 }
 EOF
 
-./bin/gridctl tags schema set --file /tmp/state-schema.json --reason "Baseline schema"
-./bin/gridctl tags audit list
+./bin/gridctl policy set --file /tmp/label-policy.json
+./bin/gridctl policy get
+./bin/gridctl policy enum env
 ```
-- Expect: CLI reports schema version `1`, audit log shows creation entry with diff
+- Expect: CLI reports policy version `1`, policy get shows constraints, enum command lists `["staging", "prod"]`
 
-## 4. Query states by tag filters
+## 4. Query states using bexpr filters
 ```bash
-./bin/gridctl state list --filter env=staging
-./bin/gridctl state list --filter env=staging --filter team=core
-./bin/gridctl state list --filter region=us-west --page-size 10
-```
-- Expect: results returned using indexed EAV joins on `state_metadata(key_id, value_id, state_id)`, pagination supported
+# Simple equality (CLI sugar)
+./bin/gridctl state list --label env=staging
+./bin/gridctl state list --label env=staging --label team=core # AND semantics
 
-## 5. Test tag updates and removals
-```bash
-./bin/gridctl state set demo-staging --set cost-center=eng-001 --set -region
-./bin/gridctl state info demo-staging
+# Compound bexpr expressions
+./bin/gridctl state list --filter 'env in ["staging","prod"] && team == "core"'
+./bin/gridctl state list --filter 'region == "us-west" || region == "eu-west-1"'
+./bin/gridctl state list --filter 'env == "staging"' --page-size 10
 ```
-- Expect: `cost-center` added, `region` removed, updated tags displayed in info output
+- Expect: results returned using in-memory bexpr filtering, pagination supported
 
-## 6. Validate compliance reporting
+## 5. Test label updates and removals
 ```bash
-./bin/gridctl state set demo-prod --set env=qa
-./bin/gridctl tags compliance report
+./bin/gridctl state set demo-staging --label cost_center=eng-001 --label -region
+./bin/gridctl state get demo-staging
 ```
-- Expect: CLI lists `demo-prod` as non-compliant (schema only allows `staging`/`prod` for `env`), shows violated rule, state remains accessible
+- Expect: `cost_center` added, `region` removed, updated labels displayed in get output
 
-## 7. Audit log management
+## 6. Validate policy enforcement
 ```bash
-./bin/gridctl tags audit list --limit 5
-./bin/gridctl tags audit flush --before 2025-10-09 --download ./artifacts/audit-20251008.json
+# Try invalid value (should fail)
+./bin/gridctl state set demo-prod --label env=qa
+
+# Try reserved namespace (should fail)
+./bin/gridctl state create --name test --label grid.io/internal=foo
 ```
-- Expect: audit entries listed, then downloaded to JSON file and trimmed from database
+- Expect: Both commands fail with clear validation errors citing policy constraints
+
+## 7. Optional: Compliance reporting
+```bash
+# Manually force a non-compliant label (bypassing CLI, e.g., via SQL)
+# Then run compliance report
+./bin/gridctl policy compliance
+```
+- Expect: CLI lists any states with labels violating current policy (if compliance command is implemented)
 
 ## 8. Clean up
 ```bash
@@ -81,11 +91,11 @@ make db-down
 ```
 
 ## Verification Checklist
-- [ ] Dictionary tables populated (`SELECT * FROM meta_keys`, `meta_values`, `state_metadata`)
-- [ ] Composite index exists on `state_metadata(key_id, value_id, state_id)`
-- [ ] Tag filtering returns correct states via indexed EAV queries
-- [ ] Compliance report lists non-compliant state with violated schema rule
-- [ ] Tag updates/removals apply atomically
-- [ ] Audit log captured schema creation and can be flushed
-- [ ] Pagination works on filtered `state list`
-- [ ] Query performance acceptable (<50ms) for tag filters
+- [ ] Labels stored in `labels` JSONB column (`SELECT guid, logic_id, labels FROM states`)
+- [ ] Optional GIN index on labels column for future SQL push-down (`\d states` in psql)
+- [ ] bexpr filtering returns correct states for compound expressions
+- [ ] Policy enforcement blocks invalid keys, values, and reserved namespaces
+- [ ] Label updates/removals apply atomically
+- [ ] Policy versioning tracked in `label_policy` table
+- [ ] Pagination works on filtered `state list` (over-fetch + trim pattern)
+- [ ] Query performance acceptable (<50ms) for in-memory bexpr filtering at 100-500 state scale
