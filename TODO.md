@@ -41,9 +41,15 @@
 QA Feedback:
 
 - [X] The State status isn't shown correctly in the UI
-- [ ] How to get back the .grid if I accidentally delete it?
+- [X] How to get back the .grid if I accidentally delete it? Use `gridctl state get <id> --link` to relink a directory to the grid
+- [ ] There is no deps command to set the to input name after it was created... (and re-adding the deps does not overwrite it, just shows it already exists - no error code if it already exists)
+- [ ] The deps "add" command should support --labels / --filter flag and show all outputs with their owning state logic id and that state's labels (and not allow fetching outputs from itself).
+- [ ] The deps "add" command should support --as flag to alias the state logic id of the added dependency, this should fail if the label selector matches multiple states but override the --from state logic-id if one state matches? 
 - [ ] Add polling to the dashboard
 - [ ] The flags are inconsistent between commands (e.g. --state vs --logic-id vs --state-from vs positional args)
+- [ ] Why does it set createdAt and updatedAt to new Date() if they are not present in the response?
+- [ ] Label Policy: Why is AllowedKeys a map of struct?
+
 
 Nice to haves:
 
@@ -68,6 +74,9 @@ Nice to haves:
   - [ ] `github.com/terraconstructs/grid/cmd/gridapi` -> `github.com/terraconstructs/grid/cmd/server`(still builds bin/gridapi)
   - [ ] `github.com/terraconstructs/grid/cmd/gridctl` -> `github.com/terraconstructs/grid/cmd/cli` (still builds bin/gridctl)
 - [ ] Add ability to store tfstate in encrypted format (at rest) - use envelope encryption with KMS (AWS KMS, GCP KMS, Azure Key Vault, HashiCorp Vault)
+- [ ] The state init command should include labels into the backend.tf template (as a locals { label_foo = "foo_value", ...} block)
+- [ ] add support for multiple states (DirContext) per directory, separate by `dev.grid`, `prod.grid` names and combined with an array of `tfvar-file` for each context. gridctl apply should wrap terraform commands with the correct backend config and var files for the context it's applying.
+- [ ] Aside from graph view label filtering, we should be able to zoom in/out and drag/pan the graph.
 
 Review Spacelift, Env0, TerraMate, Terragrunt scale, Digger/OpenTaco interesting features for comparison and inspiration.
 

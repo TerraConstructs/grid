@@ -71,11 +71,23 @@ describe('Dashboard initial load', () => {
     const getAllEdgesDeferred = createDeferred<DependencyEdge[]>();
     const getAllEdges = vi.fn().mockReturnValue(getAllEdgesDeferred.promise);
     const getStateInfo = vi.fn();
+    const getLabelPolicy = vi.fn().mockResolvedValue({
+      version: 1,
+      policyJson: JSON.stringify({
+        allowed_keys: { env: {} },
+        allowed_values: { env: ['prod', 'staging'] },
+        max_keys: 32,
+        max_value_len: 256,
+      }),
+      createdAt: new Date('2024-01-01T00:00:00.000Z'),
+      updatedAt: new Date('2024-01-01T00:00:00.000Z'),
+    });
 
     const api = {
       listStates,
       getAllEdges,
       getStateInfo,
+      getLabelPolicy,
     } as unknown as GridApiAdapter;
 
     renderWithGrid(<App />, { api });

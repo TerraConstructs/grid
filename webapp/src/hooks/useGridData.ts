@@ -7,7 +7,8 @@ interface UseGridDataReturn {
   edges: DependencyEdge[];
   loading: boolean;
   error: string | null;
-  loadData: () => Promise<void>;
+  filter: string;
+  loadData: (options?: { filter?: string }) => Promise<void>;
   getStateInfo: (logicId: string) => Promise<StateInfo | null>;
 }
 
@@ -23,29 +24,48 @@ export function useGridData(): UseGridDataReturn {
   const [edges, setEdges] = useState<DependencyEdge[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [filter, setFilter] = useState<string>('');
 
-  const loadData = useCallback(async () => {
+  const loadData = useCallback(async (options?: { filter?: string }) => {
     setLoading(true);
     setError(null);
 
+    const requestedFilter = options?.filter;
+    const nextFilter = requestedFilter !== undefined ? requestedFilter : filter;
+    const trimmedFilter = nextFilter.trim();
+    const filterOption = trimmedFilter === '' ? undefined : trimmedFilter;
+
+    if (requestedFilter !== undefined) {
+      setFilter(nextFilter);
+    }
+
     try {
       const [statesData, edgesData] = await Promise.all([
-        api.listStates(),
+        api.listStates({
+          includeLabels: true,
+          ...(filterOption ? { filter: filterOption } : {}),
+        }),
         api.getAllEdges(),
       ]);
 
+      const stateGuids = new Set(statesData.map((state) => state.guid));
+      const relevantEdges = edgesData.filter(
+        (edge) => stateGuids.has(edge.from_guid) && stateGuids.has(edge.to_guid),
+      );
+
       setStates(statesData);
-      setEdges(edgesData);
+      setEdges(relevantEdges);
     } catch (err) {
       const errorMessage = err instanceof Error
         ? err.message
         : 'Failed to load data from Grid API';
+
       setError(errorMessage);
       console.error('Failed to load Grid data:', err);
     } finally {
       setLoading(false);
     }
-  }, [api]);
+  }, [api, filter]);
 
   const getStateInfo = useCallback(async (logicId: string): Promise<StateInfo | null> => {
     try {
@@ -61,6 +81,7 @@ export function useGridData(): UseGridDataReturn {
     edges,
     loading,
     error,
+    filter,
     loadData,
     getStateInfo,
   };

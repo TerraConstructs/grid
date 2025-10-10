@@ -1,17 +1,28 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import type { StateInfo, DependencyEdge } from '@tcons/grid';
 import { useGridData } from './hooks/useGridData';
 import { GraphView } from './components/GraphView';
 import { ListView } from './components/ListView';
 import { DetailView } from './components/DetailView';
 import { Network, List, Loader2, RefreshCw, AlertCircle } from 'lucide-react';
+import type { ActiveLabelFilter } from './components/LabelFilter';
 
 type View = 'graph' | 'list';
 
 function App() {
   const [view, setView] = useState<View>('graph');
   const [selectedState, setSelectedState] = useState<StateInfo | null>(null);
-  const { states, edges, loading, error, loadData, getStateInfo } = useGridData();
+  const {
+    states,
+    edges,
+    loading,
+    error,
+    filter,
+    loadData,
+    getStateInfo,
+  } = useGridData();
+  const [activeFilters, setActiveFilters] = useState<ActiveLabelFilter[]>([]);
+  const filterInitializedRef = useRef(false);
 
   useEffect(() => {
     loadData();
@@ -37,7 +48,7 @@ function App() {
 
   const handleRefresh = async () => {
     const currentSelectedLogicId = selectedState?.logic_id;
-    await loadData();
+    await loadData({ filter });
 
     // Preserve selected state after refresh
     if (currentSelectedLogicId) {
@@ -49,6 +60,21 @@ function App() {
       }
     }
   };
+
+  const handleFilterChange = useCallback((expression: string, filtersList: ActiveLabelFilter[]) => {
+    setActiveFilters(filtersList);
+
+    if (!filterInitializedRef.current) {
+      filterInitializedRef.current = true;
+      return;
+    }
+
+    if (expression === filter) {
+      return;
+    }
+
+    void loadData({ filter: expression });
+  }, [filter, loadData]);
 
   if (loading) {
     return (
@@ -140,13 +166,21 @@ function App() {
 
       <main className="flex-1 overflow-hidden">
         {view === 'graph' ? (
-          <GraphView states={states} edges={edges} onStateClick={handleStateClick} />
+          <GraphView
+            states={states}
+            edges={edges}
+            onStateClick={handleStateClick}
+            activeFilters={activeFilters}
+            onFilterChange={handleFilterChange}
+          />
         ) : (
           <ListView
             states={states}
             edges={edges}
             onStateClick={handleStateClick}
             onEdgeClick={handleEdgeClick}
+            activeFilters={activeFilters}
+            onFilterChange={handleFilterChange}
           />
         )}
       </main>

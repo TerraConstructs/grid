@@ -67,11 +67,23 @@ describe('Dashboard list view', () => {
     const getStateInfo = vi.fn().mockImplementation(async (logicId: string) => {
       return states.find((state) => state.logic_id === logicId) ?? null;
     });
+    const getLabelPolicy = vi.fn().mockResolvedValue({
+      version: 1,
+      policyJson: JSON.stringify({
+        allowed_keys: { env: {}, team: {} },
+        allowed_values: { env: ['prod', 'staging'], team: ['core', 'platform'] },
+        max_keys: 32,
+        max_value_len: 256,
+      }),
+      createdAt: new Date('2024-02-01T00:00:00.000Z'),
+      updatedAt: new Date('2024-02-01T00:00:00.000Z'),
+    });
 
     const api = {
       listStates,
       getAllEdges,
       getStateInfo,
+      getLabelPolicy,
     } as unknown as GridApiAdapter;
 
     renderWithGrid(<App />, { api });
@@ -99,5 +111,60 @@ describe('Dashboard list view', () => {
     });
 
     expect(await screen.findByText(/State JSON/i)).toBeInTheDocument();
+  });
+
+  it('applies label filters and fetches filtered results from API', async () => {
+    const listStates = vi.fn().mockImplementation(
+      async (request?: { filter?: string }) => {
+        if (request?.filter === 'env == "prod"') {
+          return [appState];
+        }
+        return states;
+      },
+    );
+    const getAllEdges = vi.fn().mockResolvedValue(edges);
+    const getStateInfo = vi.fn().mockResolvedValue(appState);
+    const getLabelPolicy = vi.fn().mockResolvedValue({
+      version: 1,
+      policyJson: JSON.stringify({
+        allowed_keys: { env: {}, team: {} },
+        allowed_values: { env: ['prod', 'staging'] },
+        max_keys: 32,
+        max_value_len: 256,
+      }),
+      createdAt: new Date('2024-02-01T00:00:00.000Z'),
+      updatedAt: new Date('2024-02-01T00:00:00.000Z'),
+    });
+
+    const api = {
+      listStates,
+      getAllEdges,
+      getStateInfo,
+      getLabelPolicy,
+    } as unknown as GridApiAdapter;
+
+    renderWithGrid(<App />, { api });
+
+    await waitFor(() => expect(listStates).toHaveBeenCalledTimes(1));
+
+    const listToggle = await screen.findByRole('button', { name: /List/i });
+    await userEvent.click(listToggle);
+
+    const prodButton = await screen.findByRole('button', { name: 'prod' });
+    await userEvent.click(prodButton);
+
+    const addFilter = screen.getByRole('button', { name: /Add Filter/i });
+    await userEvent.click(addFilter);
+
+    await waitFor(() => expect(listStates).toHaveBeenCalledTimes(2));
+    expect(listStates).toHaveBeenLastCalledWith(expect.objectContaining({
+      includeLabels: true,
+      filter: 'env == "prod"',
+    }));
+
+    await waitFor(() => {
+      expect(screen.getByText('app/prod')).toBeInTheDocument();
+      expect(screen.queryByText('network/prod')).not.toBeInTheDocument();
+    });
   });
 });

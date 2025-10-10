@@ -17,8 +17,12 @@ describe('bexpr utilities', () => {
 
   it('builds IN filter with string values', () => {
     expect(buildInFilter('env', ['staging', 'prod'])).toBe(
-      'env in ["staging","prod"]'
+      '((env == "staging") or (env == "prod"))'
     );
+  });
+
+  it('builds IN filter with single value', () => {
+    expect(buildInFilter('env', ['prod'])).toBe('env == "prod"');
   });
 
   it('combines filters with AND and OR', () => {
@@ -26,13 +30,25 @@ describe('bexpr utilities', () => {
       buildEqualityFilter('env', 'prod'),
       buildEqualityFilter('active', true),
     ];
-    expect(combineFilters(filters)).toBe('(env == "prod") && (active == true)');
-    expect(combineFilters(filters, 'OR')).toBe('(env == "prod") || (active == true)');
+    expect(combineFilters(filters)).toBe('(env == "prod") and (active == true)');
+    expect(combineFilters(filters, 'OR')).toBe('(env == "prod") or (active == true)');
   });
 
   it('omits empty filters when combining', () => {
     expect(combineFilters(['', buildEqualityFilter('env', 'prod')])).toBe(
       'env == "prod"'
+    );
+  });
+
+  it('correctly handles precedence when combining IN filter with AND', () => {
+    const filters = [
+      buildInFilter('env', ['prd', 'stg']),
+      buildEqualityFilter('team', 'TIES'),
+    ];
+    // Should be: ((env == "prd") or (env == "stg")) and (team == "TIES")
+    // NOT: (env == "prd") or (env == "stg") and team == "TIES" (wrong precedence)
+    expect(combineFilters(filters, 'AND')).toBe(
+      '((env == "prd") or (env == "stg")) and (team == "TIES")'
     );
   });
 });

@@ -824,8 +824,9 @@ func TestBunStateRepository_ListWithFilter(t *testing.T) {
 	})
 
 	t.Run("filter by in expression", func(t *testing.T) {
-		// Filter: env in ["staging", "prod"]
-		results, err := repo.ListWithFilter(ctx, `env in ["staging", "prod"]`, 10, 0)
+		// Filter: env == "staging" or env == "prod"
+		// Note: bexpr doesn't support "field in [array]" syntax, use OR instead
+		results, err := repo.ListWithFilter(ctx, `env == "staging" or env == "prod"`, 10, 0)
 		require.NoError(t, err)
 		assert.GreaterOrEqual(t, len(results), 4, "Should return all 4 test states")
 	})

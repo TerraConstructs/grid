@@ -1,10 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { StateInfo, DependencyEdge } from '@tcons/grid';
+import { LabelFilter, type ActiveLabelFilter } from './LabelFilter';
 
 interface GraphViewProps {
   states: StateInfo[];
   edges: DependencyEdge[];
   onStateClick: (logicId: string) => void;
+  activeFilters: ActiveLabelFilter[];
+  onFilterChange: (expression: string, filters: ActiveLabelFilter[]) => void;
 }
 
 interface NodePosition {
@@ -47,7 +50,13 @@ const getStatusColor = (status?: string): string => {
   }
 };
 
-export function GraphView({ states, edges, onStateClick }: GraphViewProps) {
+export function GraphView({
+  states,
+  edges,
+  onStateClick,
+  activeFilters,
+  onFilterChange,
+}: GraphViewProps) {
   const svgRef = useRef<SVGSVGElement>(null);
   const [dimensions, setDimensions] = useState({ width: 1200, height: 800 });
   const [hoveredNode, setHoveredNode] = useState<string | null>(null);
@@ -363,51 +372,59 @@ export function GraphView({ states, edges, onStateClick }: GraphViewProps) {
 
   return (
     <div className="w-full h-full bg-gray-50 overflow-auto">
-      <svg
-        ref={svgRef}
-        width={dimensions.width}
-        height={Math.max(dimensions.height, 800)}
-        className="min-h-full"
-      >
-        <defs>
-          <marker
-            id="arrowhead"
-            markerWidth="10"
-            markerHeight="10"
-            refX="9"
-            refY="3"
-            orient="auto"
+      <div className="max-w-7xl mx-auto p-4 space-y-4">
+        <LabelFilter
+          onFilterChange={onFilterChange}
+          initialFilters={activeFilters}
+        />
+        <div className="bg-white rounded-lg shadow p-4">
+          <svg
+            ref={svgRef}
+            width={dimensions.width}
+            height={Math.max(dimensions.height, 800)}
+            className="min-h-full"
           >
-            <polygon points="0 0, 10 3, 0 6" fill="currentColor" />
-          </marker>
-          <filter id="shadow" x="-50%" y="-50%" width="200%" height="200%">
-            <feGaussianBlur in="SourceAlpha" stdDeviation="3" />
-            <feOffset dx="0" dy="2" result="offsetblur" />
-            <feComponentTransfer>
-              <feFuncA type="linear" slope="0.3" />
-            </feComponentTransfer>
-            <feMerge>
-              <feMergeNode />
-              <feMergeNode in="SourceGraphic" />
-            </feMerge>
-          </filter>
-          <filter id="tooltip-shadow" x="-50%" y="-50%" width="200%" height="200%">
-            <feGaussianBlur in="SourceAlpha" stdDeviation="4" />
-            <feOffset dx="0" dy="3" result="offsetblur" />
-            <feComponentTransfer>
-              <feFuncA type="linear" slope="0.5" />
-            </feComponentTransfer>
-            <feMerge>
-              <feMergeNode />
-              <feMergeNode in="SourceGraphic" />
-            </feMerge>
-          </filter>
-        </defs>
+            <defs>
+              <marker
+                id="arrowhead"
+                markerWidth="10"
+                markerHeight="10"
+                refX="9"
+                refY="3"
+                orient="auto"
+              >
+                <polygon points="0 0, 10 3, 0 6" fill="currentColor" />
+              </marker>
+              <filter id="shadow" x="-50%" y="-50%" width="200%" height="200%">
+                <feGaussianBlur in="SourceAlpha" stdDeviation="3" />
+                <feOffset dx="0" dy="2" result="offsetblur" />
+                <feComponentTransfer>
+                  <feFuncA type="linear" slope="0.3" />
+                </feComponentTransfer>
+                <feMerge>
+                  <feMergeNode />
+                  <feMergeNode in="SourceGraphic" />
+                </feMerge>
+              </filter>
+              <filter id="tooltip-shadow" x="-50%" y="-50%" width="200%" height="200%">
+                <feGaussianBlur in="SourceAlpha" stdDeviation="4" />
+                <feOffset dx="0" dy="3" result="offsetblur" />
+                <feComponentTransfer>
+                  <feFuncA type="linear" slope="0.5" />
+                </feComponentTransfer>
+                <feMerge>
+                  <feMergeNode />
+                  <feMergeNode in="SourceGraphic" />
+                </feMerge>
+              </filter>
+            </defs>
 
-        {edges.map(renderEdge)}
-        {positions.map(renderNode)}
-        {edges.map(renderTooltip)}
-      </svg>
+            {edges.map(renderEdge)}
+            {positions.map(renderNode)}
+            {edges.map(renderTooltip)}
+          </svg>
+        </div>
+      </div>
 
       <div className="fixed bottom-4 right-4 bg-white rounded-lg shadow-lg p-3 space-y-1.5 z-10">
         <div className="text-xs font-semibold text-gray-700 mb-1">Edge Status</div>

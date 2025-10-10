@@ -170,10 +170,18 @@ export class GridApiAdapter {
    * List all states with comprehensive information.
    * Performs N queries to fetch full state info for each state.
    *
+   * @param options - Optional filter/includeLabels flags
    * @returns Array of StateInfo objects
    */
-  async listStates(): Promise<StateInfo[]> {
-    const listResponse = await this.client.listStates({ includeLabels: true });
+  async listStates(options?: { filter?: string; includeLabels?: boolean }): Promise<StateInfo[]> {
+    const { filter, includeLabels = true } = options ?? {};
+
+    const request: Record<string, unknown> = { includeLabels };
+    if (filter && filter.trim() !== '') {
+      request.filter = filter;
+    }
+
+    const listResponse = await this.client.listStates(request);
 
     const labelLookup = new Map<string, Record<string, LabelScalar>>();
     for (const state of listResponse.states) {

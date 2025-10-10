@@ -1,11 +1,14 @@
 import type { StateInfo, DependencyEdge } from '@tcons/grid';
 import { Database, GitBranch, ArrowRight, Lock, CheckCircle2, AlertCircle, Clock, Tag } from 'lucide-react';
+import { LabelFilter, type ActiveLabelFilter } from './LabelFilter';
 
 interface ListViewProps {
   states: StateInfo[];
   edges: DependencyEdge[];
   onStateClick: (logicId: string) => void;
   onEdgeClick: (edge: DependencyEdge) => void;
+  activeFilters: ActiveLabelFilter[];
+  onFilterChange: (expression: string, filters: ActiveLabelFilter[]) => void;
 }
 
 const getStatusIcon = (status?: string) => {
@@ -63,10 +66,22 @@ const formatLabels = (labels?: Record<string, string | number | boolean>): strin
   return formatted;
 };
 
-export function ListView({ states, edges, onStateClick, onEdgeClick }: ListViewProps) {
+export function ListView({
+  states,
+  edges,
+  onStateClick,
+  onEdgeClick,
+  activeFilters,
+  onFilterChange,
+}: ListViewProps) {
   return (
     <div className="w-full h-full overflow-auto bg-gray-50">
       <div className="max-w-7xl mx-auto p-4 space-y-4">
+        <LabelFilter
+          onFilterChange={onFilterChange}
+          initialFilters={activeFilters}
+        />
+
         <section>
           <div className="flex items-center gap-2 mb-3">
             <Database className="w-5 h-5 text-purple-600" />

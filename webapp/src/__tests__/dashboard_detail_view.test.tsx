@@ -68,11 +68,23 @@ describe('Dashboard detail view', () => {
     const getStateInfo = vi.fn().mockImplementation(async (logicId: string) => {
       return states.find((state) => state.logic_id === logicId) ?? null;
     });
+    const getLabelPolicy = vi.fn().mockResolvedValue({
+      version: 1,
+      policyJson: JSON.stringify({
+        allowed_keys: { env: {}, team: {} },
+        allowed_values: { env: ['prod', 'staging'] },
+        max_keys: 32,
+        max_value_len: 256,
+      }),
+      createdAt: new Date('2024-02-01T00:00:00.000Z'),
+      updatedAt: new Date('2024-02-01T00:00:00.000Z'),
+    });
 
     const api = {
       listStates,
       getAllEdges,
       getStateInfo,
+      getLabelPolicy,
     } as unknown as GridApiAdapter;
 
     renderWithGrid(<App />, { api });

@@ -35,8 +35,15 @@ export function buildInFilter(key: string, values: BexprValue[]): string {
   if (values.length === 0) {
     return '';
   }
-  const formattedValues = values.map(formatValue).join(',');
-  return `${key} in [${formattedValues}]`;
+  if (values.length === 1) {
+    return buildEqualityFilter(key, values[0]);
+  }
+  // bexpr doesn't support "field in [array]" syntax
+  // Generate OR expression instead: key == val1 or key == val2 or ...
+  // Wrap in parentheses to ensure correct precedence when combined with AND
+  const conditions = values.map(val => buildEqualityFilter(key, val));
+  const combined = combineFilters(conditions, 'OR');
+  return `(${combined})`;
 }
 
 export function combineFilters(
@@ -52,6 +59,6 @@ export function combineFilters(
   }
 
   const normalized = operator.toUpperCase() === 'OR' ? 'OR' : 'AND';
-  const joiner = normalized === 'OR' ? ' || ' : ' && ';
+  const joiner = normalized === 'OR' ? ' or ' : ' and ';
   return cleaned.map(wrapExpression).join(joiner);
 }

@@ -162,21 +162,21 @@
 
 ### Dashboard Filtering (Read-Only) - MUST use js/sdk per FR-050 ...
 - [x] **T059** [P] Create useLabelPolicy hook in `webapp/src/hooks/useLabelPolicy.ts` (fetch policy via js/sdk client wrapper calling GetLabelPolicy RPC, extract enums client-side per FR-044; MUST NOT call generated Connect client directly per FR-045)
-- [ ] **T060** [P] Create LabelFilter component in `webapp/src/components/LabelFilter.tsx` (reusable filter UI with key dropdown, value dropdown/input based on enums from useLabelPolicy, "Add Filter" button; uses bexpr utilities from js/sdk per T051)
-- [ ] **T061** Add LabelFilter to ListView in `webapp/src/components/ListView.tsx` (place filter row above states table; when filters change, call js/sdk listStates wrapper with bexpr filter string per FR-041a and FR-045)
-- [ ] **T062** [P] Add LabelFilter to GraphView in `webapp/src/components/GraphView.tsx` (place filter controls in toolbar/sidebar; when filters change, call js/sdk listStates wrapper per FR-041a and FR-045)
+- [x] **T060** [P] Create LabelFilter component in `webapp/src/components/LabelFilter.tsx` (reusable filter UI with key dropdown, value dropdown/input based on enums from useLabelPolicy, "Add Filter" button; uses bexpr utilities from js/sdk per T051)
+- [x] **T061** Add LabelFilter to ListView in `webapp/src/components/ListView.tsx` (place filter row above states table; when filters change, call js/sdk listStates wrapper with bexpr filter string per FR-041a and FR-045)
+- [x] **T062** [P] Add LabelFilter to GraphView in `webapp/src/components/GraphView.tsx` (place filter controls in toolbar/sidebar; when filters change, call js/sdk listStates wrapper per FR-041a and FR-045)
 
 ### Dashboard Tests
 - [ ] **T063** [P] Write test for LabelList component in `webapp/src/__tests__/dashboard_label_list.test.tsx` (verify alphabetical sorting, "No labels" empty state per FR-043, key=value formatting)
-- [ ] **T064** [P] Write test for LabelFilter component in `webapp/src/__tests__/dashboard_label_filter.test.tsx` (verify enum dropdowns extracted from policy, free-text input, filter building with js/sdk bexpr utilities)
+- [x] **T064** [P] Write test for LabelFilter component in `webapp/src/__tests__/dashboard_label_filter.test.tsx` (verify enum dropdowns extracted from policy, free-text input, filter building with js/sdk bexpr utilities)
 - [ ] **T065** [P] Write test for DetailView labels tab in `webapp/src/__tests__/dashboard_detail_view.test.tsx` (add test case verifying labels tab renders with LabelList)
 - [ ] **T066** [P] Write test for ListView labels column in `webapp/src/__tests__/dashboard_list_view.test.tsx` (add test case verifying labels column displays count/preview)
-- [ ] **T067** [P] Write test for ListView filtering in `webapp/src/__tests__/dashboard_list_view.test.tsx` (verify LabelFilter triggers js/sdk listStates with bexpr filter per FR-045)
-- [ ] **T068** [P] Write test for GraphView filtering in `webapp/src/__tests__/dashboard_graph_view.test.tsx` (verify LabelFilter triggers js/sdk filtered state fetch per FR-045)
+- [x] **T067** [P] Write test for ListView filtering in `webapp/src/__tests__/dashboard_list_view.test.tsx` (verify LabelFilter triggers js/sdk listStates with bexpr filter per FR-045)
+- [x] **T068** [P] Write test for GraphView filtering in `webapp/src/__tests__/dashboard_graph_view.test.tsx` (verify LabelFilter triggers js/sdk filtered state fetch per FR-045)
 
 ## Phase 3.7: Go SDK Updates
 - [x] **T069** Add LabelMap helper functions to `pkg/sdk/client.go` (ConvertProtoLabels, BuildBexprFilter, SortLabels for SDK consumers per FR-017)
-- [ ] **T070** Update SDK documentation in `pkg/sdk/README.md` to cover label operations and bexpr filter construction per FR-017
+- [x] **T070** Update SDK documentation in `pkg/sdk/README.md` to cover label operations and bexpr filter construction per FR-017
 
 ## Phase 3.8: Integration Testing
 - [x] **T071** Create integration test in `tests/integration/labels_test.go` (verify quickstart.md scenario 1: create state with labels via CLI and confirm persistence via SDK summary)

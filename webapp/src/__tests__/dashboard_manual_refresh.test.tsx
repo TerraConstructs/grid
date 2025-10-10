@@ -86,11 +86,23 @@ describe('Dashboard manual refresh', () => {
       .fn()
       .mockResolvedValueOnce(initialAppState)
       .mockResolvedValueOnce(updatedAppState);
+    const getLabelPolicy = vi.fn().mockResolvedValue({
+      version: 1,
+      policyJson: JSON.stringify({
+        allowed_keys: { env: {} },
+        allowed_values: { env: ['prod', 'staging'] },
+        max_keys: 32,
+        max_value_len: 256,
+      }),
+      createdAt: new Date('2024-03-01T00:00:00.000Z'),
+      updatedAt: new Date('2024-03-01T00:00:00.000Z'),
+    });
 
     const api = {
       listStates,
       getAllEdges,
       getStateInfo,
+      getLabelPolicy,
     } as unknown as GridApiAdapter;
 
     renderWithGrid(<App />, { api });

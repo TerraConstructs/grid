@@ -53,6 +53,61 @@ describe("createGridClient", () => {
 });
 
 describe("GridApiAdapter", () => {
+  it("forwards filter option to listStates requests", async () => {
+    const stateCreatedAt = timestampFromDate(new Date("2024-02-01T00:00:00Z"));
+    const stateUpdatedAt = timestampFromDate(new Date("2024-02-01T02:30:00Z"));
+
+    const backendConfig = create(BackendConfigSchema, {
+      address: "https://grid/states/consumer-guid",
+      lockAddress: "https://grid/states/consumer-guid/lock",
+      unlockAddress: "https://grid/states/consumer-guid/unlock",
+    });
+
+    const stateInfoResponse = create(GetStateInfoResponseSchema, {
+      guid: "consumer-guid",
+      logicId: "app/prod",
+      backendConfig,
+      dependencies: [],
+      dependents: [],
+      outputs: [],
+      createdAt: stateCreatedAt,
+      updatedAt: stateUpdatedAt,
+    });
+
+    const listStatesResponse = create(ListStatesResponseSchema, {
+      states: [
+        create(StateInfoSchema, {
+          guid: "consumer-guid",
+          logicId: "app/prod",
+          createdAt: stateCreatedAt,
+          updatedAt: stateUpdatedAt,
+          sizeBytes: 0n,
+          dependencyLogicIds: [],
+        }),
+      ],
+    });
+
+    let receivedFilter: string | undefined;
+
+    const transport = createRouterTransport(({ service }) => {
+      service(StateService, {
+        async listStates(request) {
+          receivedFilter = request.filter;
+          return listStatesResponse;
+        },
+        async getStateInfo() {
+          return stateInfoResponse;
+        },
+      });
+    });
+
+    const adapter = new GridApiAdapter(transport);
+
+    await adapter.listStates({ filter: 'env == "prod"' });
+
+    expect(receivedFilter).toBe('env == "prod"');
+  });
+
   it("transforms protobuf responses into plain state info", async () => {
     const stateCreatedAt = timestampFromDate(new Date("2024-02-01T00:00:00Z"));
     const stateUpdatedAt = timestampFromDate(new Date("2024-02-01T02:30:00Z"));
