@@ -9,4 +9,5 @@ export type {
   DependencyEdge,
   EdgeStatus,
   OutputKey,
+  LabelScalar,
 } from './models/state-info.js';

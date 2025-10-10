@@ -6,6 +6,7 @@ import (
 
 	"github.com/spf13/cobra"
 	"github.com/terraconstructs/grid/cmd/gridctl/cmd/deps"
+	"github.com/terraconstructs/grid/cmd/gridctl/cmd/policy"
 	"github.com/terraconstructs/grid/cmd/gridctl/cmd/state"
 )
 
@@ -30,6 +31,8 @@ system for Terraform and OpenTofu. Use it to create, list, and initialize states
 		state.SetNonInteractive(nonInteractive)
 		deps.SetServerURL(serverURL)
 		deps.SetNonInteractive(nonInteractive)
+		policy.SetServerURL(serverURL)
+		policy.SetNonInteractive(nonInteractive)
 	},
 }
 
@@ -46,4 +49,5 @@ func init() {
 	rootCmd.PersistentFlags().BoolVar(&nonInteractive, "non-interactive", false, "Disable interactive prompts (also set via GRID_NON_INTERACTIVE=1)")
 	rootCmd.AddCommand(state.StateCmd)
 	rootCmd.AddCommand(deps.DepsCmd)
+	rootCmd.AddCommand(policy.PolicyCmd)
 }

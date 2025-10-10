@@ -36,6 +36,7 @@ type StateSummary struct {
 	UpdatedAt          time.Time
 	ComputedStatus     string
 	DependencyLogicIDs []string
+	Labels             LabelMap
 }
 
 // LockInfo contains details about a Terraform state lock.
@@ -169,7 +170,25 @@ type StateInfo struct {
 	Dependencies  []DependencyEdge
 	Dependents    []DependencyEdge
 	Outputs       []OutputKey
+	SizeBytes     int64
 	CreatedAt     time.Time
+	UpdatedAt     time.Time
+	Labels        LabelMap
+}
+
+// LabelPolicy describes the label validation policy configured on the server.
+type LabelPolicy struct {
+	Version    int32
+	PolicyJSON string
+	CreatedAt  time.Time
+	UpdatedAt  time.Time
+}
+
+// UpdateStateLabelsResult reports the outcome of a label mutation.
+type UpdateStateLabelsResult struct {
+	StateID       string
+	Labels        LabelMap
+	PolicyVersion int32
 	UpdatedAt     time.Time
 }
 
@@ -196,6 +215,7 @@ func stateSummaryFromProto(info *statev1.StateInfo) StateSummary {
 		Locked:             info.GetLocked(),
 		SizeBytes:          info.GetSizeBytes(),
 		DependencyLogicIDs: append([]string(nil), info.DependencyLogicIds...),
+		Labels:             ConvertProtoLabels(info.GetLabels()),
 	}
 	if info.CreatedAt != nil {
 		t := info.CreatedAt.AsTime()
@@ -239,6 +259,23 @@ func stateLockFromProto(lock *statev1.StateLock) StateLock {
 		Locked: lock.GetLocked(),
 		Info:   lockInfoFromProto(lock.Info),
 	}
+}
+
+func labelPolicyFromProto(pb *statev1.GetLabelPolicyResponse) *LabelPolicy {
+	if pb == nil {
+		return nil
+	}
+	policy := &LabelPolicy{
+		Version:    pb.GetVersion(),
+		PolicyJSON: pb.GetPolicyJson(),
+	}
+	if pb.CreatedAt != nil {
+		policy.CreatedAt = pb.CreatedAt.AsTime()
+	}
+	if pb.UpdatedAt != nil {
+		policy.UpdatedAt = pb.UpdatedAt.AsTime()
+	}
+	return policy
 }
 
 func outputKeyFromProto(pb *statev1.OutputKey) OutputKey {

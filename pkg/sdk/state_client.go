@@ -18,6 +18,19 @@ type Client struct {
 	baseURL string
 }
 
+// ListStatesOptions configures optional parameters for ListStatesWithOptions.
+type ListStatesOptions struct {
+	Filter        string
+	IncludeLabels *bool
+}
+
+// UpdateStateLabelsInput describes label mutations for UpdateStateLabels.
+type UpdateStateLabelsInput struct {
+	StateID  string
+	Adds     LabelMap
+	Removals []string
+}
+
 // ClientOptions configures SDK client construction.
 type ClientOptions struct {
 	HTTPClient *http.Client
@@ -82,7 +95,18 @@ func (c *Client) CreateState(ctx context.Context, input CreateStateInput) (*Stat
 
 // ListStates returns summary information for all states managed by the server.
 func (c *Client) ListStates(ctx context.Context) ([]StateSummary, error) {
+	return c.ListStatesWithOptions(ctx, ListStatesOptions{})
+}
+
+// ListStatesWithOptions returns summaries with optional filter/label projection controls.
+func (c *Client) ListStatesWithOptions(ctx context.Context, opts ListStatesOptions) ([]StateSummary, error) {
 	req := connect.NewRequest(&statev1.ListStatesRequest{})
+	if opts.Filter != "" {
+		req.Msg.Filter = &opts.Filter
+	}
+	if opts.IncludeLabels != nil {
+		req.Msg.IncludeLabels = opts.IncludeLabels
+	}
 
 	resp, err := c.rpc.ListStates(ctx, req)
 	if err != nil {
@@ -186,6 +210,61 @@ func (c *Client) ListStateOutputs(ctx context.Context, ref StateReference) ([]Ou
 	return outputKeysFromProto(resp.Msg.GetOutputs()), nil
 }
 
+// UpdateStateLabels mutates labels on an existing state and returns the updated set.
+func (c *Client) UpdateStateLabels(ctx context.Context, input UpdateStateLabelsInput) (*UpdateStateLabelsResult, error) {
+	if input.StateID == "" {
+		return nil, fmt.Errorf("state ID is required")
+	}
+
+	req := connect.NewRequest(&statev1.UpdateStateLabelsRequest{
+		StateId:  input.StateID,
+		Adds:     ConvertLabelsToProto(input.Adds),
+		Removals: append([]string(nil), input.Removals...),
+	})
+
+	resp, err := c.rpc.UpdateStateLabels(ctx, req)
+	if err != nil {
+		return nil, err
+	}
+
+	result := &UpdateStateLabelsResult{
+		StateID:       resp.Msg.GetStateId(),
+		Labels:        ConvertProtoLabels(resp.Msg.GetLabels()),
+		PolicyVersion: resp.Msg.GetPolicyVersion(),
+	}
+	if resp.Msg.UpdatedAt != nil {
+		result.UpdatedAt = resp.Msg.UpdatedAt.AsTime()
+	}
+	return result, nil
+}
+
+// GetLabelPolicy retrieves the current label validation policy.
+func (c *Client) GetLabelPolicy(ctx context.Context) (*LabelPolicy, error) {
+	resp, err := c.rpc.GetLabelPolicy(ctx, connect.NewRequest(&statev1.GetLabelPolicyRequest{}))
+	if err != nil {
+		return nil, err
+	}
+	return labelPolicyFromProto(resp.Msg), nil
+}
+
+// SetLabelPolicy replaces the label policy using the provided JSON definition.
+func (c *Client) SetLabelPolicy(ctx context.Context, policyJSON []byte) (*LabelPolicy, error) {
+	req := connect.NewRequest(&statev1.SetLabelPolicyRequest{PolicyJson: string(policyJSON)})
+	resp, err := c.rpc.SetLabelPolicy(ctx, req)
+	if err != nil {
+		return nil, err
+	}
+
+	policy := &LabelPolicy{
+		Version:    resp.Msg.GetVersion(),
+		PolicyJSON: string(policyJSON),
+	}
+	if resp.Msg.UpdatedAt != nil {
+		policy.UpdatedAt = resp.Msg.UpdatedAt.AsTime()
+	}
+	return policy, nil
+}
+
 // GetStateInfo retrieves comprehensive state information including dependencies, dependents, and outputs.
 // This consolidates information that would otherwise require multiple RPC calls.
 func (c *Client) GetStateInfo(ctx context.Context, ref StateReference) (*StateInfo, error) {
@@ -228,6 +307,8 @@ func (c *Client) GetStateInfo(ctx context.Context, ref StateReference) (*StateIn
 		Dependencies:  dependencies,
 		Dependents:    dependents,
 		Outputs:       outputKeysFromProto(msg.GetOutputs()),
+		SizeBytes:     msg.GetSizeBytes(),
+		Labels:        ConvertProtoLabels(msg.GetLabels()),
 	}
 
 	if msg.CreatedAt != nil {

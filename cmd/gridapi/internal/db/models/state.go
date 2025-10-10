@@ -1,7 +1,10 @@
 package models
 
 import (
+	"database/sql/driver"
+	"encoding/json"
 	"errors"
+	"fmt"
 	"time"
 
 	"github.com/google/uuid"
@@ -10,6 +13,34 @@ import (
 
 const StateSizeWarningThreshold = 10 * 1024 * 1024 // 10MB
 
+// LabelMap represents typed label values (string | float64 | bool)
+type LabelMap map[string]any
+
+// Scan implements sql.Scanner for reading from database
+func (lm *LabelMap) Scan(value any) error {
+	if value == nil {
+		*lm = make(LabelMap)
+		return nil
+	}
+	bytes, ok := value.([]byte)
+	if !ok {
+		return fmt.Errorf("failed to scan LabelMap: expected []byte, got %T", value)
+	}
+	return json.Unmarshal(bytes, lm)
+}
+
+// Value implements driver.Valuer for writing to database
+func (lm LabelMap) Value() (driver.Value, error) {
+	if lm == nil {
+		return "{}", nil
+	}
+	bytes, err := json.Marshal(lm)
+	if err != nil {
+		return nil, err
+	}
+	return string(bytes), nil
+}
+
 // State represents the persisted Terraform state
 type State struct {
 	bun.BaseModel `bun:"table:states,alias:s"`
@@ -17,10 +48,14 @@ type State struct {
 	GUID         string    `bun:"guid,pk,type:uuid"`
 	LogicID      string    `bun:"logic_id,notnull,unique"`
 	StateContent []byte    `bun:"state_content,type:bytea"`
+	SizeBytes    int64     `bun:"size_bytes,scanonly"`
 	Locked       bool      `bun:"locked,notnull,default:false"`
 	LockInfo     *LockInfo `bun:"lock_info,type:jsonb"`
 	CreatedAt    time.Time `bun:"created_at,notnull,default:current_timestamp"`
 	UpdatedAt    time.Time `bun:"updated_at,notnull,default:current_timestamp"`
+
+	// Labels stores typed label key/value pairs
+	Labels LabelMap `bun:"labels,type:jsonb,notnull,default:'{}'"`
 }
 
 // LockInfo captures Terraform lock metadata stored with the state.

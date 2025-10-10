@@ -38,7 +38,13 @@ export interface StateInfo {
 
   /** Available Terraform outputs from this state */
   outputs: OutputKey[];
+
+  /** Label metadata (typed values) */
+  labels?: Record<string, LabelScalar>;
 }
+
+/** Permitted label value types */
+export type LabelScalar = string | number | boolean;
 
 /** Terraform HTTP backend configuration URLs */
 export interface BackendConfig {

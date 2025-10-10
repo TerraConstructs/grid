@@ -1,0 +1,17 @@
+{
+    "allowed_keys": {
+        "env": {},
+        "team": {},
+        "project": {},
+        "region": {}
+    },
+    "allowed_values": {
+        "env": [
+            "prd",
+            "stg",
+            "dev"
+        ]
+    },
+    "max_keys": 4,
+    "max_value_len": 256
+}

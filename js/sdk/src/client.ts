@@ -9,6 +9,10 @@ import type {
   GetStateInfoResponse,
   ListAllEdgesRequest,
   ListAllEdgesResponse,
+  GetLabelPolicyRequest,
+  GetLabelPolicyResponse,
+  SetLabelPolicyRequest,
+  SetLabelPolicyResponse,
 } from '../gen/state/v1/state_pb.js';
 
 /**
@@ -53,6 +57,12 @@ export interface StateServiceClient {
   listAllEdges(
     request?: ListAllEdgesRequest | Record<string, unknown>
   ): Promise<ListAllEdgesResponse>;
+  getLabelPolicy(
+    request?: GetLabelPolicyRequest | Record<string, unknown>
+  ): Promise<GetLabelPolicyResponse>;
+  setLabelPolicy(
+    request: SetLabelPolicyRequest | Record<string, unknown>
+  ): Promise<SetLabelPolicyResponse>;
 }
 
 export function createGridClient(transport: Transport): StateServiceClient {

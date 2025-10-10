@@ -37,6 +37,12 @@ export { GridApiAdapter } from './adapter.js';
 export { createGridTransport, createGridClient } from './client.js';
 export type { StateServiceClient } from './client.js';
 
+export {
+  buildEqualityFilter,
+  buildInFilter,
+  combineFilters,
+} from './filters/bexpr.js';
+
 /**
  * Plain TypeScript model types (not protobuf)
  */
@@ -46,6 +52,7 @@ export type {
   DependencyEdge,
   EdgeStatus,
   OutputKey,
+  LabelScalar,
 } from './types.js';
 
 /**

@@ -5,12 +5,15 @@ import type {
   GetStateInfoResponse,
   OutputKey as ProtoOutputKey,
   BackendConfig as ProtoBackendConfig,
+  LabelValue as ProtoLabelValue,
+  StateInfo as ProtoStateInfo,
 } from '../gen/state/v1/state_pb.js';
 import type {
   StateInfo,
   DependencyEdge,
   OutputKey,
   BackendConfig,
+  LabelScalar,
 } from './models/state-info.js';
 import {
   createGridClient,
@@ -58,6 +61,42 @@ function convertProtoOutputKey(output: ProtoOutputKey): OutputKey {
   };
 }
 
+function convertProtoLabelValue(label: ProtoLabelValue): LabelScalar | undefined {
+  switch (label.value.case) {
+    case 'stringValue':
+      return label.value.value;
+    case 'numberValue':
+      return label.value.value;
+    case 'boolValue':
+      return label.value.value;
+    default:
+      return undefined;
+  }
+}
+
+function convertProtoLabels(
+  labels: Record<string, ProtoLabelValue> | undefined
+): Record<string, LabelScalar> | undefined {
+  if (!labels) {
+    return undefined;
+  }
+
+  const entries = Object.entries(labels);
+  if (entries.length === 0) {
+    return undefined;
+  }
+
+  const result: Record<string, LabelScalar> = {};
+  for (const [key, value] of entries) {
+    const scalar = convertProtoLabelValue(value);
+    if (scalar !== undefined) {
+      result[key] = scalar;
+    }
+  }
+
+  return Object.keys(result).length > 0 ? result : undefined;
+}
+
 /**
  * Convert protobuf BackendConfig to plain TypeScript type.
  */
@@ -82,6 +121,8 @@ function convertProtoStateInfo(response: GetStateInfoResponse): StateInfo {
     new Set(response.dependencies.map((e: ProtoDependencyEdge) => e.fromLogicId))
   );
 
+  const labels = convertProtoLabels(response.labels);
+
   return {
     guid: response.guid,
     logic_id: response.logicId,
@@ -93,6 +134,8 @@ function convertProtoStateInfo(response: GetStateInfoResponse): StateInfo {
     dependencies: response.dependencies.map(convertProtoDependencyEdge),
     dependents: response.dependents.map(convertProtoDependencyEdge),
     outputs: response.outputs.map(convertProtoOutputKey),
+    size_bytes: Number(response.sizeBytes),
+    ...(labels ? { labels } : {}),
   };
 }
 
@@ -130,17 +173,29 @@ export class GridApiAdapter {
    * @returns Array of StateInfo objects
    */
   async listStates(): Promise<StateInfo[]> {
-    const response = await this.client.listStates({});
+    const listResponse = await this.client.listStates({ includeLabels: true });
 
-    // Fetch full info for each state
-    const stateInfoPromises = response.states.map((state: { logicId: string }) =>
+    const labelLookup = new Map<string, Record<string, LabelScalar>>();
+    for (const state of listResponse.states) {
+      const labels = convertProtoLabels((state as ProtoStateInfo).labels);
+      if (labels) {
+        labelLookup.set(state.logicId, labels);
+        labelLookup.set(state.guid, labels);
+      }
+    }
+
+    const stateInfoPromises = listResponse.states.map((state: { logicId: string }) =>
       this.getStateInfo(state.logicId)
     );
 
     const stateInfos = await Promise.all(stateInfoPromises);
 
-    // Filter out nulls (states that were deleted between list and get)
-    return stateInfos.filter((info: StateInfo | null): info is StateInfo => info !== null);
+    return stateInfos
+      .filter((info: StateInfo | null): info is StateInfo => info !== null)
+      .map((info) => {
+        const labels = labelLookup.get(info.guid) ?? labelLookup.get(info.logic_id);
+        return labels ? { ...info, labels } : info;
+      });
   }
 
   /**
@@ -193,5 +248,43 @@ export class GridApiAdapter {
   async getAllEdges(): Promise<DependencyEdge[]> {
     const response = await this.client.listAllEdges({});
     return response.edges.map(convertProtoDependencyEdge);
+  }
+
+  /**
+   * Get the current label validation policy.
+   *
+   * @returns Label policy with version and JSON definition
+   * @throws ConnectError if policy not found
+   */
+  async getLabelPolicy(): Promise<{
+    version: number;
+    policyJson: string;
+    createdAt: Date;
+    updatedAt: Date;
+  }> {
+    const response = await this.client.getLabelPolicy({});
+    return {
+      version: response.version,
+      policyJson: response.policyJson,
+      createdAt: response.createdAt ? new Date(timestampToISO(response.createdAt)) : new Date(),
+      updatedAt: response.updatedAt ? new Date(timestampToISO(response.updatedAt)) : new Date(),
+    };
+  }
+
+  /**
+   * Set or update the label validation policy.
+   *
+   * @param policyJson - JSON string of policy definition
+   * @returns Confirmation with new version and timestamp
+   */
+  async setLabelPolicy(policyJson: string): Promise<{
+    version: number;
+    updatedAt: Date;
+  }> {
+    const response = await this.client.setLabelPolicy({ policyJson });
+    return {
+      version: response.version,
+      updatedAt: response.updatedAt ? new Date(timestampToISO(response.updatedAt)) : new Date(),
+    };
   }
 }

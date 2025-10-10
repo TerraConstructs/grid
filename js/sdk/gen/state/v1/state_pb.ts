@@ -12,7 +12,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file state/v1/state.proto.
  */
 export const file_state_v1_state: GenFile = /*@__PURE__*/
-  fileDesc("ChRzdGF0ZS92MS9zdGF0ZS5wcm90bxIIc3RhdGUudjEiNAoSQ3JlYXRlU3RhdGVSZXF1ZXN0EgwKBGd1aWQYASABKAkSEAoIbG9naWNfaWQYAiABKAkiZgoTQ3JlYXRlU3RhdGVSZXNwb25zZRIMCgRndWlkGAEgASgJEhAKCGxvZ2ljX2lkGAIgASgJEi8KDmJhY2tlbmRfY29uZmlnGAMgASgLMhcuc3RhdGUudjEuQmFja2VuZENvbmZpZyITChFMaXN0U3RhdGVzUmVxdWVzdCI5ChJMaXN0U3RhdGVzUmVzcG9uc2USIwoGc3RhdGVzGAEgAygLMhMuc3RhdGUudjEuU3RhdGVJbmZvIv8BCglTdGF0ZUluZm8SDAoEZ3VpZBgBIAEoCRIQCghsb2dpY19pZBgCIAEoCRIOCgZsb2NrZWQYAyABKAgSLgoKY3JlYXRlZF9hdBgEIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASLgoKdXBkYXRlZF9hdBgFIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASEgoKc2l6ZV9ieXRlcxgGIAEoAxIcCg9jb21wdXRlZF9zdGF0dXMYByABKAlIAIgBARIcChRkZXBlbmRlbmN5X2xvZ2ljX2lkcxgIIAMoCUISChBfY29tcHV0ZWRfc3RhdHVzIk4KDUJhY2tlbmRDb25maWcSDwoHYWRkcmVzcxgBIAEoCRIUCgxsb2NrX2FkZHJlc3MYAiABKAkSFgoOdW5sb2NrX2FkZHJlc3MYAyABKAkiKQoVR2V0U3RhdGVDb25maWdSZXF1ZXN0EhAKCGxvZ2ljX2lkGAEgASgJIlcKFkdldFN0YXRlQ29uZmlnUmVzcG9uc2USDAoEZ3VpZBgBIAEoCRIvCg5iYWNrZW5kX2NvbmZpZxgCIAEoCzIXLnN0YXRlLnYxLkJhY2tlbmRDb25maWciIwoTR2V0U3RhdGVMb2NrUmVxdWVzdBIMCgRndWlkGAEgASgJIpABCghMb2NrSW5mbxIKCgJpZBgBIAEoCRIRCglvcGVyYXRpb24YAiABKAkSDAoEaW5mbxgDIAEoCRILCgN3aG8YBCABKAkSDwoHdmVyc2lvbhgFIAEoCRIrCgdjcmVhdGVkGAYgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIMCgRwYXRoGAcgASgJIj0KCVN0YXRlTG9jaxIOCgZsb2NrZWQYASABKAgSIAoEaW5mbxgCIAEoCzISLnN0YXRlLnYxLkxvY2tJbmZvIjkKFEdldFN0YXRlTG9ja1Jlc3BvbnNlEiEKBGxvY2sYASABKAsyEy5zdGF0ZS52MS5TdGF0ZUxvY2siMwoSVW5sb2NrU3RhdGVSZXF1ZXN0EgwKBGd1aWQYASABKAkSDwoHbG9ja19pZBgCIAEoCSI4ChNVbmxvY2tTdGF0ZVJlc3BvbnNlEiEKBGxvY2sYASABKAsyEy5zdGF0ZS52MS5TdGF0ZUxvY2si/QEKFEFkZERlcGVuZGVuY3lSZXF1ZXN0EhcKDWZyb21fbG9naWNfaWQYASABKAlIABITCglmcm9tX2d1aWQYAiABKAlIABITCgtmcm9tX291dHB1dBgDIAEoCRIVCgt0b19sb2dpY19pZBgEIAEoCUgBEhEKB3RvX2d1aWQYBSABKAlIARIaCg10b19pbnB1dF9uYW1lGAYgASgJSAKIAQESHAoPbW9ja192YWx1ZV9qc29uGAcgASgJSAOIAQFCDAoKZnJvbV9zdGF0ZUIKCgh0b19zdGF0ZUIQCg5fdG9faW5wdXRfbmFtZUISChBfbW9ja192YWx1ZV9qc29uIlcKFUFkZERlcGVuZGVuY3lSZXNwb25zZRImCgRlZGdlGAEgASgLMhguc3RhdGUudjEuRGVwZW5kZW5jeUVkZ2USFgoOYWxyZWFkeV9leGlzdHMYAiABKAgiKgoXUmVtb3ZlRGVwZW5kZW5jeVJlcXVlc3QSDwoHZWRnZV9pZBgBIAEoAyIrChhSZW1vdmVEZXBlbmRlbmN5UmVzcG9uc2USDwoHc3VjY2VzcxgBIAEoCCJGChdMaXN0RGVwZW5kZW5jaWVzUmVxdWVzdBISCghsb2dpY19pZBgBIAEoCUgAEg4KBGd1aWQYAiABKAlIAEIHCgVzdGF0ZSJDChhMaXN0RGVwZW5kZW5jaWVzUmVzcG9uc2USJwoFZWRnZXMYASADKAsyGC5zdGF0ZS52MS5EZXBlbmRlbmN5RWRnZSJEChVMaXN0RGVwZW5kZW50c1JlcXVlc3QSEgoIbG9naWNfaWQYASABKAlIABIOCgRndWlkGAIgASgJSABCBwoFc3RhdGUiQQoWTGlzdERlcGVuZGVudHNSZXNwb25zZRInCgVlZGdlcxgBIAMoCzIYLnN0YXRlLnYxLkRlcGVuZGVuY3lFZGdlIisKFVNlYXJjaEJ5T3V0cHV0UmVxdWVzdBISCgpvdXRwdXRfa2V5GAEgASgJIkEKFlNlYXJjaEJ5T3V0cHV0UmVzcG9uc2USJwoFZWRnZXMYASADKAsyGC5zdGF0ZS52MS5EZXBlbmRlbmN5RWRnZSJvChpHZXRUb3BvbG9naWNhbE9yZGVyUmVxdWVzdBISCghsb2dpY19pZBgBIAEoCUgAEg4KBGd1aWQYAiABKAlIABIWCglkaXJlY3Rpb24YAyABKAlIAYgBAUIHCgVzdGF0ZUIMCgpfZGlyZWN0aW9uIj4KG0dldFRvcG9sb2dpY2FsT3JkZXJSZXNwb25zZRIfCgZsYXllcnMYASADKAsyDy5zdGF0ZS52MS5MYXllciI6CgVMYXllchINCgVsZXZlbBgBIAEoBRIiCgZzdGF0ZXMYAiADKAsyEi5zdGF0ZS52MS5TdGF0ZVJlZiIqCghTdGF0ZVJlZhIMCgRndWlkGAEgASgJEhAKCGxvZ2ljX2lkGAIgASgJIkQKFUdldFN0YXRlU3RhdHVzUmVxdWVzdBISCghsb2dpY19pZBgBIAEoCUgAEg4KBGd1aWQYAiABKAlIAEIHCgVzdGF0ZSKgAQoWR2V0U3RhdGVTdGF0dXNSZXNwb25zZRIMCgRndWlkGAEgASgJEhAKCGxvZ2ljX2lkGAIgASgJEg4KBnN0YXR1cxgDIAEoCRIsCghpbmNvbWluZxgEIAMoCzIaLnN0YXRlLnYxLkluY29taW5nRWRnZVZpZXcSKAoHc3VtbWFyeRgFIAEoCzIXLnN0YXRlLnYxLlN0YXR1c1N1bW1hcnkiygIKEEluY29taW5nRWRnZVZpZXcSDwoHZWRnZV9pZBgBIAEoAxIRCglmcm9tX2d1aWQYAiABKAkSFQoNZnJvbV9sb2dpY19pZBgDIAEoCRITCgtmcm9tX291dHB1dBgEIAEoCRIOCgZzdGF0dXMYBSABKAkSFgoJaW5fZGlnZXN0GAYgASgJSACIAQESFwoKb3V0X2RpZ2VzdBgHIAEoCUgBiAEBEjMKCmxhc3RfaW5fYXQYCCABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wSAKIAQESNAoLbGFzdF9vdXRfYXQYCSABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wSAOIAQFCDAoKX2luX2RpZ2VzdEINCgtfb3V0X2RpZ2VzdEINCgtfbGFzdF9pbl9hdEIOCgxfbGFzdF9vdXRfYXQicwoNU3RhdHVzU3VtbWFyeRIWCg5pbmNvbWluZ19jbGVhbhgBIAEoBRIWCg5pbmNvbWluZ19kaXJ0eRgCIAEoBRIYChBpbmNvbWluZ19wZW5kaW5nGAMgASgFEhgKEGluY29taW5nX3Vua25vd24YBCABKAUiSAoZR2V0RGVwZW5kZW5jeUdyYXBoUmVxdWVzdBISCghsb2dpY19pZBgBIAEoCUgAEg4KBGd1aWQYAiABKAlIAEIHCgVzdGF0ZSKjAQoaR2V0RGVwZW5kZW5jeUdyYXBoUmVzcG9uc2USFQoNY29uc3VtZXJfZ3VpZBgBIAEoCRIZChFjb25zdW1lcl9sb2dpY19pZBgCIAEoCRIqCglwcm9kdWNlcnMYAyADKAsyFy5zdGF0ZS52MS5Qcm9kdWNlclN0YXRlEicKBWVkZ2VzGAQgAygLMhguc3RhdGUudjEuRGVwZW5kZW5jeUVkZ2UiYAoNUHJvZHVjZXJTdGF0ZRIMCgRndWlkGAEgASgJEhAKCGxvZ2ljX2lkGAIgASgJEi8KDmJhY2tlbmRfY29uZmlnGAMgASgLMhcuc3RhdGUudjEuQmFja2VuZENvbmZpZyKpBAoORGVwZW5kZW5jeUVkZ2USCgoCaWQYASABKAMSEQoJZnJvbV9ndWlkGAIgASgJEhUKDWZyb21fbG9naWNfaWQYAyABKAkSEwoLZnJvbV9vdXRwdXQYBCABKAkSDwoHdG9fZ3VpZBgFIAEoCRITCgt0b19sb2dpY19pZBgGIAEoCRIaCg10b19pbnB1dF9uYW1lGAcgASgJSACIAQESDgoGc3RhdHVzGAggASgJEhYKCWluX2RpZ2VzdBgJIAEoCUgBiAEBEhcKCm91dF9kaWdlc3QYCiABKAlIAogBARIcCg9tb2NrX3ZhbHVlX2pzb24YCyABKAlIA4gBARIzCgpsYXN0X2luX2F0GAwgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcEgEiAEBEjQKC2xhc3Rfb3V0X2F0GA0gASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcEgFiAEBEi4KCmNyZWF0ZWRfYXQYDiABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEi4KCnVwZGF0ZWRfYXQYDyABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wQhAKDl90b19pbnB1dF9uYW1lQgwKCl9pbl9kaWdlc3RCDQoLX291dF9kaWdlc3RCEgoQX21vY2tfdmFsdWVfanNvbkINCgtfbGFzdF9pbl9hdEIOCgxfbGFzdF9vdXRfYXQiKwoJT3V0cHV0S2V5EgsKA2tleRgBIAEoCRIRCglzZW5zaXRpdmUYAiABKAgiRgoXTGlzdFN0YXRlT3V0cHV0c1JlcXVlc3QSEgoIbG9naWNfaWQYASABKAlIABIOCgRndWlkGAIgASgJSABCBwoFc3RhdGUibAoYTGlzdFN0YXRlT3V0cHV0c1Jlc3BvbnNlEhIKCnN0YXRlX2d1aWQYASABKAkSFgoOc3RhdGVfbG9naWNfaWQYAiABKAkSJAoHb3V0cHV0cxgDIAMoCzITLnN0YXRlLnYxLk91dHB1dEtleSJCChNHZXRTdGF0ZUluZm9SZXF1ZXN0EhIKCGxvZ2ljX2lkGAEgASgJSAASDgoEZ3VpZBgCIAEoCUgAQgcKBXN0YXRlIv0CChRHZXRTdGF0ZUluZm9SZXNwb25zZRIMCgRndWlkGAEgASgJEhAKCGxvZ2ljX2lkGAIgASgJEi8KDmJhY2tlbmRfY29uZmlnGAMgASgLMhcuc3RhdGUudjEuQmFja2VuZENvbmZpZxIuCgxkZXBlbmRlbmNpZXMYBCADKAsyGC5zdGF0ZS52MS5EZXBlbmRlbmN5RWRnZRIsCgpkZXBlbmRlbnRzGAUgAygLMhguc3RhdGUudjEuRGVwZW5kZW5jeUVkZ2USJAoHb3V0cHV0cxgGIAMoCzITLnN0YXRlLnYxLk91dHB1dEtleRIuCgpjcmVhdGVkX2F0GAcgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIuCgp1cGRhdGVkX2F0GAggASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIcCg9jb21wdXRlZF9zdGF0dXMYCSABKAlIAIgBAUISChBfY29tcHV0ZWRfc3RhdHVzIhUKE0xpc3RBbGxFZGdlc1JlcXVlc3QiPwoUTGlzdEFsbEVkZ2VzUmVzcG9uc2USJwoFZWRnZXMYASADKAsyGC5zdGF0ZS52MS5EZXBlbmRlbmN5RWRnZTLYCgoMU3RhdGVTZXJ2aWNlEkoKC0NyZWF0ZVN0YXRlEhwuc3RhdGUudjEuQ3JlYXRlU3RhdGVSZXF1ZXN0Gh0uc3RhdGUudjEuQ3JlYXRlU3RhdGVSZXNwb25zZRJHCgpMaXN0U3RhdGVzEhsuc3RhdGUudjEuTGlzdFN0YXRlc1JlcXVlc3QaHC5zdGF0ZS52MS5MaXN0U3RhdGVzUmVzcG9uc2USUwoOR2V0U3RhdGVDb25maWcSHy5zdGF0ZS52MS5HZXRTdGF0ZUNvbmZpZ1JlcXVlc3QaIC5zdGF0ZS52MS5HZXRTdGF0ZUNvbmZpZ1Jlc3BvbnNlEk0KDEdldFN0YXRlTG9jaxIdLnN0YXRlLnYxLkdldFN0YXRlTG9ja1JlcXVlc3QaHi5zdGF0ZS52MS5HZXRTdGF0ZUxvY2tSZXNwb25zZRJKCgtVbmxvY2tTdGF0ZRIcLnN0YXRlLnYxLlVubG9ja1N0YXRlUmVxdWVzdBodLnN0YXRlLnYxLlVubG9ja1N0YXRlUmVzcG9uc2USUAoNQWRkRGVwZW5kZW5jeRIeLnN0YXRlLnYxLkFkZERlcGVuZGVuY3lSZXF1ZXN0Gh8uc3RhdGUudjEuQWRkRGVwZW5kZW5jeVJlc3BvbnNlElkKEFJlbW92ZURlcGVuZGVuY3kSIS5zdGF0ZS52MS5SZW1vdmVEZXBlbmRlbmN5UmVxdWVzdBoiLnN0YXRlLnYxLlJlbW92ZURlcGVuZGVuY3lSZXNwb25zZRJZChBMaXN0RGVwZW5kZW5jaWVzEiEuc3RhdGUudjEuTGlzdERlcGVuZGVuY2llc1JlcXVlc3QaIi5zdGF0ZS52MS5MaXN0RGVwZW5kZW5jaWVzUmVzcG9uc2USUwoOTGlzdERlcGVuZGVudHMSHy5zdGF0ZS52MS5MaXN0RGVwZW5kZW50c1JlcXVlc3QaIC5zdGF0ZS52MS5MaXN0RGVwZW5kZW50c1Jlc3BvbnNlElMKDlNlYXJjaEJ5T3V0cHV0Eh8uc3RhdGUudjEuU2VhcmNoQnlPdXRwdXRSZXF1ZXN0GiAuc3RhdGUudjEuU2VhcmNoQnlPdXRwdXRSZXNwb25zZRJiChNHZXRUb3BvbG9naWNhbE9yZGVyEiQuc3RhdGUudjEuR2V0VG9wb2xvZ2ljYWxPcmRlclJlcXVlc3QaJS5zdGF0ZS52MS5HZXRUb3BvbG9naWNhbE9yZGVyUmVzcG9uc2USUwoOR2V0U3RhdGVTdGF0dXMSHy5zdGF0ZS52MS5HZXRTdGF0ZVN0YXR1c1JlcXVlc3QaIC5zdGF0ZS52MS5HZXRTdGF0ZVN0YXR1c1Jlc3BvbnNlEl8KEkdldERlcGVuZGVuY3lHcmFwaBIjLnN0YXRlLnYxLkdldERlcGVuZGVuY3lHcmFwaFJlcXVlc3QaJC5zdGF0ZS52MS5HZXREZXBlbmRlbmN5R3JhcGhSZXNwb25zZRJZChBMaXN0U3RhdGVPdXRwdXRzEiEuc3RhdGUudjEuTGlzdFN0YXRlT3V0cHV0c1JlcXVlc3QaIi5zdGF0ZS52MS5MaXN0U3RhdGVPdXRwdXRzUmVzcG9uc2USTQoMR2V0U3RhdGVJbmZvEh0uc3RhdGUudjEuR2V0U3RhdGVJbmZvUmVxdWVzdBoeLnN0YXRlLnYxLkdldFN0YXRlSW5mb1Jlc3BvbnNlEk0KDExpc3RBbGxFZGdlcxIdLnN0YXRlLnYxLkxpc3RBbGxFZGdlc1JlcXVlc3QaHi5zdGF0ZS52MS5MaXN0QWxsRWRnZXNSZXNwb25zZUI2WjRnaXRodWIuY29tL3RlcnJhY29uc3RydWN0cy9ncmlkL2FwaS9zdGF0ZS92MTtzdGF0ZXYxYgZwcm90bzM", [file_google_protobuf_timestamp]);
+  fileDesc("ChRzdGF0ZS92MS9zdGF0ZS5wcm90bxIIc3RhdGUudjEiNAoSQ3JlYXRlU3RhdGVSZXF1ZXN0EgwKBGd1aWQYASABKAkSEAoIbG9naWNfaWQYAiABKAkiZgoTQ3JlYXRlU3RhdGVSZXNwb25zZRIMCgRndWlkGAEgASgJEhAKCGxvZ2ljX2lkGAIgASgJEi8KDmJhY2tlbmRfY29uZmlnGAMgASgLMhcuc3RhdGUudjEuQmFja2VuZENvbmZpZyJjChFMaXN0U3RhdGVzUmVxdWVzdBITCgZmaWx0ZXIYASABKAlIAIgBARIbCg5pbmNsdWRlX2xhYmVscxgCIAEoCEgBiAEBQgkKB19maWx0ZXJCEQoPX2luY2x1ZGVfbGFiZWxzIjkKEkxpc3RTdGF0ZXNSZXNwb25zZRIjCgZzdGF0ZXMYASADKAsyEy5zdGF0ZS52MS5TdGF0ZUluZm8i9QIKCVN0YXRlSW5mbxIMCgRndWlkGAEgASgJEhAKCGxvZ2ljX2lkGAIgASgJEg4KBmxvY2tlZBgDIAEoCBIuCgpjcmVhdGVkX2F0GAQgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIuCgp1cGRhdGVkX2F0GAUgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBISCgpzaXplX2J5dGVzGAYgASgDEhwKD2NvbXB1dGVkX3N0YXR1cxgHIAEoCUgAiAEBEhwKFGRlcGVuZGVuY3lfbG9naWNfaWRzGAggAygJEi8KBmxhYmVscxgJIAMoCzIfLnN0YXRlLnYxLlN0YXRlSW5mby5MYWJlbHNFbnRyeRpDCgtMYWJlbHNFbnRyeRILCgNrZXkYASABKAkSIwoFdmFsdWUYAiABKAsyFC5zdGF0ZS52MS5MYWJlbFZhbHVlOgI4AUISChBfY29tcHV0ZWRfc3RhdHVzIk4KDUJhY2tlbmRDb25maWcSDwoHYWRkcmVzcxgBIAEoCRIUCgxsb2NrX2FkZHJlc3MYAiABKAkSFgoOdW5sb2NrX2FkZHJlc3MYAyABKAkiKQoVR2V0U3RhdGVDb25maWdSZXF1ZXN0EhAKCGxvZ2ljX2lkGAEgASgJIlcKFkdldFN0YXRlQ29uZmlnUmVzcG9uc2USDAoEZ3VpZBgBIAEoCRIvCg5iYWNrZW5kX2NvbmZpZxgCIAEoCzIXLnN0YXRlLnYxLkJhY2tlbmRDb25maWciIwoTR2V0U3RhdGVMb2NrUmVxdWVzdBIMCgRndWlkGAEgASgJIpABCghMb2NrSW5mbxIKCgJpZBgBIAEoCRIRCglvcGVyYXRpb24YAiABKAkSDAoEaW5mbxgDIAEoCRILCgN3aG8YBCABKAkSDwoHdmVyc2lvbhgFIAEoCRIrCgdjcmVhdGVkGAYgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIMCgRwYXRoGAcgASgJIj0KCVN0YXRlTG9jaxIOCgZsb2NrZWQYASABKAgSIAoEaW5mbxgCIAEoCzISLnN0YXRlLnYxLkxvY2tJbmZvIjkKFEdldFN0YXRlTG9ja1Jlc3BvbnNlEiEKBGxvY2sYASABKAsyEy5zdGF0ZS52MS5TdGF0ZUxvY2siMwoSVW5sb2NrU3RhdGVSZXF1ZXN0EgwKBGd1aWQYASABKAkSDwoHbG9ja19pZBgCIAEoCSI4ChNVbmxvY2tTdGF0ZVJlc3BvbnNlEiEKBGxvY2sYASABKAsyEy5zdGF0ZS52MS5TdGF0ZUxvY2si/QEKFEFkZERlcGVuZGVuY3lSZXF1ZXN0EhcKDWZyb21fbG9naWNfaWQYASABKAlIABITCglmcm9tX2d1aWQYAiABKAlIABITCgtmcm9tX291dHB1dBgDIAEoCRIVCgt0b19sb2dpY19pZBgEIAEoCUgBEhEKB3RvX2d1aWQYBSABKAlIARIaCg10b19pbnB1dF9uYW1lGAYgASgJSAKIAQESHAoPbW9ja192YWx1ZV9qc29uGAcgASgJSAOIAQFCDAoKZnJvbV9zdGF0ZUIKCgh0b19zdGF0ZUIQCg5fdG9faW5wdXRfbmFtZUISChBfbW9ja192YWx1ZV9qc29uIlcKFUFkZERlcGVuZGVuY3lSZXNwb25zZRImCgRlZGdlGAEgASgLMhguc3RhdGUudjEuRGVwZW5kZW5jeUVkZ2USFgoOYWxyZWFkeV9leGlzdHMYAiABKAgiKgoXUmVtb3ZlRGVwZW5kZW5jeVJlcXVlc3QSDwoHZWRnZV9pZBgBIAEoAyIrChhSZW1vdmVEZXBlbmRlbmN5UmVzcG9uc2USDwoHc3VjY2VzcxgBIAEoCCJGChdMaXN0RGVwZW5kZW5jaWVzUmVxdWVzdBISCghsb2dpY19pZBgBIAEoCUgAEg4KBGd1aWQYAiABKAlIAEIHCgVzdGF0ZSJDChhMaXN0RGVwZW5kZW5jaWVzUmVzcG9uc2USJwoFZWRnZXMYASADKAsyGC5zdGF0ZS52MS5EZXBlbmRlbmN5RWRnZSJEChVMaXN0RGVwZW5kZW50c1JlcXVlc3QSEgoIbG9naWNfaWQYASABKAlIABIOCgRndWlkGAIgASgJSABCBwoFc3RhdGUiQQoWTGlzdERlcGVuZGVudHNSZXNwb25zZRInCgVlZGdlcxgBIAMoCzIYLnN0YXRlLnYxLkRlcGVuZGVuY3lFZGdlIisKFVNlYXJjaEJ5T3V0cHV0UmVxdWVzdBISCgpvdXRwdXRfa2V5GAEgASgJIkEKFlNlYXJjaEJ5T3V0cHV0UmVzcG9uc2USJwoFZWRnZXMYASADKAsyGC5zdGF0ZS52MS5EZXBlbmRlbmN5RWRnZSJvChpHZXRUb3BvbG9naWNhbE9yZGVyUmVxdWVzdBISCghsb2dpY19pZBgBIAEoCUgAEg4KBGd1aWQYAiABKAlIABIWCglkaXJlY3Rpb24YAyABKAlIAYgBAUIHCgVzdGF0ZUIMCgpfZGlyZWN0aW9uIj4KG0dldFRvcG9sb2dpY2FsT3JkZXJSZXNwb25zZRIfCgZsYXllcnMYASADKAsyDy5zdGF0ZS52MS5MYXllciI6CgVMYXllchINCgVsZXZlbBgBIAEoBRIiCgZzdGF0ZXMYAiADKAsyEi5zdGF0ZS52MS5TdGF0ZVJlZiIqCghTdGF0ZVJlZhIMCgRndWlkGAEgASgJEhAKCGxvZ2ljX2lkGAIgASgJIkQKFUdldFN0YXRlU3RhdHVzUmVxdWVzdBISCghsb2dpY19pZBgBIAEoCUgAEg4KBGd1aWQYAiABKAlIAEIHCgVzdGF0ZSKgAQoWR2V0U3RhdGVTdGF0dXNSZXNwb25zZRIMCgRndWlkGAEgASgJEhAKCGxvZ2ljX2lkGAIgASgJEg4KBnN0YXR1cxgDIAEoCRIsCghpbmNvbWluZxgEIAMoCzIaLnN0YXRlLnYxLkluY29taW5nRWRnZVZpZXcSKAoHc3VtbWFyeRgFIAEoCzIXLnN0YXRlLnYxLlN0YXR1c1N1bW1hcnkiygIKEEluY29taW5nRWRnZVZpZXcSDwoHZWRnZV9pZBgBIAEoAxIRCglmcm9tX2d1aWQYAiABKAkSFQoNZnJvbV9sb2dpY19pZBgDIAEoCRITCgtmcm9tX291dHB1dBgEIAEoCRIOCgZzdGF0dXMYBSABKAkSFgoJaW5fZGlnZXN0GAYgASgJSACIAQESFwoKb3V0X2RpZ2VzdBgHIAEoCUgBiAEBEjMKCmxhc3RfaW5fYXQYCCABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wSAKIAQESNAoLbGFzdF9vdXRfYXQYCSABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wSAOIAQFCDAoKX2luX2RpZ2VzdEINCgtfb3V0X2RpZ2VzdEINCgtfbGFzdF9pbl9hdEIOCgxfbGFzdF9vdXRfYXQicwoNU3RhdHVzU3VtbWFyeRIWCg5pbmNvbWluZ19jbGVhbhgBIAEoBRIWCg5pbmNvbWluZ19kaXJ0eRgCIAEoBRIYChBpbmNvbWluZ19wZW5kaW5nGAMgASgFEhgKEGluY29taW5nX3Vua25vd24YBCABKAUiSAoZR2V0RGVwZW5kZW5jeUdyYXBoUmVxdWVzdBISCghsb2dpY19pZBgBIAEoCUgAEg4KBGd1aWQYAiABKAlIAEIHCgVzdGF0ZSKjAQoaR2V0RGVwZW5kZW5jeUdyYXBoUmVzcG9uc2USFQoNY29uc3VtZXJfZ3VpZBgBIAEoCRIZChFjb25zdW1lcl9sb2dpY19pZBgCIAEoCRIqCglwcm9kdWNlcnMYAyADKAsyFy5zdGF0ZS52MS5Qcm9kdWNlclN0YXRlEicKBWVkZ2VzGAQgAygLMhguc3RhdGUudjEuRGVwZW5kZW5jeUVkZ2UiYAoNUHJvZHVjZXJTdGF0ZRIMCgRndWlkGAEgASgJEhAKCGxvZ2ljX2lkGAIgASgJEi8KDmJhY2tlbmRfY29uZmlnGAMgASgLMhcuc3RhdGUudjEuQmFja2VuZENvbmZpZyKpBAoORGVwZW5kZW5jeUVkZ2USCgoCaWQYASABKAMSEQoJZnJvbV9ndWlkGAIgASgJEhUKDWZyb21fbG9naWNfaWQYAyABKAkSEwoLZnJvbV9vdXRwdXQYBCABKAkSDwoHdG9fZ3VpZBgFIAEoCRITCgt0b19sb2dpY19pZBgGIAEoCRIaCg10b19pbnB1dF9uYW1lGAcgASgJSACIAQESDgoGc3RhdHVzGAggASgJEhYKCWluX2RpZ2VzdBgJIAEoCUgBiAEBEhcKCm91dF9kaWdlc3QYCiABKAlIAogBARIcCg9tb2NrX3ZhbHVlX2pzb24YCyABKAlIA4gBARIzCgpsYXN0X2luX2F0GAwgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcEgEiAEBEjQKC2xhc3Rfb3V0X2F0GA0gASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcEgFiAEBEi4KCmNyZWF0ZWRfYXQYDiABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEi4KCnVwZGF0ZWRfYXQYDyABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wQhAKDl90b19pbnB1dF9uYW1lQgwKCl9pbl9kaWdlc3RCDQoLX291dF9kaWdlc3RCEgoQX21vY2tfdmFsdWVfanNvbkINCgtfbGFzdF9pbl9hdEIOCgxfbGFzdF9vdXRfYXQiKwoJT3V0cHV0S2V5EgsKA2tleRgBIAEoCRIRCglzZW5zaXRpdmUYAiABKAgiRgoXTGlzdFN0YXRlT3V0cHV0c1JlcXVlc3QSEgoIbG9naWNfaWQYASABKAlIABIOCgRndWlkGAIgASgJSABCBwoFc3RhdGUibAoYTGlzdFN0YXRlT3V0cHV0c1Jlc3BvbnNlEhIKCnN0YXRlX2d1aWQYASABKAkSFgoOc3RhdGVfbG9naWNfaWQYAiABKAkSJAoHb3V0cHV0cxgDIAMoCzITLnN0YXRlLnYxLk91dHB1dEtleSJCChNHZXRTdGF0ZUluZm9SZXF1ZXN0EhIKCGxvZ2ljX2lkGAEgASgJSAASDgoEZ3VpZBgCIAEoCUgAQgcKBXN0YXRlIpIEChRHZXRTdGF0ZUluZm9SZXNwb25zZRIMCgRndWlkGAEgASgJEhAKCGxvZ2ljX2lkGAIgASgJEi8KDmJhY2tlbmRfY29uZmlnGAMgASgLMhcuc3RhdGUudjEuQmFja2VuZENvbmZpZxIuCgxkZXBlbmRlbmNpZXMYBCADKAsyGC5zdGF0ZS52MS5EZXBlbmRlbmN5RWRnZRIsCgpkZXBlbmRlbnRzGAUgAygLMhguc3RhdGUudjEuRGVwZW5kZW5jeUVkZ2USJAoHb3V0cHV0cxgGIAMoCzITLnN0YXRlLnYxLk91dHB1dEtleRIuCgpjcmVhdGVkX2F0GAcgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIuCgp1cGRhdGVkX2F0GAggASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIcCg9jb21wdXRlZF9zdGF0dXMYCSABKAlIAIgBARISCgpzaXplX2J5dGVzGAogASgDEjoKBmxhYmVscxgLIAMoCzIqLnN0YXRlLnYxLkdldFN0YXRlSW5mb1Jlc3BvbnNlLkxhYmVsc0VudHJ5GkMKC0xhYmVsc0VudHJ5EgsKA2tleRgBIAEoCRIjCgV2YWx1ZRgCIAEoCzIULnN0YXRlLnYxLkxhYmVsVmFsdWU6AjgBQhIKEF9jb21wdXRlZF9zdGF0dXMiFQoTTGlzdEFsbEVkZ2VzUmVxdWVzdCI/ChRMaXN0QWxsRWRnZXNSZXNwb25zZRInCgVlZGdlcxgBIAMoCzIYLnN0YXRlLnYxLkRlcGVuZGVuY3lFZGdlIlsKCkxhYmVsVmFsdWUSFgoMc3RyaW5nX3ZhbHVlGAEgASgJSAASFgoMbnVtYmVyX3ZhbHVlGAIgASgBSAASFAoKYm9vbF92YWx1ZRgDIAEoCEgAQgcKBXZhbHVlIvMBChhVcGRhdGVTdGF0ZUxhYmVsc1JlcXVlc3QSEAoIc3RhdGVfaWQYASABKAkSOgoEYWRkcxgCIAMoCzIsLnN0YXRlLnYxLlVwZGF0ZVN0YXRlTGFiZWxzUmVxdWVzdC5BZGRzRW50cnkSEAoIcmVtb3ZhbHMYAyADKAkSHgoRY2xpZW50X3JlcXVlc3RfaWQYBCABKAlIAIgBARpBCglBZGRzRW50cnkSCwoDa2V5GAEgASgJEiMKBXZhbHVlGAIgASgLMhQuc3RhdGUudjEuTGFiZWxWYWx1ZToCOAFCFAoSX2NsaWVudF9yZXF1ZXN0X2lkIpYCChlVcGRhdGVTdGF0ZUxhYmVsc1Jlc3BvbnNlEhAKCHN0YXRlX2lkGAEgASgJEj8KBmxhYmVscxgCIAMoCzIvLnN0YXRlLnYxLlVwZGF0ZVN0YXRlTGFiZWxzUmVzcG9uc2UuTGFiZWxzRW50cnkSFgoOcG9saWN5X3ZlcnNpb24YAyABKAUSGQoRY29tcGxpYW5jZV9zdGF0dXMYBCABKAkSLgoKdXBkYXRlZF9hdBgFIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXAaQwoLTGFiZWxzRW50cnkSCwoDa2V5GAEgASgJEiMKBXZhbHVlGAIgASgLMhQuc3RhdGUudjEuTGFiZWxWYWx1ZToCOAEiFwoVR2V0TGFiZWxQb2xpY3lSZXF1ZXN0Ip4BChZHZXRMYWJlbFBvbGljeVJlc3BvbnNlEg8KB3ZlcnNpb24YASABKAUSEwoLcG9saWN5X2pzb24YAiABKAkSLgoKY3JlYXRlZF9hdBgDIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASLgoKdXBkYXRlZF9hdBgEIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXAiLAoVU2V0TGFiZWxQb2xpY3lSZXF1ZXN0EhMKC3BvbGljeV9qc29uGAEgASgJIlkKFlNldExhYmVsUG9saWN5UmVzcG9uc2USDwoHdmVyc2lvbhgBIAEoBRIuCgp1cGRhdGVkX2F0GAIgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcDLgDAoMU3RhdGVTZXJ2aWNlEkoKC0NyZWF0ZVN0YXRlEhwuc3RhdGUudjEuQ3JlYXRlU3RhdGVSZXF1ZXN0Gh0uc3RhdGUudjEuQ3JlYXRlU3RhdGVSZXNwb25zZRJHCgpMaXN0U3RhdGVzEhsuc3RhdGUudjEuTGlzdFN0YXRlc1JlcXVlc3QaHC5zdGF0ZS52MS5MaXN0U3RhdGVzUmVzcG9uc2USUwoOR2V0U3RhdGVDb25maWcSHy5zdGF0ZS52MS5HZXRTdGF0ZUNvbmZpZ1JlcXVlc3QaIC5zdGF0ZS52MS5HZXRTdGF0ZUNvbmZpZ1Jlc3BvbnNlEk0KDEdldFN0YXRlTG9jaxIdLnN0YXRlLnYxLkdldFN0YXRlTG9ja1JlcXVlc3QaHi5zdGF0ZS52MS5HZXRTdGF0ZUxvY2tSZXNwb25zZRJKCgtVbmxvY2tTdGF0ZRIcLnN0YXRlLnYxLlVubG9ja1N0YXRlUmVxdWVzdBodLnN0YXRlLnYxLlVubG9ja1N0YXRlUmVzcG9uc2USUAoNQWRkRGVwZW5kZW5jeRIeLnN0YXRlLnYxLkFkZERlcGVuZGVuY3lSZXF1ZXN0Gh8uc3RhdGUudjEuQWRkRGVwZW5kZW5jeVJlc3BvbnNlElkKEFJlbW92ZURlcGVuZGVuY3kSIS5zdGF0ZS52MS5SZW1vdmVEZXBlbmRlbmN5UmVxdWVzdBoiLnN0YXRlLnYxLlJlbW92ZURlcGVuZGVuY3lSZXNwb25zZRJZChBMaXN0RGVwZW5kZW5jaWVzEiEuc3RhdGUudjEuTGlzdERlcGVuZGVuY2llc1JlcXVlc3QaIi5zdGF0ZS52MS5MaXN0RGVwZW5kZW5jaWVzUmVzcG9uc2USUwoOTGlzdERlcGVuZGVudHMSHy5zdGF0ZS52MS5MaXN0RGVwZW5kZW50c1JlcXVlc3QaIC5zdGF0ZS52MS5MaXN0RGVwZW5kZW50c1Jlc3BvbnNlElMKDlNlYXJjaEJ5T3V0cHV0Eh8uc3RhdGUudjEuU2VhcmNoQnlPdXRwdXRSZXF1ZXN0GiAuc3RhdGUudjEuU2VhcmNoQnlPdXRwdXRSZXNwb25zZRJiChNHZXRUb3BvbG9naWNhbE9yZGVyEiQuc3RhdGUudjEuR2V0VG9wb2xvZ2ljYWxPcmRlclJlcXVlc3QaJS5zdGF0ZS52MS5HZXRUb3BvbG9naWNhbE9yZGVyUmVzcG9uc2USUwoOR2V0U3RhdGVTdGF0dXMSHy5zdGF0ZS52MS5HZXRTdGF0ZVN0YXR1c1JlcXVlc3QaIC5zdGF0ZS52MS5HZXRTdGF0ZVN0YXR1c1Jlc3BvbnNlEl8KEkdldERlcGVuZGVuY3lHcmFwaBIjLnN0YXRlLnYxLkdldERlcGVuZGVuY3lHcmFwaFJlcXVlc3QaJC5zdGF0ZS52MS5HZXREZXBlbmRlbmN5R3JhcGhSZXNwb25zZRJZChBMaXN0U3RhdGVPdXRwdXRzEiEuc3RhdGUudjEuTGlzdFN0YXRlT3V0cHV0c1JlcXVlc3QaIi5zdGF0ZS52MS5MaXN0U3RhdGVPdXRwdXRzUmVzcG9uc2USTQoMR2V0U3RhdGVJbmZvEh0uc3RhdGUudjEuR2V0U3RhdGVJbmZvUmVxdWVzdBoeLnN0YXRlLnYxLkdldFN0YXRlSW5mb1Jlc3BvbnNlEk0KDExpc3RBbGxFZGdlcxIdLnN0YXRlLnYxLkxpc3RBbGxFZGdlc1JlcXVlc3QaHi5zdGF0ZS52MS5MaXN0QWxsRWRnZXNSZXNwb25zZRJcChFVcGRhdGVTdGF0ZUxhYmVscxIiLnN0YXRlLnYxLlVwZGF0ZVN0YXRlTGFiZWxzUmVxdWVzdBojLnN0YXRlLnYxLlVwZGF0ZVN0YXRlTGFiZWxzUmVzcG9uc2USUwoOR2V0TGFiZWxQb2xpY3kSHy5zdGF0ZS52MS5HZXRMYWJlbFBvbGljeVJlcXVlc3QaIC5zdGF0ZS52MS5HZXRMYWJlbFBvbGljeVJlc3BvbnNlElMKDlNldExhYmVsUG9saWN5Eh8uc3RhdGUudjEuU2V0TGFiZWxQb2xpY3lSZXF1ZXN0GiAuc3RhdGUudjEuU2V0TGFiZWxQb2xpY3lSZXNwb25zZUI2WjRnaXRodWIuY29tL3RlcnJhY29uc3RydWN0cy9ncmlkL2FwaS9zdGF0ZS92MTtzdGF0ZXYxYgZwcm90bzM", [file_google_protobuf_timestamp]);
 
 /**
  * CreateStateRequest creates a new state using a client-generated GUID.
@@ -73,6 +73,19 @@ export const CreateStateResponseSchema: GenMessage<CreateStateResponse> = /*@__P
  * @generated from message state.v1.ListStatesRequest
  */
 export type ListStatesRequest = Message<"state.v1.ListStatesRequest"> & {
+  /**
+   * Optional bexpr filter expression (e.g., 'env == "staging"')
+   *
+   * @generated from field: optional string filter = 1;
+   */
+  filter?: string;
+
+  /**
+   * Whether to include labels in response (default: true)
+   *
+   * @generated from field: optional bool include_labels = 2;
+   */
+  includeLabels?: boolean;
 };
 
 /**
@@ -152,6 +165,13 @@ export type StateInfo = Message<"state.v1.StateInfo"> & {
    * @generated from field: repeated string dependency_logic_ids = 8;
    */
   dependencyLogicIds: string[];
+
+  /**
+   * State labels (key-value pairs with typed values)
+   *
+   * @generated from field: map<string, state.v1.LabelValue> labels = 9;
+   */
+  labels: { [key: string]: LabelValue };
 };
 
 /**
@@ -1336,6 +1356,20 @@ export type GetStateInfoResponse = Message<"state.v1.GetStateInfoResponse"> & {
    * @generated from field: optional string computed_status = 9;
    */
   computedStatus?: string;
+
+  /**
+   * State JSON size in bytes (calculated without including state JSON in response)
+   *
+   * @generated from field: int64 size_bytes = 10;
+   */
+  sizeBytes: bigint;
+
+  /**
+   * State labels (key-value pairs with typed values)
+   *
+   * @generated from field: map<string, state.v1.LabelValue> labels = 11;
+   */
+  labels: { [key: string]: LabelValue };
 };
 
 /**
@@ -1381,6 +1415,226 @@ export type ListAllEdgesResponse = Message<"state.v1.ListAllEdgesResponse"> & {
  */
 export const ListAllEdgesResponseSchema: GenMessage<ListAllEdgesResponse> = /*@__PURE__*/
   messageDesc(file_state_v1_state, 42);
+
+/**
+ * LabelValue represents a typed label value (string, number, or boolean).
+ *
+ * @generated from message state.v1.LabelValue
+ */
+export type LabelValue = Message<"state.v1.LabelValue"> & {
+  /**
+   * @generated from oneof state.v1.LabelValue.value
+   */
+  value: {
+    /**
+     * @generated from field: string string_value = 1;
+     */
+    value: string;
+    case: "stringValue";
+  } | {
+    /**
+     * @generated from field: double number_value = 2;
+     */
+    value: number;
+    case: "numberValue";
+  } | {
+    /**
+     * @generated from field: bool bool_value = 3;
+     */
+    value: boolean;
+    case: "boolValue";
+  } | { case: undefined; value?: undefined };
+};
+
+/**
+ * Describes the message state.v1.LabelValue.
+ * Use `create(LabelValueSchema)` to create a new message.
+ */
+export const LabelValueSchema: GenMessage<LabelValue> = /*@__PURE__*/
+  messageDesc(file_state_v1_state, 43);
+
+/**
+ * UpdateStateLabelsRequest mutates labels for an existing state.
+ *
+ * @generated from message state.v1.UpdateStateLabelsRequest
+ */
+export type UpdateStateLabelsRequest = Message<"state.v1.UpdateStateLabelsRequest"> & {
+  /**
+   * State identifier (GUID)
+   *
+   * @generated from field: string state_id = 1;
+   */
+  stateId: string;
+
+  /**
+   * Labels to add or update (key-value pairs)
+   *
+   * @generated from field: map<string, state.v1.LabelValue> adds = 2;
+   */
+  adds: { [key: string]: LabelValue };
+
+  /**
+   * Label keys to remove
+   *
+   * @generated from field: repeated string removals = 3;
+   */
+  removals: string[];
+
+  /**
+   * Optional idempotency token
+   *
+   * @generated from field: optional string client_request_id = 4;
+   */
+  clientRequestId?: string;
+};
+
+/**
+ * Describes the message state.v1.UpdateStateLabelsRequest.
+ * Use `create(UpdateStateLabelsRequestSchema)` to create a new message.
+ */
+export const UpdateStateLabelsRequestSchema: GenMessage<UpdateStateLabelsRequest> = /*@__PURE__*/
+  messageDesc(file_state_v1_state, 44);
+
+/**
+ * UpdateStateLabelsResponse returns updated label set.
+ *
+ * @generated from message state.v1.UpdateStateLabelsResponse
+ */
+export type UpdateStateLabelsResponse = Message<"state.v1.UpdateStateLabelsResponse"> & {
+  /**
+   * @generated from field: string state_id = 1;
+   */
+  stateId: string;
+
+  /**
+   * @generated from field: map<string, state.v1.LabelValue> labels = 2;
+   */
+  labels: { [key: string]: LabelValue };
+
+  /**
+   * @generated from field: int32 policy_version = 3;
+   */
+  policyVersion: number;
+
+  /**
+   * "COMPLIANT" or "NON_COMPLIANT"
+   *
+   * @generated from field: string compliance_status = 4;
+   */
+  complianceStatus: string;
+
+  /**
+   * @generated from field: google.protobuf.Timestamp updated_at = 5;
+   */
+  updatedAt?: Timestamp;
+};
+
+/**
+ * Describes the message state.v1.UpdateStateLabelsResponse.
+ * Use `create(UpdateStateLabelsResponseSchema)` to create a new message.
+ */
+export const UpdateStateLabelsResponseSchema: GenMessage<UpdateStateLabelsResponse> = /*@__PURE__*/
+  messageDesc(file_state_v1_state, 45);
+
+/**
+ * GetLabelPolicyRequest retrieves the current policy.
+ *
+ * No parameters - returns active policy
+ *
+ * @generated from message state.v1.GetLabelPolicyRequest
+ */
+export type GetLabelPolicyRequest = Message<"state.v1.GetLabelPolicyRequest"> & {
+};
+
+/**
+ * Describes the message state.v1.GetLabelPolicyRequest.
+ * Use `create(GetLabelPolicyRequestSchema)` to create a new message.
+ */
+export const GetLabelPolicyRequestSchema: GenMessage<GetLabelPolicyRequest> = /*@__PURE__*/
+  messageDesc(file_state_v1_state, 46);
+
+/**
+ * GetLabelPolicyResponse returns the label validation policy.
+ *
+ * @generated from message state.v1.GetLabelPolicyResponse
+ */
+export type GetLabelPolicyResponse = Message<"state.v1.GetLabelPolicyResponse"> & {
+  /**
+   * @generated from field: int32 version = 1;
+   */
+  version: number;
+
+  /**
+   * JSON-encoded PolicyDefinition
+   *
+   * @generated from field: string policy_json = 2;
+   */
+  policyJson: string;
+
+  /**
+   * @generated from field: google.protobuf.Timestamp created_at = 3;
+   */
+  createdAt?: Timestamp;
+
+  /**
+   * @generated from field: google.protobuf.Timestamp updated_at = 4;
+   */
+  updatedAt?: Timestamp;
+};
+
+/**
+ * Describes the message state.v1.GetLabelPolicyResponse.
+ * Use `create(GetLabelPolicyResponseSchema)` to create a new message.
+ */
+export const GetLabelPolicyResponseSchema: GenMessage<GetLabelPolicyResponse> = /*@__PURE__*/
+  messageDesc(file_state_v1_state, 47);
+
+/**
+ * SetLabelPolicyRequest updates the policy.
+ *
+ * @generated from message state.v1.SetLabelPolicyRequest
+ */
+export type SetLabelPolicyRequest = Message<"state.v1.SetLabelPolicyRequest"> & {
+  /**
+   * JSON-encoded PolicyDefinition (see data-model.md)
+   *
+   * @generated from field: string policy_json = 1;
+   */
+  policyJson: string;
+};
+
+/**
+ * Describes the message state.v1.SetLabelPolicyRequest.
+ * Use `create(SetLabelPolicyRequestSchema)` to create a new message.
+ */
+export const SetLabelPolicyRequestSchema: GenMessage<SetLabelPolicyRequest> = /*@__PURE__*/
+  messageDesc(file_state_v1_state, 48);
+
+/**
+ * SetLabelPolicyResponse confirms policy update.
+ *
+ * @generated from message state.v1.SetLabelPolicyResponse
+ */
+export type SetLabelPolicyResponse = Message<"state.v1.SetLabelPolicyResponse"> & {
+  /**
+   * Incremented version number
+   *
+   * @generated from field: int32 version = 1;
+   */
+  version: number;
+
+  /**
+   * @generated from field: google.protobuf.Timestamp updated_at = 2;
+   */
+  updatedAt?: Timestamp;
+};
+
+/**
+ * Describes the message state.v1.SetLabelPolicyResponse.
+ * Use `create(SetLabelPolicyResponseSchema)` to create a new message.
+ */
+export const SetLabelPolicyResponseSchema: GenMessage<SetLabelPolicyResponse> = /*@__PURE__*/
+  messageDesc(file_state_v1_state, 49);
 
 /**
  * StateService provides remote state management for Terraform/OpenTofu clients.
@@ -1559,6 +1813,36 @@ export const StateService: GenService<{
     methodKind: "unary";
     input: typeof ListAllEdgesRequestSchema;
     output: typeof ListAllEdgesResponseSchema;
+  },
+  /**
+   * UpdateStateLabels mutates labels for an existing state (add/replace/remove).
+   *
+   * @generated from rpc state.v1.StateService.UpdateStateLabels
+   */
+  updateStateLabels: {
+    methodKind: "unary";
+    input: typeof UpdateStateLabelsRequestSchema;
+    output: typeof UpdateStateLabelsResponseSchema;
+  },
+  /**
+   * GetLabelPolicy retrieves the current label validation policy.
+   *
+   * @generated from rpc state.v1.StateService.GetLabelPolicy
+   */
+  getLabelPolicy: {
+    methodKind: "unary";
+    input: typeof GetLabelPolicyRequestSchema;
+    output: typeof GetLabelPolicyResponseSchema;
+  },
+  /**
+   * SetLabelPolicy updates the label validation policy with version increment.
+   *
+   * @generated from rpc state.v1.StateService.SetLabelPolicy
+   */
+  setLabelPolicy: {
+    methodKind: "unary";
+    input: typeof SetLabelPolicyRequestSchema;
+    output: typeof SetLabelPolicyResponseSchema;
   },
 }> = /*@__PURE__*/
   serviceDesc(file_state_v1_state, 0);

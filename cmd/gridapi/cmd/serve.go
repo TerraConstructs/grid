@@ -41,18 +41,23 @@ var serveCmd = &cobra.Command{
 		outputRepo := repository.NewBunStateOutputRepository(db)
 
 		// Initialize services
+		labelPolicyRepo := repository.NewBunLabelPolicyRepository(db)
+
 		svc := state.NewService(stateRepo, cfg.ServerURL).
 			WithOutputRepository(outputRepo).
-			WithEdgeRepository(edgeRepo)
+			WithEdgeRepository(edgeRepo).
+			WithPolicyRepository(labelPolicyRepo)
 		depService := dependency.NewService(edgeRepo, stateRepo).
 			WithOutputRepository(outputRepo)
 		edgeUpdater := server.NewEdgeUpdateJob(edgeRepo, stateRepo)
+		policyService := state.NewPolicyService(labelPolicyRepo, state.NewPolicyValidator())
 
 		// Assemble the shared router with the production-specific middleware.
 		routerOpts := server.RouterOptions{
 			Service:           svc,
 			DependencyService: depService,
 			EdgeUpdater:       edgeUpdater,
+			PolicyService:     policyService,
 			Middleware: []func(http.Handler) http.Handler{
 				middleware.Timeout(60 * time.Second),
 			},

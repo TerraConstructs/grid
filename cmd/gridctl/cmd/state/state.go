@@ -23,6 +23,7 @@ func init() {
 	StateCmd.AddCommand(createCmd)
 	StateCmd.AddCommand(listCmd)
 	StateCmd.AddCommand(getCmd)
+	StateCmd.AddCommand(setCmd)
 	StateCmd.AddCommand(initCmd)
 }
 

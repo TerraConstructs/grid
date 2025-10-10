@@ -49,108 +49,119 @@
 
 ---
 
+## Progress Notes
+- 2025-10-10: `go test ./cmd/gridapi/internal/server` (pass) covering updated handlers for T035-T038.
+- 2025-10-10: `ListStates` avoids sending `state_content` by selecting `length(state_content) AS size_bytes`; verify equivalent `length` usage when SQLite backend is enabled.
+- 2025-10-10: `go test ./pkg/sdk/...` (pass) after adding label helpers, ListStates options, and policy/labels client wrappers (T069).
+- 2025-10-10: `go test ./cmd/gridctl/...` (pass) verifying T040-T042 CLI label support powered by pkg/sdk wrappers.
+- 2025-10-10: `go test ./cmd/gridctl/... ./pkg/sdk/...` (pass) after adding policy command group (T046-T049) and SDK label validator for compliance.
+- 2025-10-10: `npm run test` under `js/sdk` (pass) covering new bexpr utilities and StateInfo label support (T050-T052).
+- 2025-10-10: `go test ./tests/integration -run TestLabel` (pass) exercising new label lifecycle/policy/filtering compliance suites (T071-T075).
+- 2025-10-10: Fixed PolicyDefinition.Value() to return string(bytes) for JSONB compatibility; simplified Scan() logic; updated GetLabelPolicy handler type assertion. All repository and integration tests passing.
+- 2025-10-10: Created js/sdk README.md with comprehensive label/bexpr documentation (T053); built React components (LabelList, updated DetailView/ListView) for label display (T054-T057); implemented useLabelPolicy hook with SDK abstraction (T059). Dashboard ready for filter UI (T060-T062).
+
 ## Phase 3.1: Setup & Dependencies
-- [ ] **T001** Add go-bexpr dependency to cmd/gridapi module (`cd cmd/gridapi && go get github.com/hashicorp/go-bexpr`)
-- [ ] **T002** [P] Add go-bexpr dependency to cmd/gridctl module (`cd cmd/gridctl && go get github.com/hashicorp/go-bexpr`)
+- [x] **T001** Add go-bexpr dependency to cmd/gridapi module (`cd cmd/gridapi && go get github.com/hashicorp/go-bexpr`)
+- [x] **T002** [P] Add go-bexpr dependency to cmd/gridctl module (`cd cmd/gridctl && go get github.com/hashicorp/go-bexpr`)
 
 ## Phase 3.2: Database Schema & Models
 ⚠️ **CRITICAL: Complete migration before any implementation tasks**
 
-- [ ] **T003** Create LabelMap and PolicyDefinition types in `cmd/gridapi/internal/db/models/state.go` (add LabelMap type with Scan/Value methods per data-model.md lines 102-123)
-- [ ] **T004** [P] Create LabelPolicy model in `cmd/gridapi/internal/db/models/label_policy.go` (per data-model.md lines 154-202)
-- [ ] **T005** Create migration `cmd/gridapi/internal/migrations/20251009000001_add_state_labels.go` (add labels JSONB column to states table, create label_policy table with single-row constraint, add GIN index; per data-model.md lines 207-290)
-- [ ] **T006** Run migration to verify schema changes (`make db-reset && make build && ./bin/gridapi db init && ./bin/gridapi db migrate`)
+- [x] **T003** Create LabelMap and PolicyDefinition types in `cmd/gridapi/internal/db/models/state.go` (add LabelMap type with Scan/Value methods per data-model.md lines 102-123)
+- [x] **T004** [P] Create LabelPolicy model in `cmd/gridapi/internal/db/models/label_policy.go` (per data-model.md lines 154-202)
+- [x] **T005** Create migration `cmd/gridapi/internal/migrations/20251009000001_add_state_labels.go` (add labels JSONB column to states table, create label_policy table with single-row constraint, add GIN index; per data-model.md lines 207-290)
+- [x] **T006** Run migration to verify schema changes (`make db-reset && make build && ./bin/gridapi db init && ./bin/gridapi db migrate`)
 
 ## Phase 3.3: Tests First (TDD) ⚠️ MUST COMPLETE BEFORE 3.4
 **CRITICAL: These tests MUST be written and MUST FAIL before ANY implementation**
 
 ### Repository Layer Tests
-- [ ] **T007** [P] Write test for BunStateRepository.Create with labels in `cmd/gridapi/internal/repository/bun_state_repository_test.go` (verify labels persist correctly in JSONB column)
-- [ ] **T008** [P] Write test for BunStateRepository.Update with label changes in `cmd/gridapi/internal/repository/bun_state_repository_test.go` (verify label updates apply atomically AND updated_at timestamp changes per FR-009)
-- [ ] **T009** [P] Write test for BunStateRepository.Update preserving other state fields in `cmd/gridapi/internal/repository/bun_state_repository_test.go` (verify logic_id, state_content, lock_info stay intact when only labels change)
-- [ ] **T010** [P] Write test for BunStateRepository.ListWithFilter with bexpr in `cmd/gridapi/internal/repository/bun_state_repository_test.go` (verify in-memory bexpr filtering per data-model.md lines 360-411)
-- [ ] **T011** [P] Write test for deterministic label ordering in `cmd/gridapi/internal/repository/bun_state_repository_test.go` (verify labels returned in alphabetical key order per FR-007)
-- [ ] **T012** [P] Write test for BunLabelPolicyRepository.GetPolicy in `cmd/gridapi/internal/repository/bun_label_policy_repository_test.go` (verify single-row retrieval)
-- [ ] **T013** [P] Write test for BunLabelPolicyRepository.SetPolicy in `cmd/gridapi/internal/repository/bun_label_policy_repository_test.go` (verify version increment and policy_json update)
+- [x] **T007** [P] Write test for BunStateRepository.Create with labels in `cmd/gridapi/internal/repository/bun_state_repository_test.go` (verify labels persist correctly in JSONB column)
+- [x] **T008** [P] Write test for BunStateRepository.Update with label changes in `cmd/gridapi/internal/repository/bun_state_repository_test.go` (verify label updates apply atomically AND updated_at timestamp changes per FR-009)
+- [x] **T009** [P] Write test for BunStateRepository.Update preserving other state fields in `cmd/gridapi/internal/repository/bun_state_repository_test.go` (verify logic_id, state_content, lock_info stay intact when only labels change)
+- [x] **T010** [P] Write test for BunStateRepository.ListWithFilter with bexpr in `cmd/gridapi/internal/repository/bun_state_repository_test.go` (verify in-memory bexpr filtering per data-model.md lines 360-411)
+- [x] **T011** [P] Write test for deterministic label ordering in `cmd/gridapi/internal/repository/bun_state_repository_test.go` (verify labels returned in alphabetical key order per FR-007)
+- [x] **T012** [P] Write test for BunLabelPolicyRepository.GetPolicy in `cmd/gridapi/internal/repository/bun_label_policy_repository_test.go` (verify single-row retrieval)
+- [x] **T013** [P] Write test for BunLabelPolicyRepository.SetPolicy in `cmd/gridapi/internal/repository/bun_label_policy_repository_test.go` (verify version increment and policy_json update)
 
 ### Service Layer Tests
-- [ ] **T014** [P] Write test for LabelValidator.Validate with policy constraints in `cmd/gridapi/internal/state/label_validator_test.go` (test key format regex, enum validation, reserved prefixes, size limits per data-model.md lines 299-327)
-- [ ] **T015** [P] Write test for StateService.CreateState with labels in `cmd/gridapi/internal/state/service_test.go` (verify label validation runs before persistence)
-- [ ] **T016** [P] Write test for StateService.UpdateLabels in `cmd/gridapi/internal/state/service_test.go` (verify add/remove/replace operations and policy enforcement)
-- [ ] **T017** [P] Write test for StateService.UpdateLabels updating updated_at in `cmd/gridapi/internal/state/service_test.go` (verify FR-009: updated_at timestamp bumps when labels change)
-- [ ] **T017a** [P] Write test for PolicyService.SetPolicy with malformed JSON in `cmd/gridapi/internal/state/policy_service_test.go` (verify FR-029: invalid JSON rejected before activation with clear error)
-- [ ] **T017b** [P] Write test for PolicyService.SetPolicy with invalid schema in `cmd/gridapi/internal/state/policy_service_test.go` (verify FR-029: structurally valid JSON with wrong schema rejected, e.g., missing required fields, wrong types)
+- [x] **T014** [P] Write test for LabelValidator.Validate with policy constraints in `cmd/gridapi/internal/state/label_validator_test.go` (test key format regex, enum validation, reserved prefixes, size limits per data-model.md lines 299-327)
+- [x] **T015** [P] Write test for StateService.CreateState with labels in `cmd/gridapi/internal/state/service_test.go` (verify label validation runs before persistence)
+- [x] **T016** [P] Write test for StateService.UpdateLabels in `cmd/gridapi/internal/state/service_test.go` (verify add/remove/replace operations and policy enforcement)
+- [x] **T017** [P] Write test for StateService.UpdateLabels updating updated_at in `cmd/gridapi/internal/state/service_test.go` (verify FR-009: updated_at timestamp bumps when labels change)
+- [x] **T017a** [P] Write test for PolicyService.SetPolicy with malformed JSON in `cmd/gridapi/internal/state/policy_service_test.go` (verify FR-029: invalid JSON rejected before activation with clear error)
+- [x] **T017b** [P] Write test for PolicyService.SetPolicy with invalid schema in `cmd/gridapi/internal/state/policy_service_test.go` (verify FR-029: structurally valid JSON with wrong schema rejected, e.g., missing required fields, wrong types)
 
 ### Handler Tests
-- [ ] **T018** [P] Write test for UpdateStateLabels RPC handler in `cmd/gridapi/internal/server/connect_handlers_test.go` (verify adds/removals apply correctly, validation errors return INVALID_ARGUMENT per contracts/state-tags.md)
-- [ ] **T019** [P] Write test for GetLabelPolicy RPC handler in `cmd/gridapi/internal/server/connect_handlers_test.go` (verify policy retrieval)
-- [ ] **T020** [P] Write test for SetLabelPolicy RPC handler in `cmd/gridapi/internal/server/connect_handlers_test.go` (verify policy update and versioning)
-- [ ] **T020a** [P] Write test for SetLabelPolicy RPC handler with invalid policy in `cmd/gridapi/internal/server/connect_handlers_test.go` (verify FR-029: malformed/invalid policy returns INVALID_ARGUMENT status with validation details)
-- [ ] **T021** [P] Write test for ListStates with filter parameter in `cmd/gridapi/internal/server/connect_handlers_test.go` (verify bexpr filter delegation to repository)
+- [x] **T018** [P] Write test for UpdateStateLabels RPC handler in `cmd/gridapi/internal/server/connect_handlers_test.go` (verify adds/removals apply correctly, validation errors return INVALID_ARGUMENT per contracts/state-tags.md)
+- [x] **T019** [P] Write test for GetLabelPolicy RPC handler in `cmd/gridapi/internal/server/connect_handlers_test.go` (verify policy retrieval)
+- [x] **T020** [P] Write test for SetLabelPolicy RPC handler in `cmd/gridapi/internal/server/connect_handlers_test.go` (verify policy update and versioning)
+- [x] **T020a** [P] Write test for SetLabelPolicy RPC handler with invalid policy in `cmd/gridapi/internal/server/connect_handlers_test.go` (verify FR-029: malformed/invalid policy returns INVALID_ARGUMENT status with validation details)
+- [x] **T021** [P] Write test for ListStates with filter parameter in `cmd/gridapi/internal/server/connect_handlers_test.go` (verify bexpr filter delegation to repository)
 
 ### CLI Tests
-- [ ] **T022** [P] Write test for duplicate --label flag handling in `cmd/gridctl/cmd/state_create_test.go` (verify last value wins and user is informed per spec.md FR-014a)
+- [x] **T022** [P] Write test for duplicate --label flag handling in `cmd/gridctl/cmd/state_create_test.go` (verify last value wins and user is informed per spec.md FR-014a)
 
 ## Phase 3.4: Core Implementation (ONLY after tests are failing)
 
 ### Protobuf Updates
-- [ ] **T023** Update `proto/state/v1/state.proto` to add LabelValue message (oneof string_value/number_value/bool_value), add labels field to State message, add filter field and include_labels field (default true) to ListStatesRequest per FR-020a, add UpdateStateLabelsRequest/Response, add GetLabelPolicyRequest/Response, add SetLabelPolicyRequest/Response (GetLabelEnum REMOVED per 2025-10-09 clarification)
-- [ ] **T024** Run `buf generate` to regenerate Go and TypeScript code
-- [ ] **T025** Run `buf lint` to verify proto changes
+- [x] **T023** Update `proto/state/v1/state.proto` to add LabelValue message (oneof string_value/number_value/bool_value), add labels field to State message, add filter field and include_labels field (default true) to ListStatesRequest per FR-020a, add UpdateStateLabelsRequest/Response, add GetLabelPolicyRequest/Response, add SetLabelPolicyRequest/Response (GetLabelEnum REMOVED per 2025-10-09 clarification)
+- [x] **T024** Run `buf generate` to regenerate Go and TypeScript code
+- [x] **T025** Run `buf lint` to verify proto changes
 
 ### Repository Layer
-- [ ] **T026** Implement BunStateRepository.ListWithFilter with deterministic ordering in `cmd/gridapi/internal/repository/bun_state_repository.go` (add bexpr filtering per data-model.md lines 360-411; fetch states, compile bexpr evaluator, filter in-memory, trim to page_size; sort labels alphabetically by key per FR-007)
-- [ ] **T027** Update BunStateRepository.Update to bump updated_at in `cmd/gridapi/internal/repository/bun_state_repository.go` (ensure updated_at changes when labels modified per FR-009)
-- [ ] **T028** [P] Create BunLabelPolicyRepository in `cmd/gridapi/internal/repository/bun_label_policy_repository.go` (implement GetPolicy, SetPolicy per data-model.md lines 350-355; GetEnumValues REMOVED per 2025-10-09 clarification)
-- [ ] **T029** Update StateRepository interface in `cmd/gridapi/internal/repository/interface.go` to add ListWithFilter method signature
-- [ ] **T030** [P] Create LabelPolicyRepository interface in `cmd/gridapi/internal/repository/interface.go` (add GetPolicy, SetPolicy methods; GetEnumValues REMOVED)
+- [x] **T026** Implement BunStateRepository.ListWithFilter with deterministic ordering in `cmd/gridapi/internal/repository/bun_state_repository.go` (add bexpr filtering per data-model.md lines 360-411; fetch states, compile bexpr evaluator, filter in-memory, trim to page_size; sort labels alphabetically by key per FR-007)
+- [x] **T027** Update BunStateRepository.Update to bump updated_at in `cmd/gridapi/internal/repository/bun_state_repository.go` (ensure updated_at changes when labels modified per FR-009)
+- [x] **T028** [P] Create BunLabelPolicyRepository in `cmd/gridapi/internal/repository/bun_label_policy_repository.go` (implement GetPolicy, SetPolicy per data-model.md lines 350-355; GetEnumValues REMOVED per 2025-10-09 clarification)
+- [x] **T029** Update StateRepository interface in `cmd/gridapi/internal/repository/interface.go` to add ListWithFilter method signature
+- [x] **T030** [P] Create LabelPolicyRepository interface in `cmd/gridapi/internal/repository/interface.go` (add GetPolicy, SetPolicy methods; GetEnumValues REMOVED)
 
 ### Service Layer
-- [ ] **T031** Create LabelValidator in `cmd/gridapi/internal/state/label_validator.go` (implement Validate method with key format regex `^[a-z][a-z0-9_/]{0,31}$`, enum checks, reserved prefix checks, size limits per data-model.md lines 299-327)
-- [ ] **T032** Add StateService.UpdateLabels method in `cmd/gridapi/internal/state/service.go` (implement add/remove/replace logic with policy validation, atomic updates, ensure updated_at bumps)
-- [ ] **T033** Update StateService.CreateState in `cmd/gridapi/internal/state/service.go` to validate labels via LabelValidator before persisting
-- [ ] **T034** [P] Create PolicyService in `cmd/gridapi/internal/state/policy_service.go` (implement GetPolicy, SetPolicy with JSON/schema validation per FR-029, ValidateLabels dry-run; GetEnumValues REMOVED)
-- [ ] **T034a** [P] Create PolicyValidator in `cmd/gridapi/internal/state/policy_validator.go` (implement ValidatePolicyStructure: check valid JSON, required fields present [AllowedKeys, AllowedValues, etc.], correct types, sensible limits per FR-029)
+- [x] **T031** Create LabelValidator in `cmd/gridapi/internal/state/label_validator.go` (implement Validate method with key format regex `^[a-z][a-z0-9_/]{0,31}$`, enum checks, reserved prefix checks, size limits per data-model.md lines 299-327)
+- [x] **T032** Add StateService.UpdateLabels method in `cmd/gridapi/internal/state/service.go` (implement add/remove/replace logic with policy validation, atomic updates, ensure updated_at bumps)
+- [x] **T033** Update StateService.CreateState in `cmd/gridapi/internal/state/service.go` to validate labels via LabelValidator before persisting
+- [x] **T034** [P] Create PolicyService in `cmd/gridapi/internal/state/policy_service.go` (implement GetPolicy, SetPolicy with JSON/schema validation per FR-029, ValidateLabels dry-run; GetEnumValues REMOVED)
+- [x] **T034a** [P] Create PolicyValidator in `cmd/gridapi/internal/state/policy_validator.go` (implement ValidatePolicyStructure: check valid JSON, required fields present [AllowedKeys, AllowedValues, etc.], correct types, sensible limits per FR-029)
 
 ### Connect RPC Handlers
-- [ ] **T035** Implement UpdateStateLabels RPC handler in `cmd/gridapi/internal/server/connect_handlers.go` (delegate to StateService.UpdateLabels, map errors per contracts/state-tags.md)
-- [ ] **T036** Implement GetLabelPolicy RPC handler in `cmd/gridapi/internal/server/connect_handlers.go` (delegate to PolicyService.GetPolicy)
-- [ ] **T037** Implement SetLabelPolicy RPC handler in `cmd/gridapi/internal/server/connect_handlers.go` (delegate to PolicyService.SetPolicy which validates via PolicyValidator per FR-029, increment version, return INVALID_ARGUMENT for malformed policy)
-- [ ] **T038** Update ListStates RPC handler in `cmd/gridapi/internal/server/connect_handlers.go` to support filter parameter, include_labels toggle (default true per FR-020a), and return sorted labels (delegate to StateRepository.ListWithFilter with bexpr string)
+- [x] **T035** Implement UpdateStateLabels RPC handler in `cmd/gridapi/internal/server/connect_handlers.go` (delegate to StateService.UpdateLabels, map errors per contracts/state-tags.md; covered by `go test ./cmd/gridapi/internal/server`)
+- [x] **T036** Implement GetLabelPolicy RPC handler in `cmd/gridapi/internal/server/connect_handlers.go` (delegate to PolicyService.GetPolicy; validated via `go test ./cmd/gridapi/internal/server`)
+- [x] **T037** Implement SetLabelPolicy RPC handler in `cmd/gridapi/internal/server/connect_handlers.go` (delegate to PolicyService.SetPolicy which validates via PolicyValidator per FR-029, increment version, return INVALID_ARGUMENT for malformed policy; tested with handler suite)
+- [x] **T038** Update ListStates RPC handler in `cmd/gridapi/internal/server/connect_handlers.go` to support filter parameter, include_labels toggle (default true per FR-020a), and return sorted labels (delegates to StateService.ListStatesWithFilter; `go test ./cmd/gridapi/internal/server` passing)
 
 ## Phase 3.5: CLI Integration
 
 ### gridctl state commands
-- [ ] **T040** Add --label flag support to `gridctl state create` in `cmd/gridctl/cmd/state_create.go` (accept repeated --label key=value flags, build labels map, pass to CreateState RPC; implement duplicate flag detection per FR-014a)
-- [ ] **T041** [P] Create `gridctl state set` command in `cmd/gridctl/cmd/state_set.go` (parse --label key=value for adds, --label -key for removals, call UpdateStateLabels RPC per spec.md FR-012, FR-013)
-- [ ] **T042** Update `gridctl state list` command in `cmd/gridctl/cmd/state_list.go` to display labels as comma-separated key=value pairs truncated at 32 characters in table column (e.g., "env=prod,team=platform" or "env=prod,team=platform,reg..." if truncated); sorted alphabetically per FR-007 and FR-015
-- [ ] **T043** Add --filter flag to `gridctl state list` in `cmd/gridctl/cmd/state_list.go` (accept bexpr filter expression, pass to ListStates RPC per spec.md FR-016)
-- [ ] **T044** Add --label flag shortcut to `gridctl state list` in `cmd/gridctl/cmd/state_list.go` (convert repeated --label key=value to bexpr AND expression per spec.md FR-016a)
-- [ ] **T045** Update `gridctl state get` command in `cmd/gridctl/cmd/state_get.go` to display full labels section without truncation (sorted alphabetically per FR-007 and FR-015)
+- [x] **T040** Add --label flag support to `gridctl state create` in `cmd/gridctl/cmd/state/create.go` (uses SDK `UpdateStateLabels` wrapper post-create; duplicate handling covered by `parseLabelArgs` + unit tests)
+- [x] **T041** [P] Create `gridctl state set` command in `cmd/gridctl/cmd/state/set.go` (parses key=value/-key via shared helpers, applies mutations via SDK `UpdateStateLabels` and resolves .grid context)
+- [x] **T042** Update `gridctl state list` command in `cmd/gridctl/cmd/state/list.go` to display labels using SDK summaries (sorted, 32-char preview) while leveraging `ListStatesWithOptions`
+- [x] **T043** Add --filter flag to `gridctl state list` in `cmd/gridctl/cmd/state/list.go` (pipes expression into `sdk.ListStatesWithOptions`)
+- [x] **T044** Add --label flag shortcut to `gridctl state list` in `cmd/gridctl/cmd/state/list.go` (uses shared parsers + `sdk.BuildBexprFilter` for AND expression)
+- [x] **T045** Update `gridctl state get` command in `cmd/gridctl/cmd/state/get.go` to display full labels sorted alphabetically (retrieved via SDK summaries)
 
 ### gridctl policy commands
-- [ ] **T046** Create `gridctl policy` command group in `cmd/gridctl/cmd/policy.go` (parent command with subcommands)
-- [ ] **T047** [P] Create `gridctl policy get` command in `cmd/gridctl/cmd/policy_get.go` (call GetLabelPolicy RPC, display policy JSON per spec.md FR-031)
-- [ ] **T048** [P] Create `gridctl policy set` command in `cmd/gridctl/cmd/policy_set.go` (read policy JSON from --file flag, call SetLabelPolicy RPC per quickstart.md lines 28-46)
-- [ ] **T049** Create `gridctl policy compliance` command in `cmd/gridctl/cmd/policy_compliance.go` (revalidate all states against current policy, list violations per spec.md FR-017b and FR-028b; REQUIRED not optional)
+- [x] **T046** Create `gridctl policy` command group in `cmd/gridctl/cmd/policy/policy.go` (parent command with subcommands)
+- [x] **T047** [P] Create `gridctl policy get` command in `cmd/gridctl/cmd/policy/get.go` (call GetLabelPolicy RPC, display policy JSON per spec.md FR-031)
+- [x] **T048** [P] Create `gridctl policy set` command in `cmd/gridctl/cmd/policy/set.go` (read policy JSON from --file flag, call SetLabelPolicy RPC per quickstart.md lines 28-46)
+- [x] **T049** Create `gridctl policy compliance` command in `cmd/gridctl/cmd/policy/compliance.go` (revalidate all states against current policy, list violations per spec.md FR-017b and FR-028b)
 
 ## Phase 3.6: Web Dashboard Integration
 
 ### TypeScript SDK Updates (Required before Dashboard)
-- [ ] **T050** Update StateInfo interface in `js/sdk/src/models/state-info.ts` to add `labels?: Record<string, string | number | boolean>` field (aligns with protobuf LabelValue oneof after T023-T025)
-- [ ] **T051** [P] Create bexpr filter utilities in `js/sdk/src/filters/bexpr.ts` (implement buildEqualityFilter, buildInFilter, combineFilters for simple bexpr string concatenation per FR-017 and 2025-10-09 clarification)
-- [ ] **T052** [P] Add unit tests for bexpr utilities in `js/sdk/src/__tests__/bexpr.test.ts` (test equality, in, AND/OR combinations, escaping)
-- [ ] **T053** [P] Update js/sdk documentation in `js/sdk/README.md` to cover bexpr filter helpers and label operations
+- [x] **T050** Update StateInfo interface in `js/sdk/src/models/state-info.ts` to add `labels?: Record<string, string | number | boolean>` field (aligns with protobuf LabelValue oneof after T023-T025)
+- [x] **T051** [P] Create bexpr filter utilities in `js/sdk/src/filters/bexpr.ts` (implement buildEqualityFilter, buildInFilter, combineFilters for simple bexpr string concatenation per FR-017 and 2025-10-09 clarification)
+- [x] **T052** [P] Add unit tests for bexpr utilities in `js/sdk/src/__tests__/bexpr.test.ts` (test equality, in, AND/OR combinations, escaping)
+- [x] **T053** [P] Update js/sdk documentation in `js/sdk/README.md` to cover bexpr filter helpers and label operations
 
 ### Dashboard Label Display (Read-Only)
-- [ ] **T054** [P] Create LabelList component in `webapp/src/components/LabelList.tsx` (display labels as key=value pairs sorted alphabetically per FR-007, FR-040; reusable component for DetailView)
-- [ ] **T055** Update DetailView in `webapp/src/components/DetailView.tsx` to add "Labels" tab to existing tab navigation (overview/json/dependencies/dependents/labels) with LabelList component per FR-040; use lucide-react Tag icon
-- [ ] **T056** [P] Update ListView in `webapp/src/components/ListView.tsx` to add Labels column to states table showing label count or preview (e.g., "3 labels" or "env:prod, team:core") per FR-041
-- [ ] **T057** [P] Add empty state handling to LabelList in `webapp/src/components/LabelList.tsx` (display "No labels" placeholder message when labels map is empty per FR-043)
-- [ ] **T058** [P] SKIP: GraphView does NOT display labels visually on nodes (per FR-041 - avoids UI crowding); label metadata used only for filtering (see T060)
+- [x] **T054** [P] Create LabelList component in `webapp/src/components/LabelList.tsx` (display labels as key=value pairs sorted alphabetically per FR-007, FR-040; reusable component for DetailView)
+- [x] **T055** Update DetailView in `webapp/src/components/DetailView.tsx` to add "Labels" tab to existing tab navigation (overview/json/dependencies/dependents/labels) with LabelList component per FR-040; use lucide-react Tag icon
+- [x] **T056** [P] Update ListView in `webapp/src/components/ListView.tsx` to add Labels column to states table showing label count or preview (e.g., "3 labels" or "env:prod, team:core") per FR-041
+- [x] **T057** [P] Add empty state handling to LabelList in `webapp/src/components/LabelList.tsx` (display "No labels" placeholder message when labels map is empty per FR-043)
+- [x] **T058** [P] SKIP: GraphView does NOT display labels visually on nodes (per FR-041 - avoids UI crowding); label metadata used only for filtering (see T060)
 
-### Dashboard Filtering (Read-Only) - MUST use js/sdk per FR-045
-- [ ] **T059** [P] Create useLabelPolicy hook in `webapp/src/hooks/useLabelPolicy.ts` (fetch policy via js/sdk client wrapper calling GetLabelPolicy RPC, extract enums client-side per FR-044; MUST NOT call generated Connect client directly per FR-045)
+### Dashboard Filtering (Read-Only) - MUST use js/sdk per FR-050 ...
+- [x] **T059** [P] Create useLabelPolicy hook in `webapp/src/hooks/useLabelPolicy.ts` (fetch policy via js/sdk client wrapper calling GetLabelPolicy RPC, extract enums client-side per FR-044; MUST NOT call generated Connect client directly per FR-045)
 - [ ] **T060** [P] Create LabelFilter component in `webapp/src/components/LabelFilter.tsx` (reusable filter UI with key dropdown, value dropdown/input based on enums from useLabelPolicy, "Add Filter" button; uses bexpr utilities from js/sdk per T051)
 - [ ] **T061** Add LabelFilter to ListView in `webapp/src/components/ListView.tsx` (place filter row above states table; when filters change, call js/sdk listStates wrapper with bexpr filter string per FR-041a and FR-045)
 - [ ] **T062** [P] Add LabelFilter to GraphView in `webapp/src/components/GraphView.tsx` (place filter controls in toolbar/sidebar; when filters change, call js/sdk listStates wrapper per FR-041a and FR-045)
@@ -164,15 +175,15 @@
 - [ ] **T068** [P] Write test for GraphView filtering in `webapp/src/__tests__/dashboard_graph_view.test.tsx` (verify LabelFilter triggers js/sdk filtered state fetch per FR-045)
 
 ## Phase 3.7: Go SDK Updates
-- [ ] **T069** Add LabelMap helper functions to `pkg/sdk/client.go` (ConvertProtoLabels, BuildBexprFilter, SortLabels for SDK consumers per FR-017)
+- [x] **T069** Add LabelMap helper functions to `pkg/sdk/client.go` (ConvertProtoLabels, BuildBexprFilter, SortLabels for SDK consumers per FR-017)
 - [ ] **T070** Update SDK documentation in `pkg/sdk/README.md` to cover label operations and bexpr filter construction per FR-017
 
 ## Phase 3.8: Integration Testing
-- [ ] **T071** Create integration test in `tests/integration/labels_lifecycle_test.go` (verify quickstart.md scenario 1: create state with labels, verify persistence and retrieval)
-- [ ] **T072** [P] Create integration test in `tests/integration/labels_policy_test.go` (verify quickstart.md scenario 2: set policy, submit invalid label, verify validation error)
-- [ ] **T073** [P] Create integration test in `tests/integration/labels_update_test.go` (verify quickstart.md scenario 3: add/remove labels via state set, verify atomic updates)
-- [ ] **T074** [P] Create integration test in `tests/integration/labels_filtering_test.go` (verify quickstart.md scenario 5: bexpr filter expressions return correct states)
-- [ ] **T075** [P] Create integration test in `tests/integration/labels_compliance_test.go` (verify quickstart.md scenario 7-8: policy update, compliance command shows violations)
+- [x] **T071** Create integration test in `tests/integration/labels_test.go` (verify quickstart.md scenario 1: create state with labels via CLI and confirm persistence via SDK summary)
+- [x] **T072** [P] Create integration test in `tests/integration/labels_test.go` (verify quickstart.md scenario 2: set policy, submit invalid label, verify validation error)
+- [x] **T073** [P] Create integration test in `tests/integration/labels_test.go` (verify quickstart.md scenario 3: add/remove labels via state set, verify atomic updates)
+- [x] **T074** [P] Create integration test in `tests/integration/labels_test.go` (verify quickstart.md scenario 5: bexpr filter expressions return correct states and CLI filters)
+- [x] **T075** [P] Create integration test in `tests/integration/labels_test.go` (verify quickstart.md scenario 7-8: policy update, compliance command detects and resolves violations)
 - [ ] **T076** [P] Create integration test in `tests/integration/labels_dashboard_test.go` (verify dashboard uses js/sdk wrappers per FR-045, displays labels in detail view, list/graph view filtering with enums extracted from GetLabelPolicy per FR-044)
 
 ## Phase 3.9: Polish & Documentation

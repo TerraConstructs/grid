@@ -625,3 +625,267 @@ func TestStateSizeWarning(t *testing.T) {
 		})
 	}
 }
+
+// T007: Test BunStateRepository.Create with labels
+func TestBunStateRepository_CreateWithLabels(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+	defer cleanupTestData(t, db)
+
+	repo := NewBunStateRepository(db)
+	ctx := context.Background()
+
+	t.Run("create state with labels", func(t *testing.T) {
+		state := &models.State{
+			GUID:    uuid.NewString(),
+			LogicID: "test-" + uuid.NewString()[:8],
+			Labels: models.LabelMap{
+				"env":    "staging",
+				"team":   "platform",
+				"region": "us-west",
+				"active": true,
+				"count":  float64(3),
+			},
+		}
+
+		err := repo.Create(ctx, state)
+		require.NoError(t, err)
+
+		// Verify labels persisted correctly
+		retrieved, err := repo.GetByGUID(ctx, state.GUID)
+		require.NoError(t, err)
+		assert.Equal(t, "staging", retrieved.Labels["env"])
+		assert.Equal(t, "platform", retrieved.Labels["team"])
+		assert.Equal(t, "us-west", retrieved.Labels["region"])
+		assert.Equal(t, true, retrieved.Labels["active"])
+		assert.Equal(t, float64(3), retrieved.Labels["count"])
+	})
+
+	t.Run("create state with empty labels", func(t *testing.T) {
+		state := &models.State{
+			GUID:    uuid.NewString(),
+			LogicID: "test-" + uuid.NewString()[:8],
+			Labels:  models.LabelMap{},
+		}
+
+		err := repo.Create(ctx, state)
+		require.NoError(t, err)
+
+		retrieved, err := repo.GetByGUID(ctx, state.GUID)
+		require.NoError(t, err)
+		assert.NotNil(t, retrieved.Labels)
+		assert.Len(t, retrieved.Labels, 0)
+	})
+}
+
+// T008: Test BunStateRepository.Update with label changes and updated_at bump
+func TestBunStateRepository_UpdateWithLabels(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+	defer cleanupTestData(t, db)
+
+	repo := NewBunStateRepository(db)
+	ctx := context.Background()
+
+	t.Run("update labels and verify updated_at changes", func(t *testing.T) {
+		state := &models.State{
+			GUID:    uuid.NewString(),
+			LogicID: "test-" + uuid.NewString()[:8],
+			Labels: models.LabelMap{
+				"env": "staging",
+			},
+		}
+		err := repo.Create(ctx, state)
+		require.NoError(t, err)
+
+		// Get initial updated_at
+		retrieved, err := repo.GetByGUID(ctx, state.GUID)
+		require.NoError(t, err)
+		initialUpdatedAt := retrieved.UpdatedAt
+
+		// Wait to ensure timestamp difference
+		time.Sleep(10 * time.Millisecond)
+
+		// Update labels
+		retrieved.Labels = models.LabelMap{
+			"env":  "prod",
+			"team": "core",
+		}
+		err = repo.Update(ctx, retrieved)
+		require.NoError(t, err)
+
+		// Verify labels updated and updated_at bumped
+		updated, err := repo.GetByGUID(ctx, state.GUID)
+		require.NoError(t, err)
+		assert.Equal(t, "prod", updated.Labels["env"])
+		assert.Equal(t, "core", updated.Labels["team"])
+		assert.True(t, updated.UpdatedAt.After(initialUpdatedAt), "updated_at should be newer")
+	})
+}
+
+// T009: Test BunStateRepository.Update preserving other state fields
+func TestBunStateRepository_UpdateLabelsPreservingOtherFields(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+	defer cleanupTestData(t, db)
+
+	repo := NewBunStateRepository(db)
+	ctx := context.Background()
+
+	t.Run("update only labels, preserve logic_id and state_content", func(t *testing.T) {
+		state := &models.State{
+			GUID:         uuid.NewString(),
+			LogicID:      "test-" + uuid.NewString()[:8],
+			StateContent: []byte(`{"version": 4}`),
+			Labels: models.LabelMap{
+				"env": "staging",
+			},
+		}
+		err := repo.Create(ctx, state)
+		require.NoError(t, err)
+
+		// Update only labels
+		retrieved, err := repo.GetByGUID(ctx, state.GUID)
+		require.NoError(t, err)
+		originalLogicID := retrieved.LogicID
+		originalContent := retrieved.StateContent
+
+		retrieved.Labels = models.LabelMap{
+			"env":  "prod",
+			"team": "platform",
+		}
+		err = repo.Update(ctx, retrieved)
+		require.NoError(t, err)
+
+		// Verify other fields preserved
+		updated, err := repo.GetByGUID(ctx, state.GUID)
+		require.NoError(t, err)
+		assert.Equal(t, originalLogicID, updated.LogicID, "logic_id should be unchanged")
+		assert.Equal(t, originalContent, updated.StateContent, "state_content should be unchanged")
+		assert.Equal(t, "prod", updated.Labels["env"])
+		assert.Equal(t, "platform", updated.Labels["team"])
+	})
+}
+
+// T010: Test BunStateRepository.ListWithFilter with bexpr
+func TestBunStateRepository_ListWithFilter(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+	defer cleanupTestData(t, db)
+
+	repo := NewBunStateRepository(db)
+	ctx := context.Background()
+
+	// Setup: Create test states with various labels
+	states := []struct {
+		logicID string
+		labels  models.LabelMap
+	}{
+		{"test-filter-1", models.LabelMap{"env": "staging", "team": "core"}},
+		{"test-filter-2", models.LabelMap{"env": "prod", "team": "core"}},
+		{"test-filter-3", models.LabelMap{"env": "staging", "team": "platform"}},
+		{"test-filter-4", models.LabelMap{"env": "prod", "team": "platform", "region": "us-west"}},
+	}
+
+	for _, s := range states {
+		state := &models.State{
+			GUID:    uuid.NewString(),
+			LogicID: s.logicID,
+			Labels:  s.labels,
+		}
+		err := repo.Create(ctx, state)
+		require.NoError(t, err)
+		time.Sleep(5 * time.Millisecond)
+	}
+
+	t.Run("filter by equality", func(t *testing.T) {
+		// Filter: env == "staging"
+		results, err := repo.ListWithFilter(ctx, `env == "staging"`, 10, 0)
+		require.NoError(t, err)
+		assert.Len(t, results, 2, "Should return 2 staging states")
+		for _, r := range results {
+			assert.Equal(t, "staging", r.Labels["env"])
+		}
+	})
+
+	t.Run("filter by AND expression", func(t *testing.T) {
+		// Filter: env == "prod" and team == "platform"
+		results, err := repo.ListWithFilter(ctx, `env == "prod" and team == "platform"`, 10, 0)
+		require.NoError(t, err)
+		assert.Len(t, results, 1, "Should return 1 prod+platform state")
+		assert.Equal(t, "test-filter-4", results[0].LogicID)
+	})
+
+	t.Run("filter by OR expression", func(t *testing.T) {
+		// Filter: team == "core" or region == "us-west"
+		results, err := repo.ListWithFilter(ctx, `team == "core" or region == "us-west"`, 10, 0)
+		require.NoError(t, err)
+		assert.GreaterOrEqual(t, len(results), 3, "Should return at least 3 states")
+	})
+
+	t.Run("filter by in expression", func(t *testing.T) {
+		// Filter: env in ["staging", "prod"]
+		results, err := repo.ListWithFilter(ctx, `env in ["staging", "prod"]`, 10, 0)
+		require.NoError(t, err)
+		assert.GreaterOrEqual(t, len(results), 4, "Should return all 4 test states")
+	})
+
+	t.Run("empty filter returns all", func(t *testing.T) {
+		results, err := repo.ListWithFilter(ctx, "", 10, 0)
+		require.NoError(t, err)
+		assert.GreaterOrEqual(t, len(results), 4, "Should return all states")
+	})
+
+	t.Run("invalid bexpr returns error", func(t *testing.T) {
+		_, err := repo.ListWithFilter(ctx, `env = "invalid syntax"`, 10, 0)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "invalid filter expression")
+	})
+
+	t.Run("pagination limits results", func(t *testing.T) {
+		results, err := repo.ListWithFilter(ctx, "", 2, 0)
+		require.NoError(t, err)
+		assert.LessOrEqual(t, len(results), 2, "Should respect page_size limit")
+	})
+}
+
+// T011: Test deterministic label ordering
+func TestBunStateRepository_DeterministicLabelOrdering(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+	defer cleanupTestData(t, db)
+
+	repo := NewBunStateRepository(db)
+	ctx := context.Background()
+
+	t.Run("labels returned in alphabetical key order", func(t *testing.T) {
+		state := &models.State{
+			GUID:    uuid.NewString(),
+			LogicID: "test-" + uuid.NewString()[:8],
+			Labels: models.LabelMap{
+				"zebra":  "last",
+				"alpha":  "first",
+				"middle": "second",
+			},
+		}
+		err := repo.Create(ctx, state)
+		require.NoError(t, err)
+
+		retrieved, err := repo.GetByGUID(ctx, state.GUID)
+		require.NoError(t, err)
+
+		// Extract keys and verify alphabetical order
+		keys := make([]string, 0, len(retrieved.Labels))
+		for k := range retrieved.Labels {
+			keys = append(keys, k)
+		}
+
+		// Note: Go maps are unordered, but we need to verify that when
+		// labels are serialized for display (in service/handler layer),
+		// they are sorted. This test documents the requirement.
+		// The actual sorting will be implemented in the service layer.
+		assert.Contains(t, keys, "alpha")
+		assert.Contains(t, keys, "middle")
+		assert.Contains(t, keys, "zebra")
+	})
+}

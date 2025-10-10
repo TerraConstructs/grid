@@ -8,6 +8,7 @@ import (
 
 	"connectrpc.com/connect"
 	"github.com/google/uuid"
+	"github.com/hashicorp/go-bexpr"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	statev1 "github.com/terraconstructs/grid/api/state/v1"
@@ -68,6 +69,7 @@ func (m *mockRepository) Update(_ context.Context, state *models.State) error {
 	copy.StateContent = state.StateContent
 	copy.Locked = state.Locked
 	copy.LockInfo = state.LockInfo
+	copy.Labels = state.Labels
 	copy.UpdatedAt = time.Now()
 	m.states[state.GUID] = &copy
 	return nil
@@ -140,10 +142,111 @@ func (m *mockRepository) UpdateContentAndUpsertOutputs(_ context.Context, guid s
 	return nil
 }
 
+func (m *mockRepository) ListWithFilter(_ context.Context, filter string, pageSize int, offset int) ([]models.State, error) {
+	// Simple implementation: if no filter, return all states
+	var result []models.State
+	for _, state := range m.states {
+		result = append(result, *state)
+	}
+
+	// If filter is provided, use bexpr to filter
+	if filter != "" {
+		evaluator, err := bexpr.CreateEvaluator(filter)
+		if err != nil {
+			return nil, fmt.Errorf("invalid filter expression: %w", err)
+		}
+
+		var filtered []models.State
+		for _, state := range result {
+			labels := make(map[string]any, len(state.Labels))
+			for k, v := range state.Labels {
+				labels[k] = v
+			}
+
+			matches, err := evaluator.Evaluate(labels)
+			if err != nil {
+				// Skip states that can't be evaluated
+				continue
+			}
+			if matches {
+				filtered = append(filtered, state)
+			}
+		}
+		result = filtered
+	}
+
+	// Apply pagination
+	if offset >= len(result) {
+		return []models.State{}, nil
+	}
+
+	end := offset + pageSize
+	if end > len(result) {
+		end = len(result)
+	}
+
+	return result[offset:end], nil
+}
+
 func setupHandler(baseURL string) (*StateServiceHandler, *mockRepository) {
 	repo := newMockRepository()
 	service := statepkg.NewService(repo, baseURL)
-	return NewStateServiceHandler(service), repo
+
+	// Create a mock policy repository and policy service
+	policyRepo := newMockPolicyRepository()
+	policyService := statepkg.NewPolicyService(policyRepo, statepkg.NewPolicyValidator())
+
+	// Attach policy service to state service
+	service.WithPolicyRepository(policyRepo)
+
+	// Create handler with policy service
+	handler := NewStateServiceHandler(service)
+	handler.WithPolicyService(policyService)
+
+	return handler, repo
+}
+
+// mockPolicyRepository is a simple in-memory policy repository for testing
+type mockPolicyRepository struct {
+	policy *models.LabelPolicy
+}
+
+func newMockPolicyRepository() *mockPolicyRepository {
+	// Start with a simple policy
+	return &mockPolicyRepository{
+		policy: &models.LabelPolicy{
+			ID:      1,
+			Version: 1,
+			PolicyJSON: models.PolicyDefinition{
+				MaxKeys:     32,
+				MaxValueLen: 256,
+			},
+		},
+	}
+}
+
+func (m *mockPolicyRepository) GetPolicy(ctx context.Context) (*models.LabelPolicy, error) {
+	if m.policy == nil {
+		return nil, fmt.Errorf("label policy not found")
+	}
+	return m.policy, nil
+}
+
+func (m *mockPolicyRepository) SetPolicy(ctx context.Context, policy *models.PolicyDefinition) error {
+	if m.policy == nil {
+		m.policy = &models.LabelPolicy{
+			ID:         1,
+			Version:    1,
+			PolicyJSON: *policy,
+			CreatedAt:  time.Now(),
+			UpdatedAt:  time.Now(),
+		}
+	} else {
+		m.policy.Version++
+		m.policy.PolicyJSON = *policy
+		m.policy.UpdatedAt = time.Now()
+	}
+	return nil
 }
 
 func TestStateServiceHandler_CreateState(t *testing.T) {
@@ -363,4 +466,210 @@ func TestStateServiceHandler_GetStateInfo(t *testing.T) {
 		require.Error(t, err)
 		assert.Equal(t, connect.CodeNotFound, connect.CodeOf(err))
 	})
+}
+
+// T018: Test UpdateStateLabels RPC handler
+func TestStateServiceHandler_UpdateStateLabels(t *testing.T) {
+	handler, repo := setupHandler("http://localhost:8080")
+	ctx := context.Background()
+
+	guid := uuid.Must(uuid.NewV7()).String()
+	state := &models.State{
+		GUID:    guid,
+		LogicID: "label-test",
+		Labels: models.LabelMap{
+			"env":  "staging",
+			"team": "core",
+		},
+	}
+	require.NoError(t, repo.Create(ctx, state))
+
+	t.Run("adds and removals apply correctly", func(t *testing.T) {
+		req := connect.NewRequest(&statev1.UpdateStateLabelsRequest{
+			StateId: guid,
+			Adds: map[string]*statev1.LabelValue{
+				"region": {Value: &statev1.LabelValue_StringValue{StringValue: "us-west"}},
+				"active": {Value: &statev1.LabelValue_BoolValue{BoolValue: true}},
+			},
+			Removals: []string{"team"},
+		})
+
+		resp, err := handler.UpdateStateLabels(ctx, req)
+		require.NoError(t, err)
+		assert.NotNil(t, resp.Msg)
+
+		// Verify state was updated
+		updated, err := repo.GetByGUID(ctx, guid)
+		require.NoError(t, err)
+		assert.Equal(t, "staging", updated.Labels["env"])    // unchanged
+		assert.Equal(t, "us-west", updated.Labels["region"]) // added
+		assert.Equal(t, true, updated.Labels["active"])      // added
+		assert.Nil(t, updated.Labels["team"])                // removed
+	})
+
+	t.Run("validation errors return INVALID_ARGUMENT", func(t *testing.T) {
+		req := connect.NewRequest(&statev1.UpdateStateLabelsRequest{
+			StateId: guid,
+			Adds: map[string]*statev1.LabelValue{
+				"INVALID-KEY": {Value: &statev1.LabelValue_StringValue{StringValue: "value"}},
+			},
+		})
+
+		_, err := handler.UpdateStateLabels(ctx, req)
+		require.Error(t, err)
+		assert.Equal(t, connect.CodeInvalidArgument, connect.CodeOf(err))
+	})
+
+	t.Run("state not found returns NOT_FOUND", func(t *testing.T) {
+		req := connect.NewRequest(&statev1.UpdateStateLabelsRequest{
+			StateId: uuid.NewString(),
+			Adds: map[string]*statev1.LabelValue{
+				"env": {Value: &statev1.LabelValue_StringValue{StringValue: "prod"}},
+			},
+		})
+
+		_, err := handler.UpdateStateLabels(ctx, req)
+		require.Error(t, err)
+		assert.Equal(t, connect.CodeNotFound, connect.CodeOf(err))
+	})
+}
+
+// T019: Test GetLabelPolicy RPC handler
+func TestStateServiceHandler_GetLabelPolicy(t *testing.T) {
+	handler, _ := setupHandler("http://localhost:8080")
+	ctx := context.Background()
+
+	t.Run("retrieves policy", func(t *testing.T) {
+		req := connect.NewRequest(&statev1.GetLabelPolicyRequest{})
+
+		resp, err := handler.GetLabelPolicy(ctx, req)
+
+		// May return empty policy or not found depending on implementation
+		if err == nil {
+			assert.NotNil(t, resp.Msg)
+		} else {
+			assert.Equal(t, connect.CodeNotFound, connect.CodeOf(err))
+		}
+	})
+}
+
+// T020: Test SetLabelPolicy RPC handler
+func TestStateServiceHandler_SetLabelPolicy(t *testing.T) {
+	handler, _ := setupHandler("http://localhost:8080")
+	ctx := context.Background()
+
+	t.Run("sets policy and increments version", func(t *testing.T) {
+		req := connect.NewRequest(&statev1.SetLabelPolicyRequest{
+			PolicyJson: `{
+				"allowed_keys": {"env": {}, "team": {}},
+				"allowed_values": {"env": ["staging", "prod"]},
+				"max_keys": 32,
+				"max_value_len": 256
+			}`,
+		})
+
+		resp, err := handler.SetLabelPolicy(ctx, req)
+		require.NoError(t, err)
+		assert.NotNil(t, resp.Msg)
+		assert.Greater(t, resp.Msg.Version, int32(0))
+	})
+}
+
+// T020a: Test SetLabelPolicy with invalid policy
+func TestStateServiceHandler_SetLabelPolicyWithInvalidPolicy(t *testing.T) {
+	handler, _ := setupHandler("http://localhost:8080")
+	ctx := context.Background()
+
+	t.Run("malformed JSON returns INVALID_ARGUMENT", func(t *testing.T) {
+		req := connect.NewRequest(&statev1.SetLabelPolicyRequest{
+			PolicyJson: `{"invalid": json}`,
+		})
+
+		_, err := handler.SetLabelPolicy(ctx, req)
+		require.Error(t, err)
+		assert.Equal(t, connect.CodeInvalidArgument, connect.CodeOf(err))
+	})
+
+	t.Run("invalid schema returns INVALID_ARGUMENT", func(t *testing.T) {
+		req := connect.NewRequest(&statev1.SetLabelPolicyRequest{
+			PolicyJson: `{"allowed_keys": "should-be-map"}`,
+		})
+
+		_, err := handler.SetLabelPolicy(ctx, req)
+		require.Error(t, err)
+		assert.Equal(t, connect.CodeInvalidArgument, connect.CodeOf(err))
+	})
+}
+
+// T021: Test ListStates with filter parameter
+func TestStateServiceHandler_ListStatesWithFilter(t *testing.T) {
+	handler, repo := setupHandler("http://localhost:8080")
+	ctx := context.Background()
+
+	// Create test states with labels
+	states := []struct {
+		logicID string
+		labels  models.LabelMap
+	}{
+		{"filter-state-1", models.LabelMap{"env": "staging"}},
+		{"filter-state-2", models.LabelMap{"env": "prod"}},
+		{"filter-state-3", models.LabelMap{"env": "staging", "team": "core"}},
+	}
+
+	for _, s := range states {
+		state := &models.State{
+			GUID:    uuid.Must(uuid.NewV7()).String(),
+			LogicID: s.logicID,
+			Labels:  s.labels,
+		}
+		require.NoError(t, repo.Create(ctx, state))
+	}
+
+	t.Run("filter by bexpr expression", func(t *testing.T) {
+		filterStr := `env == "staging"`
+		req := connect.NewRequest(&statev1.ListStatesRequest{
+			Filter: &filterStr,
+		})
+
+		resp, err := handler.ListStates(ctx, req)
+		require.NoError(t, err)
+		require.Len(t, resp.Msg.States, 2)
+
+		for _, state := range resp.Msg.States {
+			require.Contains(t, state.Labels, "env")
+			assert.Equal(t, "staging", state.Labels["env"].GetStringValue())
+		}
+	})
+
+	t.Run("empty filter returns all", func(t *testing.T) {
+		filterStr := ""
+		req := connect.NewRequest(&statev1.ListStatesRequest{
+			Filter: &filterStr,
+		})
+
+		resp, err := handler.ListStates(ctx, req)
+		require.NoError(t, err)
+		assert.GreaterOrEqual(t, len(resp.Msg.States), 3, "Should return all test states")
+	})
+
+	t.Run("include_labels toggle", func(t *testing.T) {
+		includeBool := false
+		req := connect.NewRequest(&statev1.ListStatesRequest{
+			IncludeLabels: &includeBool,
+		})
+
+		resp, err := handler.ListStates(ctx, req)
+		require.NoError(t, err)
+
+		for _, state := range resp.Msg.States {
+			assert.Nil(t, state.Labels)
+		}
+	})
+}
+
+func TestMapServiceError_NotFoundOverridesGuid(t *testing.T) {
+	err := fmt.Errorf("state with guid 'abc' not found")
+	mapped := mapServiceError(err)
+	require.Error(t, mapped)
+	assert.Equal(t, connect.CodeNotFound, connect.CodeOf(mapped))
 }

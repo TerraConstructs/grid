@@ -19,6 +19,10 @@ type StateRepository interface {
 	// UpdateContentAndUpsertOutputs atomically updates state content and output cache in one transaction.
 	// This ensures FR-027 compliance: cache and state are always consistent.
 	UpdateContentAndUpsertOutputs(ctx context.Context, guid string, content []byte, lockID string, serial int64, outputs []OutputKey) error
+
+	// ListWithFilter returns states matching bexpr filter with pagination.
+	// T029: Added for label filtering support.
+	ListWithFilter(ctx context.Context, filter string, pageSize int, offset int) ([]models.State, error)
 }
 
 // EdgeRepository exposes persistence operations for dependency edges.
@@ -70,4 +74,14 @@ type StateOutputRepository interface {
 	// DeleteOutputsByState removes all cached outputs for a state
 	// Cascade handles this on state deletion, but explicit method useful for testing
 	DeleteOutputsByState(ctx context.Context, stateGUID string) error
+}
+
+// LabelPolicyRepository exposes persistence operations for label validation policy.
+// T030: Added for label policy management.
+type LabelPolicyRepository interface {
+	// GetPolicy retrieves the current policy (single-row table with id=1)
+	GetPolicy(ctx context.Context) (*models.LabelPolicy, error)
+
+	// SetPolicy creates or updates the policy with version increment
+	SetPolicy(ctx context.Context, policy *models.PolicyDefinition) error
 }

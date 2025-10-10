@@ -13,7 +13,8 @@ import (
 )
 
 var (
-	createForce bool
+	createForce     bool
+	createLabelArgs []string
 )
 
 var createCmd = &cobra.Command{
@@ -59,6 +60,15 @@ If logic-id is not provided, the .grid context will be used (if available).`,
 			pterm.Info.Printf("Replacing existing .grid context (was: %s, now: %s)\n", existingCtx.StateLogicID, logicID)
 		}
 
+		// Parse label flags (if any)
+		labels, warnings, err := parseLabelArgs(createLabelArgs)
+		if err != nil {
+			return err
+		}
+		for _, warning := range warnings {
+			pterm.Warning.Println(warning)
+		}
+
 		// Generate UUIDv7 for the state
 		guid := uuid.Must(uuid.NewV7()).String()
 
@@ -75,6 +85,15 @@ If logic-id is not provided, the .grid context will be used (if available).`,
 		})
 		if err != nil {
 			return fmt.Errorf("failed to create state: %w", err)
+		}
+
+		if len(labels) > 0 {
+			if _, err := client.UpdateStateLabels(ctx, sdk.UpdateStateLabelsInput{
+				StateID: state.GUID,
+				Adds:    labels,
+			}); err != nil {
+				return fmt.Errorf("state created but failed to apply labels: %w", err)
+			}
 		}
 
 		// Print success with GUID and backend config endpoints
@@ -111,4 +130,5 @@ If logic-id is not provided, the .grid context will be used (if available).`,
 
 func init() {
 	createCmd.Flags().BoolVar(&createForce, "force", false, "Overwrite existing .grid context file")
+	createCmd.Flags().StringArrayVar(&createLabelArgs, "label", nil, "Apply label (key=value). Repeatable. Prefix with -key to remove is unsupported for create")
 }

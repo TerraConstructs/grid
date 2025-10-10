@@ -28,6 +28,7 @@ type StateSummary struct {
 	CreatedAt time.Time
 	UpdatedAt time.Time
 	LockInfo  *models.LockInfo
+	Labels    models.LabelMap
 }
 
 // StateInfo provides comprehensive state information including dependencies, dependents, and outputs.
@@ -40,6 +41,8 @@ type StateInfo struct {
 	Outputs       []repository.OutputKey
 	CreatedAt     time.Time
 	UpdatedAt     time.Time
+	SizeBytes     int64
+	Labels        models.LabelMap
 }
 
 // Service orchestrates state persistence and validation for RPC handlers.
@@ -47,6 +50,7 @@ type Service struct {
 	repo       repository.StateRepository
 	outputRepo repository.StateOutputRepository
 	edgeRepo   repository.EdgeRepository
+	policyRepo repository.LabelPolicyRepository
 	serverURL  string
 }
 
@@ -67,8 +71,15 @@ func (s *Service) WithEdgeRepository(edgeRepo repository.EdgeRepository) *Servic
 	return s
 }
 
+// WithPolicyRepository adds the policy repository to the service (optional dependency).
+func (s *Service) WithPolicyRepository(policyRepo repository.LabelPolicyRepository) *Service {
+	s.policyRepo = policyRepo
+	return s
+}
+
 // CreateState validates inputs, persists the state, and returns summary + backend config.
-func (s *Service) CreateState(ctx context.Context, guid, logicID string) (*StateSummary, *BackendConfig, error) {
+// T033: Updated to accept and validate labels via LabelValidator.
+func (s *Service) CreateState(ctx context.Context, guid, logicID string, labels models.LabelMap) (*StateSummary, *BackendConfig, error) {
 	if _, err := uuid.Parse(guid); err != nil {
 		return nil, nil, fmt.Errorf("invalid GUID format: %w", err)
 	}
@@ -77,9 +88,23 @@ func (s *Service) CreateState(ctx context.Context, guid, logicID string) (*State
 		return nil, nil, err
 	}
 
+	// Validate labels against policy (if labels provided)
+	if len(labels) > 0 {
+		validator := NewLabelValidator(nil)
+		if s.policyRepo != nil {
+			if policy, err := s.policyRepo.GetPolicy(ctx); err == nil {
+				validator = NewLabelValidator(&policy.PolicyJSON)
+			}
+		}
+		if err := validator.Validate(labels); err != nil {
+			return nil, nil, fmt.Errorf("label validation failed: %w", err)
+		}
+	}
+
 	record := &models.State{
 		GUID:    guid,
 		LogicID: logicID,
+		Labels:  labels,
 	}
 
 	if err := s.repo.Create(ctx, record); err != nil {
@@ -102,6 +127,22 @@ func (s *Service) ListStates(ctx context.Context) ([]StateSummary, error) {
 	for _, rec := range records {
 		recordCopy := rec
 		summaries = append(summaries, toSummary(&recordCopy))
+	}
+
+	return summaries, nil
+}
+
+// ListStatesWithFilter returns states matching bexpr filter with pagination.
+func (s *Service) ListStatesWithFilter(ctx context.Context, filter string, pageSize int, offset int) ([]StateSummary, error) {
+	states, err := s.repo.ListWithFilter(ctx, filter, pageSize, offset)
+	if err != nil {
+		return nil, fmt.Errorf("list states with filter: %w", err)
+	}
+
+	summaries := make([]StateSummary, 0, len(states))
+	for _, state := range states {
+		stateCopy := state
+		summaries = append(summaries, toSummary(&stateCopy))
 	}
 
 	return summaries, nil
@@ -220,9 +261,17 @@ func (s *Service) backendConfig(guid string) *BackendConfig {
 }
 
 func toSummary(record *models.State) StateSummary {
-	var size int64
-	if record.StateContent != nil {
+	size := record.SizeBytes
+	if size == 0 && record.StateContent != nil {
 		size = int64(len(record.StateContent))
+	}
+
+	var labels models.LabelMap
+	if record.Labels != nil {
+		labels = make(models.LabelMap, len(record.Labels))
+		for key, value := range record.Labels {
+			labels[key] = value
+		}
 	}
 
 	return StateSummary{
@@ -233,6 +282,7 @@ func toSummary(record *models.State) StateSummary {
 		SizeBytes: size,
 		CreatedAt: record.CreatedAt,
 		UpdatedAt: record.UpdatedAt,
+		Labels:    labels,
 	}
 }
 
@@ -279,6 +329,50 @@ func (s *Service) GetOutputKeys(ctx context.Context, guid string) ([]repository.
 	return tfOutputs, nil
 }
 
+// UpdateLabels modifies labels on a state with atomic updates and policy validation.
+// T032: Implements add/remove operations with validation and updated_at bump.
+// Accepts adds (key-value pairs to add/update) and removals (keys to remove).
+func (s *Service) UpdateLabels(ctx context.Context, guid string, adds models.LabelMap, removals []string) error {
+	// Fetch current state
+	state, err := s.repo.GetByGUID(ctx, guid)
+	if err != nil {
+		return fmt.Errorf("get state: %w", err)
+	}
+
+	// Initialize labels if nil
+	if state.Labels == nil {
+		state.Labels = make(models.LabelMap)
+	}
+
+	// Apply adds (merge into existing labels)
+	for k, v := range adds {
+		state.Labels[k] = v
+	}
+
+	// Apply removals
+	for _, k := range removals {
+		delete(state.Labels, k)
+	}
+
+	// Validate updated labels against policy (fallback to basic validation if policy unavailable)
+	validator := NewLabelValidator(nil)
+	if s.policyRepo != nil {
+		if policy, err := s.policyRepo.GetPolicy(ctx); err == nil {
+			validator = NewLabelValidator(&policy.PolicyJSON)
+		}
+	}
+	if err := validator.Validate(state.Labels); err != nil {
+		return fmt.Errorf("label validation failed: %w", err)
+	}
+
+	// Update state (repository will bump updated_at)
+	if err := s.repo.Update(ctx, state); err != nil {
+		return fmt.Errorf("update state: %w", err)
+	}
+
+	return nil
+}
+
 // GetStateInfo retrieves comprehensive state information including dependencies, dependents, and outputs.
 // This consolidates multiple data sources into a single response.
 func (s *Service) GetStateInfo(ctx context.Context, logicID, guid string) (*StateInfo, error) {
@@ -303,6 +397,8 @@ func (s *Service) GetStateInfo(ctx context.Context, logicID, guid string) (*Stat
 		BackendConfig: s.backendConfig(state.GUID),
 		CreatedAt:     state.CreatedAt,
 		UpdatedAt:     state.UpdatedAt,
+		SizeBytes:     state.SizeBytes,
+		Labels:        state.Labels,
 	}
 
 	// Get dependencies (incoming edges) if edge repository available

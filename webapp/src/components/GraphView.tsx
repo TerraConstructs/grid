@@ -337,7 +337,7 @@ export function GraphView({ states, edges, onStateClick }: GraphViewProps) {
           className="text-sm font-semibold"
           fill="#1f2937"
         >
-          {state.logic_id}
+          {state.logic_id.length > 28 ? state.logic_id.slice(0, 25) + '...' : state.logic_id}
         </text>
         <text
           x={100}

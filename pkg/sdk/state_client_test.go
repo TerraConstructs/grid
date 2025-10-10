@@ -4,6 +4,7 @@ import (
 	"context"
 	"net/http"
 	"testing"
+	"time"
 
 	"connectrpc.com/connect"
 	statev1 "github.com/terraconstructs/grid/api/state/v1"
@@ -15,11 +16,15 @@ import (
 // mockStateServiceHandler implements a test handler for StateService
 type mockStateServiceHandler struct {
 	statev1connect.UnimplementedStateServiceHandler
-	createStateFunc    func(context.Context, *connect.Request[statev1.CreateStateRequest]) (*connect.Response[statev1.CreateStateResponse], error)
-	listStatesFunc     func(context.Context, *connect.Request[statev1.ListStatesRequest]) (*connect.Response[statev1.ListStatesResponse], error)
-	getStateConfigFunc func(context.Context, *connect.Request[statev1.GetStateConfigRequest]) (*connect.Response[statev1.GetStateConfigResponse], error)
-	getStateLockFunc   func(context.Context, *connect.Request[statev1.GetStateLockRequest]) (*connect.Response[statev1.GetStateLockResponse], error)
-	unlockStateFunc    func(context.Context, *connect.Request[statev1.UnlockStateRequest]) (*connect.Response[statev1.UnlockStateResponse], error)
+	createStateFunc       func(context.Context, *connect.Request[statev1.CreateStateRequest]) (*connect.Response[statev1.CreateStateResponse], error)
+	listStatesFunc        func(context.Context, *connect.Request[statev1.ListStatesRequest]) (*connect.Response[statev1.ListStatesResponse], error)
+	getStateConfigFunc    func(context.Context, *connect.Request[statev1.GetStateConfigRequest]) (*connect.Response[statev1.GetStateConfigResponse], error)
+	getStateInfoFunc      func(context.Context, *connect.Request[statev1.GetStateInfoRequest]) (*connect.Response[statev1.GetStateInfoResponse], error)
+	getStateLockFunc      func(context.Context, *connect.Request[statev1.GetStateLockRequest]) (*connect.Response[statev1.GetStateLockResponse], error)
+	unlockStateFunc       func(context.Context, *connect.Request[statev1.UnlockStateRequest]) (*connect.Response[statev1.UnlockStateResponse], error)
+	updateStateLabelsFunc func(context.Context, *connect.Request[statev1.UpdateStateLabelsRequest]) (*connect.Response[statev1.UpdateStateLabelsResponse], error)
+	getLabelPolicyFunc    func(context.Context, *connect.Request[statev1.GetLabelPolicyRequest]) (*connect.Response[statev1.GetLabelPolicyResponse], error)
+	setLabelPolicyFunc    func(context.Context, *connect.Request[statev1.SetLabelPolicyRequest]) (*connect.Response[statev1.SetLabelPolicyResponse], error)
 }
 
 func (m *mockStateServiceHandler) CreateState(ctx context.Context, req *connect.Request[statev1.CreateStateRequest]) (*connect.Response[statev1.CreateStateResponse], error) {
@@ -43,6 +48,13 @@ func (m *mockStateServiceHandler) GetStateConfig(ctx context.Context, req *conne
 	return nil, connect.NewError(connect.CodeUnimplemented, nil)
 }
 
+func (m *mockStateServiceHandler) GetStateInfo(ctx context.Context, req *connect.Request[statev1.GetStateInfoRequest]) (*connect.Response[statev1.GetStateInfoResponse], error) {
+	if m.getStateInfoFunc != nil {
+		return m.getStateInfoFunc(ctx, req)
+	}
+	return nil, connect.NewError(connect.CodeUnimplemented, nil)
+}
+
 func (m *mockStateServiceHandler) GetStateLock(ctx context.Context, req *connect.Request[statev1.GetStateLockRequest]) (*connect.Response[statev1.GetStateLockResponse], error) {
 	if m.getStateLockFunc != nil {
 		return m.getStateLockFunc(ctx, req)
@@ -53,6 +65,27 @@ func (m *mockStateServiceHandler) GetStateLock(ctx context.Context, req *connect
 func (m *mockStateServiceHandler) UnlockState(ctx context.Context, req *connect.Request[statev1.UnlockStateRequest]) (*connect.Response[statev1.UnlockStateResponse], error) {
 	if m.unlockStateFunc != nil {
 		return m.unlockStateFunc(ctx, req)
+	}
+	return nil, connect.NewError(connect.CodeUnimplemented, nil)
+}
+
+func (m *mockStateServiceHandler) UpdateStateLabels(ctx context.Context, req *connect.Request[statev1.UpdateStateLabelsRequest]) (*connect.Response[statev1.UpdateStateLabelsResponse], error) {
+	if m.updateStateLabelsFunc != nil {
+		return m.updateStateLabelsFunc(ctx, req)
+	}
+	return nil, connect.NewError(connect.CodeUnimplemented, nil)
+}
+
+func (m *mockStateServiceHandler) GetLabelPolicy(ctx context.Context, req *connect.Request[statev1.GetLabelPolicyRequest]) (*connect.Response[statev1.GetLabelPolicyResponse], error) {
+	if m.getLabelPolicyFunc != nil {
+		return m.getLabelPolicyFunc(ctx, req)
+	}
+	return nil, connect.NewError(connect.CodeUnimplemented, nil)
+}
+
+func (m *mockStateServiceHandler) SetLabelPolicy(ctx context.Context, req *connect.Request[statev1.SetLabelPolicyRequest]) (*connect.Response[statev1.SetLabelPolicyResponse], error) {
+	if m.setLabelPolicyFunc != nil {
+		return m.setLabelPolicyFunc(ctx, req)
 	}
 	return nil, connect.NewError(connect.CodeUnimplemented, nil)
 }
@@ -165,6 +198,9 @@ func TestClient_ListStates(t *testing.T) {
 							SizeBytes: 1024,
 							CreatedAt: timestamppb.Now(),
 							UpdatedAt: timestamppb.Now(),
+							Labels: map[string]*statev1.LabelValue{
+								"env": {Value: &statev1.LabelValue_StringValue{StringValue: "prod"}},
+							},
 						},
 						{
 							Guid:      "018e8c5e-7890-7000-8000-123456789def",
@@ -173,6 +209,7 @@ func TestClient_ListStates(t *testing.T) {
 							SizeBytes: 2048,
 							CreatedAt: timestamppb.Now(),
 							UpdatedAt: timestamppb.Now(),
+							Labels:    map[string]*statev1.LabelValue{},
 						},
 					},
 				}), nil
@@ -213,7 +250,47 @@ func TestClient_ListStates(t *testing.T) {
 			if !tt.wantErr && len(states) != tt.wantCount {
 				t.Errorf("ListStates() count = %v, want %v", len(states), tt.wantCount)
 			}
+			if !tt.wantErr && tt.wantCount > 0 {
+				if states[0].Labels["env"].(string) != "prod" {
+					t.Errorf("expected env label to be prod, got %v", states[0].Labels["env"])
+				}
+			}
 		})
+	}
+}
+
+func TestClient_ListStatesWithOptions(t *testing.T) {
+	include := false
+	var capturedFilter string
+	var capturedInclude *bool
+
+	handler := &mockStateServiceHandler{
+		listStatesFunc: func(_ context.Context, req *connect.Request[statev1.ListStatesRequest]) (*connect.Response[statev1.ListStatesResponse], error) {
+			if req.Msg.Filter != nil {
+				capturedFilter = *req.Msg.Filter
+			}
+			capturedInclude = req.Msg.IncludeLabels
+			return connect.NewResponse(&statev1.ListStatesResponse{States: []*statev1.StateInfo{}}), nil
+		},
+	}
+
+	mux := http.NewServeMux()
+	path, handlerFunc := statev1connect.NewStateServiceHandler(handler)
+	mux.Handle(path, handlerFunc)
+
+	client := newSDKClient(mux, "http://example.com")
+	_, err := client.ListStatesWithOptions(context.Background(), sdk.ListStatesOptions{
+		Filter:        "env == \"prod\"",
+		IncludeLabels: &include,
+	})
+	if err != nil {
+		t.Fatalf("ListStatesWithOptions returned error: %v", err)
+	}
+	if capturedFilter != "env == \"prod\"" {
+		t.Fatalf("expected filter to be captured, got %q", capturedFilter)
+	}
+	if capturedInclude == nil || *capturedInclude != include {
+		t.Fatalf("expected include_labels pointer to be %v", include)
 	}
 }
 
@@ -273,6 +350,66 @@ func TestClient_GetState(t *testing.T) {
 				t.Errorf("GetState() GUID = %v, want %v", state.GUID, tt.wantGUID)
 			}
 		})
+	}
+}
+
+func TestClient_GetStateInfo(t *testing.T) {
+	created := timestamppb.New(time.Unix(1700000000, 0))
+	updated := timestamppb.New(time.Unix(1700003600, 0))
+
+	handler := &mockStateServiceHandler{
+		getStateInfoFunc: func(_ context.Context, req *connect.Request[statev1.GetStateInfoRequest]) (*connect.Response[statev1.GetStateInfoResponse], error) {
+			if logicID := req.Msg.GetLogicId(); logicID != "production-us-east" {
+				return nil, connect.NewError(connect.CodeNotFound, nil)
+			}
+			return connect.NewResponse(&statev1.GetStateInfoResponse{
+				Guid:    "018e8c5e-7890-7000-8000-123456789abc",
+				LogicId: "production-us-east",
+				BackendConfig: &statev1.BackendConfig{
+					Address:       "http://example.com/backend",
+					LockAddress:   "http://example.com/backend/lock",
+					UnlockAddress: "http://example.com/backend/unlock",
+				},
+				Outputs: []*statev1.OutputKey{
+					{Key: "database_password", Sensitive: true},
+				},
+				CreatedAt: created,
+				UpdatedAt: updated,
+				SizeBytes: 4096,
+				Labels: map[string]*statev1.LabelValue{
+					"env":    {Value: &statev1.LabelValue_StringValue{StringValue: "prod"}},
+					"active": {Value: &statev1.LabelValue_BoolValue{BoolValue: true}},
+				},
+			}), nil
+		},
+	}
+
+	mux := http.NewServeMux()
+	path, handlerFunc := statev1connect.NewStateServiceHandler(handler)
+	mux.Handle(path, handlerFunc)
+
+	client := newSDKClient(mux, "http://example.com")
+	info, err := client.GetStateInfo(context.Background(), sdk.StateReference{LogicID: "production-us-east"})
+	if err != nil {
+		t.Fatalf("GetStateInfo() unexpected error: %v", err)
+	}
+
+	if info.SizeBytes != 4096 {
+		t.Errorf("GetStateInfo() SizeBytes = %d, want 4096", info.SizeBytes)
+	}
+
+	if len(info.Outputs) != 1 || info.Outputs[0].Key != "database_password" || !info.Outputs[0].Sensitive {
+		t.Errorf("GetStateInfo() Outputs not converted correctly: %+v", info.Outputs)
+	}
+
+	env, ok := info.Labels["env"].(string)
+	if !ok || env != "prod" {
+		t.Errorf("GetStateInfo() Labels[env] = %v, want prod", info.Labels["env"])
+	}
+
+	active, ok := info.Labels["active"].(bool)
+	if !ok || !active {
+		t.Errorf("GetStateInfo() Labels[active] = %v, want true", info.Labels["active"])
 	}
 }
 
@@ -414,5 +551,110 @@ func TestClient_UnlockState(t *testing.T) {
 				t.Error("UnlockState() state is still locked after unlock")
 			}
 		})
+	}
+}
+
+func TestClient_UpdateStateLabels(t *testing.T) {
+	var receivedAdds map[string]*statev1.LabelValue
+	var receivedRemovals []string
+
+	handler := &mockStateServiceHandler{
+		updateStateLabelsFunc: func(_ context.Context, req *connect.Request[statev1.UpdateStateLabelsRequest]) (*connect.Response[statev1.UpdateStateLabelsResponse], error) {
+			receivedAdds = req.Msg.GetAdds()
+			receivedRemovals = req.Msg.GetRemovals()
+			return connect.NewResponse(&statev1.UpdateStateLabelsResponse{
+				StateId: "state-123",
+				Labels: map[string]*statev1.LabelValue{
+					"env": {Value: &statev1.LabelValue_StringValue{StringValue: "prod"}},
+				},
+				PolicyVersion: 2,
+				UpdatedAt:     timestamppb.Now(),
+			}), nil
+		},
+	}
+
+	mux := http.NewServeMux()
+	path, handlerFunc := statev1connect.NewStateServiceHandler(handler)
+	mux.Handle(path, handlerFunc)
+
+	client := newSDKClient(mux, "http://example.com")
+	result, err := client.UpdateStateLabels(context.Background(), sdk.UpdateStateLabelsInput{
+		StateID:  "state-123",
+		Adds:     sdk.LabelMap{"env": "prod"},
+		Removals: []string{"old"},
+	})
+	if err != nil {
+		t.Fatalf("UpdateStateLabels returned error: %v", err)
+	}
+	if receivedAdds["env"].GetStringValue() != "prod" {
+		t.Fatalf("expected adds env=prod, got %v", receivedAdds["env"])
+	}
+	if len(receivedRemovals) != 1 || receivedRemovals[0] != "old" {
+		t.Fatalf("expected removals ['old'], got %v", receivedRemovals)
+	}
+	if result.Labels["env"].(string) != "prod" {
+		t.Fatalf("expected result label env=prod, got %v", result.Labels["env"])
+	}
+	if result.PolicyVersion != 2 {
+		t.Fatalf("expected policy version 2, got %d", result.PolicyVersion)
+	}
+}
+
+func TestClient_GetLabelPolicy(t *testing.T) {
+	handler := &mockStateServiceHandler{
+		getLabelPolicyFunc: func(_ context.Context, req *connect.Request[statev1.GetLabelPolicyRequest]) (*connect.Response[statev1.GetLabelPolicyResponse], error) {
+			return connect.NewResponse(&statev1.GetLabelPolicyResponse{
+				Version:    3,
+				PolicyJson: `{"allowed_keys":{"env":{}}}`,
+				CreatedAt:  timestamppb.Now(),
+				UpdatedAt:  timestamppb.Now(),
+			}), nil
+		},
+	}
+
+	mux := http.NewServeMux()
+	path, handlerFunc := statev1connect.NewStateServiceHandler(handler)
+	mux.Handle(path, handlerFunc)
+
+	client := newSDKClient(mux, "http://example.com")
+	policy, err := client.GetLabelPolicy(context.Background())
+	if err != nil {
+		t.Fatalf("GetLabelPolicy returned error: %v", err)
+	}
+	if policy.Version != 3 {
+		t.Fatalf("expected version 3, got %d", policy.Version)
+	}
+	if policy.PolicyJSON == "" {
+		t.Fatal("expected policy JSON to be populated")
+	}
+}
+
+func TestClient_SetLabelPolicy(t *testing.T) {
+	handler := &mockStateServiceHandler{
+		setLabelPolicyFunc: func(_ context.Context, req *connect.Request[statev1.SetLabelPolicyRequest]) (*connect.Response[statev1.SetLabelPolicyResponse], error) {
+			if req.Msg.PolicyJson == "" {
+				return nil, connect.NewError(connect.CodeInvalidArgument, nil)
+			}
+			return connect.NewResponse(&statev1.SetLabelPolicyResponse{
+				Version:   4,
+				UpdatedAt: timestamppb.Now(),
+			}), nil
+		},
+	}
+
+	mux := http.NewServeMux()
+	path, handlerFunc := statev1connect.NewStateServiceHandler(handler)
+	mux.Handle(path, handlerFunc)
+
+	client := newSDKClient(mux, "http://example.com")
+	policy, err := client.SetLabelPolicy(context.Background(), []byte(`{"max_keys":32}`))
+	if err != nil {
+		t.Fatalf("SetLabelPolicy returned error: %v", err)
+	}
+	if policy.Version != 4 {
+		t.Fatalf("expected version 4, got %d", policy.Version)
+	}
+	if policy.PolicyJSON == "" {
+		t.Fatal("expected policy JSON to echo request")
 	}
 }

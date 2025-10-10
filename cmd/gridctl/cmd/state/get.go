@@ -77,6 +77,17 @@ dependents, and outputs. Uses .grid context if no identifier is provided.`,
 		}
 		fmt.Println()
 
+		fmt.Println("Labels:")
+		labels := info.Labels
+		if len(labels) == 0 {
+			fmt.Println("  (none)")
+		} else {
+			for _, label := range sdk.SortLabels(labels) {
+				fmt.Printf("  %s = %v\n", label.Key, label.Value)
+			}
+		}
+		fmt.Println()
+
 		// Print dependencies (incoming edges)
 		fmt.Println("Dependencies (consuming from):")
 		if len(info.Dependencies) == 0 {

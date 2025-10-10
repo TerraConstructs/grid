@@ -69,6 +69,17 @@ service StateService {
   // Used by dashboards and monitoring tools to visualize complete topology.
   // Returns edges in ascending order by ID (database insertion order).
   rpc ListAllEdges(ListAllEdgesRequest) returns (ListAllEdgesResponse);
+
+  // --- Label Management RPCs ---
+
+  // UpdateStateLabels mutates labels for an existing state (add/replace/remove).
+  rpc UpdateStateLabels(UpdateStateLabelsRequest) returns (UpdateStateLabelsResponse);
+
+  // GetLabelPolicy retrieves the current label validation policy.
+  rpc GetLabelPolicy(GetLabelPolicyRequest) returns (GetLabelPolicyResponse);
+
+  // SetLabelPolicy updates the label validation policy with version increment.
+  rpc SetLabelPolicy(SetLabelPolicyRequest) returns (SetLabelPolicyResponse);
 }
 
 // CreateStateRequest creates a new state using a client-generated GUID.
@@ -85,7 +96,13 @@ message CreateStateResponse {
 }
 
 // ListStatesRequest requests all states.
-message ListStatesRequest {}
+message ListStatesRequest {
+  // Optional bexpr filter expression (e.g., 'env == "staging"')
+  optional string filter = 1;
+
+  // Whether to include labels in response (default: true)
+  optional bool include_labels = 2;
+}
 
 // ListStatesResponse returns all states with basic info.
 message ListStatesResponse {
@@ -103,6 +120,8 @@ message StateInfo {
   // Derived status fields for quick indicators
   optional string computed_status = 7; // "clean", "stale", "potentially-stale"
   repeated string dependency_logic_ids = 8; // Unique set of producer logic_ids (incoming edges)
+  // State labels (key-value pairs with typed values)
+  map<string, LabelValue> labels = 9;
 }
 
 // BackendConfig contains Terraform backend configuration URLs.
@@ -421,6 +440,12 @@ message GetStateInfoResponse {
 
   // Computed status based on incoming dependency edges
   optional string computed_status = 9; // "clean", "stale", "potentially-stale"
+
+  // State JSON size in bytes (calculated without including state JSON in response)
+  int64 size_bytes = 10;
+
+  // State labels (key-value pairs with typed values)
+  map<string, LabelValue> labels = 11;
 }
 
 // ListAllEdgesRequest currently has no parameters.
@@ -441,4 +466,64 @@ message ListAllEdgesResponse {
   // Future enhancements (not in PoC):
   // optional string next_page_token = 2;
   // optional int32 total_count = 3;
+}
+
+// --- Label Management Messages ---
+
+// LabelValue represents a typed label value (string, number, or boolean).
+message LabelValue {
+  oneof value {
+    string string_value = 1;
+    double number_value = 2;
+    bool bool_value = 3;
+  }
+}
+
+// UpdateStateLabelsRequest mutates labels for an existing state.
+message UpdateStateLabelsRequest {
+  // State identifier (GUID)
+  string state_id = 1;
+
+  // Labels to add or update (key-value pairs)
+  map<string, LabelValue> adds = 2;
+
+  // Label keys to remove
+  repeated string removals = 3;
+
+  // Optional idempotency token
+  optional string client_request_id = 4;
+}
+
+// UpdateStateLabelsResponse returns updated label set.
+message UpdateStateLabelsResponse {
+  string state_id = 1;
+  map<string, LabelValue> labels = 2;
+  int32 policy_version = 3;
+  string compliance_status = 4; // "COMPLIANT" or "NON_COMPLIANT"
+  google.protobuf.Timestamp updated_at = 5;
+}
+
+// GetLabelPolicyRequest retrieves the current policy.
+message GetLabelPolicyRequest {
+  // No parameters - returns active policy
+}
+
+// GetLabelPolicyResponse returns the label validation policy.
+message GetLabelPolicyResponse {
+  int32 version = 1;
+  string policy_json = 2; // JSON-encoded PolicyDefinition
+  google.protobuf.Timestamp created_at = 3;
+  google.protobuf.Timestamp updated_at = 4;
+}
+
+// SetLabelPolicyRequest updates the policy.
+message SetLabelPolicyRequest {
+  // JSON-encoded PolicyDefinition (see data-model.md)
+  string policy_json = 1;
+}
+
+// SetLabelPolicyResponse confirms policy update.
+message SetLabelPolicyResponse {
+  int32 version = 1; // Incremented version number
+  google.protobuf.Timestamp updated_at = 2;
 }

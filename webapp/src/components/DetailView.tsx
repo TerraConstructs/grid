@@ -1,6 +1,7 @@
 import type { StateInfo } from '@tcons/grid';
-import { X, Database, FileJson, ArrowRight, ArrowLeft, Lock, ExternalLink } from 'lucide-react';
+import { X, Database, ArrowRight, ArrowLeft, Lock, ExternalLink, Tag } from 'lucide-react';
 import { useState } from 'react';
+import { LabelList } from './LabelList';
 
 interface DetailViewProps {
   state: StateInfo;
@@ -19,7 +20,7 @@ const getEdgeStatusColor = (status: string): string => {
 };
 
 export function DetailView({ state, onClose, onNavigate }: DetailViewProps) {
-  const [activeTab, setActiveTab] = useState<'overview' | 'json' | 'dependencies' | 'dependents'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'dependencies' | 'dependents' | 'labels'>('overview');
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
@@ -44,7 +45,7 @@ export function DetailView({ state, onClose, onNavigate }: DetailViewProps) {
           <nav className="flex gap-1 px-4">
             {[
               { id: 'overview', label: 'Overview', icon: Database },
-              { id: 'json', label: 'State JSON', icon: FileJson },
+              { id: 'labels', label: `Labels (${Object.keys(state.labels || {}).length})`, icon: Tag },
               { id: 'dependencies', label: `Dependencies (${state.dependencies.length})`, icon: ArrowLeft },
               { id: 'dependents', label: `Dependents (${state.dependents.length})`, icon: ArrowRight },
             ].map((tab) => (
@@ -86,7 +87,7 @@ export function DetailView({ state, onClose, onNavigate }: DetailViewProps) {
                 <div>
                   <h3 className="text-sm font-medium text-gray-500 mb-2">Size</h3>
                   <p className="text-lg font-semibold text-gray-900">
-                    {(state.size_bytes ?? 0 / 1024).toFixed(1)} KB
+                    {((state.size_bytes ?? 0) / 1024).toFixed(1)} KB
                   </p>
                 </div>
 
@@ -142,16 +143,6 @@ export function DetailView({ state, onClose, onNavigate }: DetailViewProps) {
                     </div>
                   ))}
                 </div>
-              </div>
-            </div>
-          )}
-
-          {activeTab === 'json' && (
-            <div>
-              <div className="bg-gray-900 rounded-lg p-3 overflow-auto">
-                <pre className="text-sm text-gray-100 font-mono">
-                  {JSON.stringify(state.state_json, null, 2)}
-                </pre>
               </div>
             </div>
           )}
@@ -235,6 +226,12 @@ export function DetailView({ state, onClose, onNavigate }: DetailViewProps) {
                   </div>
                 ))
               )}
+            </div>
+          )}
+
+          {activeTab === 'labels' && (
+            <div>
+              <LabelList labels={state.labels} />
             </div>
           )}
         </div>

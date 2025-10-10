@@ -138,7 +138,11 @@ func (x *CreateStateResponse) GetBackendConfig() *BackendConfig {
 
 // ListStatesRequest requests all states.
 type ListStatesRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Optional bexpr filter expression (e.g., 'env == "staging"')
+	Filter *string `protobuf:"bytes,1,opt,name=filter,proto3,oneof" json:"filter,omitempty"`
+	// Whether to include labels in response (default: true)
+	IncludeLabels *bool `protobuf:"varint,2,opt,name=include_labels,json=includeLabels,proto3,oneof" json:"include_labels,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -171,6 +175,20 @@ func (x *ListStatesRequest) ProtoReflect() protoreflect.Message {
 // Deprecated: Use ListStatesRequest.ProtoReflect.Descriptor instead.
 func (*ListStatesRequest) Descriptor() ([]byte, []int) {
 	return file_state_v1_state_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *ListStatesRequest) GetFilter() string {
+	if x != nil && x.Filter != nil {
+		return *x.Filter
+	}
+	return ""
+}
+
+func (x *ListStatesRequest) GetIncludeLabels() bool {
+	if x != nil && x.IncludeLabels != nil {
+		return *x.IncludeLabels
+	}
+	return false
 }
 
 // ListStatesResponse returns all states with basic info.
@@ -230,8 +248,10 @@ type StateInfo struct {
 	// Derived status fields for quick indicators
 	ComputedStatus     *string  `protobuf:"bytes,7,opt,name=computed_status,json=computedStatus,proto3,oneof" json:"computed_status,omitempty"`         // "clean", "stale", "potentially-stale"
 	DependencyLogicIds []string `protobuf:"bytes,8,rep,name=dependency_logic_ids,json=dependencyLogicIds,proto3" json:"dependency_logic_ids,omitempty"` // Unique set of producer logic_ids (incoming edges)
-	unknownFields      protoimpl.UnknownFields
-	sizeCache          protoimpl.SizeCache
+	// State labels (key-value pairs with typed values)
+	Labels        map[string]*LabelValue `protobuf:"bytes,9,rep,name=labels,proto3" json:"labels,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *StateInfo) Reset() {
@@ -316,6 +336,13 @@ func (x *StateInfo) GetComputedStatus() string {
 func (x *StateInfo) GetDependencyLogicIds() []string {
 	if x != nil {
 		return x.DependencyLogicIds
+	}
+	return nil
+}
+
+func (x *StateInfo) GetLabels() map[string]*LabelValue {
+	if x != nil {
+		return x.Labels
 	}
 	return nil
 }
@@ -2736,8 +2763,12 @@ type GetStateInfoResponse struct {
 	UpdatedAt *timestamppb.Timestamp `protobuf:"bytes,8,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
 	// Computed status based on incoming dependency edges
 	ComputedStatus *string `protobuf:"bytes,9,opt,name=computed_status,json=computedStatus,proto3,oneof" json:"computed_status,omitempty"` // "clean", "stale", "potentially-stale"
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
+	// State JSON size in bytes (calculated without including state JSON in response)
+	SizeBytes int64 `protobuf:"varint,10,opt,name=size_bytes,json=sizeBytes,proto3" json:"size_bytes,omitempty"`
+	// State labels (key-value pairs with typed values)
+	Labels        map[string]*LabelValue `protobuf:"bytes,11,rep,name=labels,proto3" json:"labels,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *GetStateInfoResponse) Reset() {
@@ -2833,6 +2864,20 @@ func (x *GetStateInfoResponse) GetComputedStatus() string {
 	return ""
 }
 
+func (x *GetStateInfoResponse) GetSizeBytes() int64 {
+	if x != nil {
+		return x.SizeBytes
+	}
+	return 0
+}
+
+func (x *GetStateInfoResponse) GetLabels() map[string]*LabelValue {
+	if x != nil {
+		return x.Labels
+	}
+	return nil
+}
+
 // ListAllEdgesRequest currently has no parameters.
 // Future: Add filtering, pagination, sorting options.
 type ListAllEdgesRequest struct {
@@ -2916,6 +2961,460 @@ func (x *ListAllEdgesResponse) GetEdges() []*DependencyEdge {
 	return nil
 }
 
+// LabelValue represents a typed label value (string, number, or boolean).
+type LabelValue struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Types that are valid to be assigned to Value:
+	//
+	//	*LabelValue_StringValue
+	//	*LabelValue_NumberValue
+	//	*LabelValue_BoolValue
+	Value         isLabelValue_Value `protobuf_oneof:"value"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *LabelValue) Reset() {
+	*x = LabelValue{}
+	mi := &file_state_v1_state_proto_msgTypes[43]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *LabelValue) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*LabelValue) ProtoMessage() {}
+
+func (x *LabelValue) ProtoReflect() protoreflect.Message {
+	mi := &file_state_v1_state_proto_msgTypes[43]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use LabelValue.ProtoReflect.Descriptor instead.
+func (*LabelValue) Descriptor() ([]byte, []int) {
+	return file_state_v1_state_proto_rawDescGZIP(), []int{43}
+}
+
+func (x *LabelValue) GetValue() isLabelValue_Value {
+	if x != nil {
+		return x.Value
+	}
+	return nil
+}
+
+func (x *LabelValue) GetStringValue() string {
+	if x != nil {
+		if x, ok := x.Value.(*LabelValue_StringValue); ok {
+			return x.StringValue
+		}
+	}
+	return ""
+}
+
+func (x *LabelValue) GetNumberValue() float64 {
+	if x != nil {
+		if x, ok := x.Value.(*LabelValue_NumberValue); ok {
+			return x.NumberValue
+		}
+	}
+	return 0
+}
+
+func (x *LabelValue) GetBoolValue() bool {
+	if x != nil {
+		if x, ok := x.Value.(*LabelValue_BoolValue); ok {
+			return x.BoolValue
+		}
+	}
+	return false
+}
+
+type isLabelValue_Value interface {
+	isLabelValue_Value()
+}
+
+type LabelValue_StringValue struct {
+	StringValue string `protobuf:"bytes,1,opt,name=string_value,json=stringValue,proto3,oneof"`
+}
+
+type LabelValue_NumberValue struct {
+	NumberValue float64 `protobuf:"fixed64,2,opt,name=number_value,json=numberValue,proto3,oneof"`
+}
+
+type LabelValue_BoolValue struct {
+	BoolValue bool `protobuf:"varint,3,opt,name=bool_value,json=boolValue,proto3,oneof"`
+}
+
+func (*LabelValue_StringValue) isLabelValue_Value() {}
+
+func (*LabelValue_NumberValue) isLabelValue_Value() {}
+
+func (*LabelValue_BoolValue) isLabelValue_Value() {}
+
+// UpdateStateLabelsRequest mutates labels for an existing state.
+type UpdateStateLabelsRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// State identifier (GUID)
+	StateId string `protobuf:"bytes,1,opt,name=state_id,json=stateId,proto3" json:"state_id,omitempty"`
+	// Labels to add or update (key-value pairs)
+	Adds map[string]*LabelValue `protobuf:"bytes,2,rep,name=adds,proto3" json:"adds,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	// Label keys to remove
+	Removals []string `protobuf:"bytes,3,rep,name=removals,proto3" json:"removals,omitempty"`
+	// Optional idempotency token
+	ClientRequestId *string `protobuf:"bytes,4,opt,name=client_request_id,json=clientRequestId,proto3,oneof" json:"client_request_id,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
+}
+
+func (x *UpdateStateLabelsRequest) Reset() {
+	*x = UpdateStateLabelsRequest{}
+	mi := &file_state_v1_state_proto_msgTypes[44]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UpdateStateLabelsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UpdateStateLabelsRequest) ProtoMessage() {}
+
+func (x *UpdateStateLabelsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_state_v1_state_proto_msgTypes[44]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UpdateStateLabelsRequest.ProtoReflect.Descriptor instead.
+func (*UpdateStateLabelsRequest) Descriptor() ([]byte, []int) {
+	return file_state_v1_state_proto_rawDescGZIP(), []int{44}
+}
+
+func (x *UpdateStateLabelsRequest) GetStateId() string {
+	if x != nil {
+		return x.StateId
+	}
+	return ""
+}
+
+func (x *UpdateStateLabelsRequest) GetAdds() map[string]*LabelValue {
+	if x != nil {
+		return x.Adds
+	}
+	return nil
+}
+
+func (x *UpdateStateLabelsRequest) GetRemovals() []string {
+	if x != nil {
+		return x.Removals
+	}
+	return nil
+}
+
+func (x *UpdateStateLabelsRequest) GetClientRequestId() string {
+	if x != nil && x.ClientRequestId != nil {
+		return *x.ClientRequestId
+	}
+	return ""
+}
+
+// UpdateStateLabelsResponse returns updated label set.
+type UpdateStateLabelsResponse struct {
+	state            protoimpl.MessageState `protogen:"open.v1"`
+	StateId          string                 `protobuf:"bytes,1,opt,name=state_id,json=stateId,proto3" json:"state_id,omitempty"`
+	Labels           map[string]*LabelValue `protobuf:"bytes,2,rep,name=labels,proto3" json:"labels,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	PolicyVersion    int32                  `protobuf:"varint,3,opt,name=policy_version,json=policyVersion,proto3" json:"policy_version,omitempty"`
+	ComplianceStatus string                 `protobuf:"bytes,4,opt,name=compliance_status,json=complianceStatus,proto3" json:"compliance_status,omitempty"` // "COMPLIANT" or "NON_COMPLIANT"
+	UpdatedAt        *timestamppb.Timestamp `protobuf:"bytes,5,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
+}
+
+func (x *UpdateStateLabelsResponse) Reset() {
+	*x = UpdateStateLabelsResponse{}
+	mi := &file_state_v1_state_proto_msgTypes[45]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UpdateStateLabelsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UpdateStateLabelsResponse) ProtoMessage() {}
+
+func (x *UpdateStateLabelsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_state_v1_state_proto_msgTypes[45]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UpdateStateLabelsResponse.ProtoReflect.Descriptor instead.
+func (*UpdateStateLabelsResponse) Descriptor() ([]byte, []int) {
+	return file_state_v1_state_proto_rawDescGZIP(), []int{45}
+}
+
+func (x *UpdateStateLabelsResponse) GetStateId() string {
+	if x != nil {
+		return x.StateId
+	}
+	return ""
+}
+
+func (x *UpdateStateLabelsResponse) GetLabels() map[string]*LabelValue {
+	if x != nil {
+		return x.Labels
+	}
+	return nil
+}
+
+func (x *UpdateStateLabelsResponse) GetPolicyVersion() int32 {
+	if x != nil {
+		return x.PolicyVersion
+	}
+	return 0
+}
+
+func (x *UpdateStateLabelsResponse) GetComplianceStatus() string {
+	if x != nil {
+		return x.ComplianceStatus
+	}
+	return ""
+}
+
+func (x *UpdateStateLabelsResponse) GetUpdatedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.UpdatedAt
+	}
+	return nil
+}
+
+// GetLabelPolicyRequest retrieves the current policy.
+type GetLabelPolicyRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetLabelPolicyRequest) Reset() {
+	*x = GetLabelPolicyRequest{}
+	mi := &file_state_v1_state_proto_msgTypes[46]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetLabelPolicyRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetLabelPolicyRequest) ProtoMessage() {}
+
+func (x *GetLabelPolicyRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_state_v1_state_proto_msgTypes[46]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetLabelPolicyRequest.ProtoReflect.Descriptor instead.
+func (*GetLabelPolicyRequest) Descriptor() ([]byte, []int) {
+	return file_state_v1_state_proto_rawDescGZIP(), []int{46}
+}
+
+// GetLabelPolicyResponse returns the label validation policy.
+type GetLabelPolicyResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Version       int32                  `protobuf:"varint,1,opt,name=version,proto3" json:"version,omitempty"`
+	PolicyJson    string                 `protobuf:"bytes,2,opt,name=policy_json,json=policyJson,proto3" json:"policy_json,omitempty"` // JSON-encoded PolicyDefinition
+	CreatedAt     *timestamppb.Timestamp `protobuf:"bytes,3,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	UpdatedAt     *timestamppb.Timestamp `protobuf:"bytes,4,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetLabelPolicyResponse) Reset() {
+	*x = GetLabelPolicyResponse{}
+	mi := &file_state_v1_state_proto_msgTypes[47]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetLabelPolicyResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetLabelPolicyResponse) ProtoMessage() {}
+
+func (x *GetLabelPolicyResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_state_v1_state_proto_msgTypes[47]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetLabelPolicyResponse.ProtoReflect.Descriptor instead.
+func (*GetLabelPolicyResponse) Descriptor() ([]byte, []int) {
+	return file_state_v1_state_proto_rawDescGZIP(), []int{47}
+}
+
+func (x *GetLabelPolicyResponse) GetVersion() int32 {
+	if x != nil {
+		return x.Version
+	}
+	return 0
+}
+
+func (x *GetLabelPolicyResponse) GetPolicyJson() string {
+	if x != nil {
+		return x.PolicyJson
+	}
+	return ""
+}
+
+func (x *GetLabelPolicyResponse) GetCreatedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.CreatedAt
+	}
+	return nil
+}
+
+func (x *GetLabelPolicyResponse) GetUpdatedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.UpdatedAt
+	}
+	return nil
+}
+
+// SetLabelPolicyRequest updates the policy.
+type SetLabelPolicyRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// JSON-encoded PolicyDefinition (see data-model.md)
+	PolicyJson    string `protobuf:"bytes,1,opt,name=policy_json,json=policyJson,proto3" json:"policy_json,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SetLabelPolicyRequest) Reset() {
+	*x = SetLabelPolicyRequest{}
+	mi := &file_state_v1_state_proto_msgTypes[48]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SetLabelPolicyRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SetLabelPolicyRequest) ProtoMessage() {}
+
+func (x *SetLabelPolicyRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_state_v1_state_proto_msgTypes[48]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SetLabelPolicyRequest.ProtoReflect.Descriptor instead.
+func (*SetLabelPolicyRequest) Descriptor() ([]byte, []int) {
+	return file_state_v1_state_proto_rawDescGZIP(), []int{48}
+}
+
+func (x *SetLabelPolicyRequest) GetPolicyJson() string {
+	if x != nil {
+		return x.PolicyJson
+	}
+	return ""
+}
+
+// SetLabelPolicyResponse confirms policy update.
+type SetLabelPolicyResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Version       int32                  `protobuf:"varint,1,opt,name=version,proto3" json:"version,omitempty"` // Incremented version number
+	UpdatedAt     *timestamppb.Timestamp `protobuf:"bytes,2,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SetLabelPolicyResponse) Reset() {
+	*x = SetLabelPolicyResponse{}
+	mi := &file_state_v1_state_proto_msgTypes[49]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SetLabelPolicyResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SetLabelPolicyResponse) ProtoMessage() {}
+
+func (x *SetLabelPolicyResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_state_v1_state_proto_msgTypes[49]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SetLabelPolicyResponse.ProtoReflect.Descriptor instead.
+func (*SetLabelPolicyResponse) Descriptor() ([]byte, []int) {
+	return file_state_v1_state_proto_rawDescGZIP(), []int{49}
+}
+
+func (x *SetLabelPolicyResponse) GetVersion() int32 {
+	if x != nil {
+		return x.Version
+	}
+	return 0
+}
+
+func (x *SetLabelPolicyResponse) GetUpdatedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.UpdatedAt
+	}
+	return nil
+}
+
 var File_state_v1_state_proto protoreflect.FileDescriptor
 
 const file_state_v1_state_proto_rawDesc = "" +
@@ -2927,10 +3426,14 @@ const file_state_v1_state_proto_rawDesc = "" +
 	"\x13CreateStateResponse\x12\x12\n" +
 	"\x04guid\x18\x01 \x01(\tR\x04guid\x12\x19\n" +
 	"\blogic_id\x18\x02 \x01(\tR\alogicId\x12>\n" +
-	"\x0ebackend_config\x18\x03 \x01(\v2\x17.state.v1.BackendConfigR\rbackendConfig\"\x13\n" +
-	"\x11ListStatesRequest\"A\n" +
+	"\x0ebackend_config\x18\x03 \x01(\v2\x17.state.v1.BackendConfigR\rbackendConfig\"z\n" +
+	"\x11ListStatesRequest\x12\x1b\n" +
+	"\x06filter\x18\x01 \x01(\tH\x00R\x06filter\x88\x01\x01\x12*\n" +
+	"\x0einclude_labels\x18\x02 \x01(\bH\x01R\rincludeLabels\x88\x01\x01B\t\n" +
+	"\a_filterB\x11\n" +
+	"\x0f_include_labels\"A\n" +
 	"\x12ListStatesResponse\x12+\n" +
-	"\x06states\x18\x01 \x03(\v2\x13.state.v1.StateInfoR\x06states\"\xdb\x02\n" +
+	"\x06states\x18\x01 \x03(\v2\x13.state.v1.StateInfoR\x06states\"\xe5\x03\n" +
 	"\tStateInfo\x12\x12\n" +
 	"\x04guid\x18\x01 \x01(\tR\x04guid\x12\x19\n" +
 	"\blogic_id\x18\x02 \x01(\tR\alogicId\x12\x16\n" +
@@ -2942,7 +3445,11 @@ const file_state_v1_state_proto_rawDesc = "" +
 	"\n" +
 	"size_bytes\x18\x06 \x01(\x03R\tsizeBytes\x12,\n" +
 	"\x0fcomputed_status\x18\a \x01(\tH\x00R\x0ecomputedStatus\x88\x01\x01\x120\n" +
-	"\x14dependency_logic_ids\x18\b \x03(\tR\x12dependencyLogicIdsB\x12\n" +
+	"\x14dependency_logic_ids\x18\b \x03(\tR\x12dependencyLogicIds\x127\n" +
+	"\x06labels\x18\t \x03(\v2\x1f.state.v1.StateInfo.LabelsEntryR\x06labels\x1aO\n" +
+	"\vLabelsEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12*\n" +
+	"\x05value\x18\x02 \x01(\v2\x14.state.v1.LabelValueR\x05value:\x028\x01B\x12\n" +
 	"\x10_computed_status\"s\n" +
 	"\rBackendConfig\x12\x18\n" +
 	"\aaddress\x18\x01 \x01(\tR\aaddress\x12!\n" +
@@ -3117,7 +3624,7 @@ const file_state_v1_state_proto_rawDesc = "" +
 	"\x13GetStateInfoRequest\x12\x1b\n" +
 	"\blogic_id\x18\x01 \x01(\tH\x00R\alogicId\x12\x14\n" +
 	"\x04guid\x18\x02 \x01(\tH\x00R\x04guidB\a\n" +
-	"\x05state\"\xe4\x03\n" +
+	"\x05state\"\x98\x05\n" +
 	"\x14GetStateInfoResponse\x12\x12\n" +
 	"\x04guid\x18\x01 \x01(\tR\x04guid\x12\x19\n" +
 	"\blogic_id\x18\x02 \x01(\tR\alogicId\x12>\n" +
@@ -3131,12 +3638,60 @@ const file_state_v1_state_proto_rawDesc = "" +
 	"created_at\x18\a \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x129\n" +
 	"\n" +
 	"updated_at\x18\b \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\x12,\n" +
-	"\x0fcomputed_status\x18\t \x01(\tH\x00R\x0ecomputedStatus\x88\x01\x01B\x12\n" +
+	"\x0fcomputed_status\x18\t \x01(\tH\x00R\x0ecomputedStatus\x88\x01\x01\x12\x1d\n" +
+	"\n" +
+	"size_bytes\x18\n" +
+	" \x01(\x03R\tsizeBytes\x12B\n" +
+	"\x06labels\x18\v \x03(\v2*.state.v1.GetStateInfoResponse.LabelsEntryR\x06labels\x1aO\n" +
+	"\vLabelsEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12*\n" +
+	"\x05value\x18\x02 \x01(\v2\x14.state.v1.LabelValueR\x05value:\x028\x01B\x12\n" +
 	"\x10_computed_status\"\x15\n" +
 	"\x13ListAllEdgesRequest\"F\n" +
 	"\x14ListAllEdgesResponse\x12.\n" +
-	"\x05edges\x18\x01 \x03(\v2\x18.state.v1.DependencyEdgeR\x05edges2\xd8\n" +
+	"\x05edges\x18\x01 \x03(\v2\x18.state.v1.DependencyEdgeR\x05edges\"\x80\x01\n" +
 	"\n" +
+	"LabelValue\x12#\n" +
+	"\fstring_value\x18\x01 \x01(\tH\x00R\vstringValue\x12#\n" +
+	"\fnumber_value\x18\x02 \x01(\x01H\x00R\vnumberValue\x12\x1f\n" +
+	"\n" +
+	"bool_value\x18\x03 \x01(\bH\x00R\tboolValueB\a\n" +
+	"\x05value\"\xa9\x02\n" +
+	"\x18UpdateStateLabelsRequest\x12\x19\n" +
+	"\bstate_id\x18\x01 \x01(\tR\astateId\x12@\n" +
+	"\x04adds\x18\x02 \x03(\v2,.state.v1.UpdateStateLabelsRequest.AddsEntryR\x04adds\x12\x1a\n" +
+	"\bremovals\x18\x03 \x03(\tR\bremovals\x12/\n" +
+	"\x11client_request_id\x18\x04 \x01(\tH\x00R\x0fclientRequestId\x88\x01\x01\x1aM\n" +
+	"\tAddsEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12*\n" +
+	"\x05value\x18\x02 \x01(\v2\x14.state.v1.LabelValueR\x05value:\x028\x01B\x14\n" +
+	"\x12_client_request_id\"\xdf\x02\n" +
+	"\x19UpdateStateLabelsResponse\x12\x19\n" +
+	"\bstate_id\x18\x01 \x01(\tR\astateId\x12G\n" +
+	"\x06labels\x18\x02 \x03(\v2/.state.v1.UpdateStateLabelsResponse.LabelsEntryR\x06labels\x12%\n" +
+	"\x0epolicy_version\x18\x03 \x01(\x05R\rpolicyVersion\x12+\n" +
+	"\x11compliance_status\x18\x04 \x01(\tR\x10complianceStatus\x129\n" +
+	"\n" +
+	"updated_at\x18\x05 \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\x1aO\n" +
+	"\vLabelsEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12*\n" +
+	"\x05value\x18\x02 \x01(\v2\x14.state.v1.LabelValueR\x05value:\x028\x01\"\x17\n" +
+	"\x15GetLabelPolicyRequest\"\xc9\x01\n" +
+	"\x16GetLabelPolicyResponse\x12\x18\n" +
+	"\aversion\x18\x01 \x01(\x05R\aversion\x12\x1f\n" +
+	"\vpolicy_json\x18\x02 \x01(\tR\n" +
+	"policyJson\x129\n" +
+	"\n" +
+	"created_at\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x129\n" +
+	"\n" +
+	"updated_at\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\"8\n" +
+	"\x15SetLabelPolicyRequest\x12\x1f\n" +
+	"\vpolicy_json\x18\x01 \x01(\tR\n" +
+	"policyJson\"m\n" +
+	"\x16SetLabelPolicyResponse\x12\x18\n" +
+	"\aversion\x18\x01 \x01(\x05R\aversion\x129\n" +
+	"\n" +
+	"updated_at\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt2\xe0\f\n" +
 	"\fStateService\x12J\n" +
 	"\vCreateState\x12\x1c.state.v1.CreateStateRequest\x1a\x1d.state.v1.CreateStateResponse\x12G\n" +
 	"\n" +
@@ -3154,7 +3709,10 @@ const file_state_v1_state_proto_rawDesc = "" +
 	"\x12GetDependencyGraph\x12#.state.v1.GetDependencyGraphRequest\x1a$.state.v1.GetDependencyGraphResponse\x12Y\n" +
 	"\x10ListStateOutputs\x12!.state.v1.ListStateOutputsRequest\x1a\".state.v1.ListStateOutputsResponse\x12M\n" +
 	"\fGetStateInfo\x12\x1d.state.v1.GetStateInfoRequest\x1a\x1e.state.v1.GetStateInfoResponse\x12M\n" +
-	"\fListAllEdges\x12\x1d.state.v1.ListAllEdgesRequest\x1a\x1e.state.v1.ListAllEdgesResponseB6Z4github.com/terraconstructs/grid/api/state/v1;statev1b\x06proto3"
+	"\fListAllEdges\x12\x1d.state.v1.ListAllEdgesRequest\x1a\x1e.state.v1.ListAllEdgesResponse\x12\\\n" +
+	"\x11UpdateStateLabels\x12\".state.v1.UpdateStateLabelsRequest\x1a#.state.v1.UpdateStateLabelsResponse\x12S\n" +
+	"\x0eGetLabelPolicy\x12\x1f.state.v1.GetLabelPolicyRequest\x1a .state.v1.GetLabelPolicyResponse\x12S\n" +
+	"\x0eSetLabelPolicy\x12\x1f.state.v1.SetLabelPolicyRequest\x1a .state.v1.SetLabelPolicyResponseB6Z4github.com/terraconstructs/grid/api/state/v1;statev1b\x06proto3"
 
 var (
 	file_state_v1_state_proto_rawDescOnce sync.Once
@@ -3168,7 +3726,7 @@ func file_state_v1_state_proto_rawDescGZIP() []byte {
 	return file_state_v1_state_proto_rawDescData
 }
 
-var file_state_v1_state_proto_msgTypes = make([]protoimpl.MessageInfo, 43)
+var file_state_v1_state_proto_msgTypes = make([]protoimpl.MessageInfo, 54)
 var file_state_v1_state_proto_goTypes = []any{
 	(*CreateStateRequest)(nil),          // 0: state.v1.CreateStateRequest
 	(*CreateStateResponse)(nil),         // 1: state.v1.CreateStateResponse
@@ -3213,80 +3771,109 @@ var file_state_v1_state_proto_goTypes = []any{
 	(*GetStateInfoResponse)(nil),        // 40: state.v1.GetStateInfoResponse
 	(*ListAllEdgesRequest)(nil),         // 41: state.v1.ListAllEdgesRequest
 	(*ListAllEdgesResponse)(nil),        // 42: state.v1.ListAllEdgesResponse
-	(*timestamppb.Timestamp)(nil),       // 43: google.protobuf.Timestamp
+	(*LabelValue)(nil),                  // 43: state.v1.LabelValue
+	(*UpdateStateLabelsRequest)(nil),    // 44: state.v1.UpdateStateLabelsRequest
+	(*UpdateStateLabelsResponse)(nil),   // 45: state.v1.UpdateStateLabelsResponse
+	(*GetLabelPolicyRequest)(nil),       // 46: state.v1.GetLabelPolicyRequest
+	(*GetLabelPolicyResponse)(nil),      // 47: state.v1.GetLabelPolicyResponse
+	(*SetLabelPolicyRequest)(nil),       // 48: state.v1.SetLabelPolicyRequest
+	(*SetLabelPolicyResponse)(nil),      // 49: state.v1.SetLabelPolicyResponse
+	nil,                                 // 50: state.v1.StateInfo.LabelsEntry
+	nil,                                 // 51: state.v1.GetStateInfoResponse.LabelsEntry
+	nil,                                 // 52: state.v1.UpdateStateLabelsRequest.AddsEntry
+	nil,                                 // 53: state.v1.UpdateStateLabelsResponse.LabelsEntry
+	(*timestamppb.Timestamp)(nil),       // 54: google.protobuf.Timestamp
 }
 var file_state_v1_state_proto_depIdxs = []int32{
 	5,  // 0: state.v1.CreateStateResponse.backend_config:type_name -> state.v1.BackendConfig
 	4,  // 1: state.v1.ListStatesResponse.states:type_name -> state.v1.StateInfo
-	43, // 2: state.v1.StateInfo.created_at:type_name -> google.protobuf.Timestamp
-	43, // 3: state.v1.StateInfo.updated_at:type_name -> google.protobuf.Timestamp
-	5,  // 4: state.v1.GetStateConfigResponse.backend_config:type_name -> state.v1.BackendConfig
-	43, // 5: state.v1.LockInfo.created:type_name -> google.protobuf.Timestamp
-	9,  // 6: state.v1.StateLock.info:type_name -> state.v1.LockInfo
-	10, // 7: state.v1.GetStateLockResponse.lock:type_name -> state.v1.StateLock
-	10, // 8: state.v1.UnlockStateResponse.lock:type_name -> state.v1.StateLock
-	35, // 9: state.v1.AddDependencyResponse.edge:type_name -> state.v1.DependencyEdge
-	35, // 10: state.v1.ListDependenciesResponse.edges:type_name -> state.v1.DependencyEdge
-	35, // 11: state.v1.ListDependentsResponse.edges:type_name -> state.v1.DependencyEdge
-	35, // 12: state.v1.SearchByOutputResponse.edges:type_name -> state.v1.DependencyEdge
-	26, // 13: state.v1.GetTopologicalOrderResponse.layers:type_name -> state.v1.Layer
-	27, // 14: state.v1.Layer.states:type_name -> state.v1.StateRef
-	30, // 15: state.v1.GetStateStatusResponse.incoming:type_name -> state.v1.IncomingEdgeView
-	31, // 16: state.v1.GetStateStatusResponse.summary:type_name -> state.v1.StatusSummary
-	43, // 17: state.v1.IncomingEdgeView.last_in_at:type_name -> google.protobuf.Timestamp
-	43, // 18: state.v1.IncomingEdgeView.last_out_at:type_name -> google.protobuf.Timestamp
-	34, // 19: state.v1.GetDependencyGraphResponse.producers:type_name -> state.v1.ProducerState
-	35, // 20: state.v1.GetDependencyGraphResponse.edges:type_name -> state.v1.DependencyEdge
-	5,  // 21: state.v1.ProducerState.backend_config:type_name -> state.v1.BackendConfig
-	43, // 22: state.v1.DependencyEdge.last_in_at:type_name -> google.protobuf.Timestamp
-	43, // 23: state.v1.DependencyEdge.last_out_at:type_name -> google.protobuf.Timestamp
-	43, // 24: state.v1.DependencyEdge.created_at:type_name -> google.protobuf.Timestamp
-	43, // 25: state.v1.DependencyEdge.updated_at:type_name -> google.protobuf.Timestamp
-	36, // 26: state.v1.ListStateOutputsResponse.outputs:type_name -> state.v1.OutputKey
-	5,  // 27: state.v1.GetStateInfoResponse.backend_config:type_name -> state.v1.BackendConfig
-	35, // 28: state.v1.GetStateInfoResponse.dependencies:type_name -> state.v1.DependencyEdge
-	35, // 29: state.v1.GetStateInfoResponse.dependents:type_name -> state.v1.DependencyEdge
-	36, // 30: state.v1.GetStateInfoResponse.outputs:type_name -> state.v1.OutputKey
-	43, // 31: state.v1.GetStateInfoResponse.created_at:type_name -> google.protobuf.Timestamp
-	43, // 32: state.v1.GetStateInfoResponse.updated_at:type_name -> google.protobuf.Timestamp
-	35, // 33: state.v1.ListAllEdgesResponse.edges:type_name -> state.v1.DependencyEdge
-	0,  // 34: state.v1.StateService.CreateState:input_type -> state.v1.CreateStateRequest
-	2,  // 35: state.v1.StateService.ListStates:input_type -> state.v1.ListStatesRequest
-	6,  // 36: state.v1.StateService.GetStateConfig:input_type -> state.v1.GetStateConfigRequest
-	8,  // 37: state.v1.StateService.GetStateLock:input_type -> state.v1.GetStateLockRequest
-	12, // 38: state.v1.StateService.UnlockState:input_type -> state.v1.UnlockStateRequest
-	14, // 39: state.v1.StateService.AddDependency:input_type -> state.v1.AddDependencyRequest
-	16, // 40: state.v1.StateService.RemoveDependency:input_type -> state.v1.RemoveDependencyRequest
-	18, // 41: state.v1.StateService.ListDependencies:input_type -> state.v1.ListDependenciesRequest
-	20, // 42: state.v1.StateService.ListDependents:input_type -> state.v1.ListDependentsRequest
-	22, // 43: state.v1.StateService.SearchByOutput:input_type -> state.v1.SearchByOutputRequest
-	24, // 44: state.v1.StateService.GetTopologicalOrder:input_type -> state.v1.GetTopologicalOrderRequest
-	28, // 45: state.v1.StateService.GetStateStatus:input_type -> state.v1.GetStateStatusRequest
-	32, // 46: state.v1.StateService.GetDependencyGraph:input_type -> state.v1.GetDependencyGraphRequest
-	37, // 47: state.v1.StateService.ListStateOutputs:input_type -> state.v1.ListStateOutputsRequest
-	39, // 48: state.v1.StateService.GetStateInfo:input_type -> state.v1.GetStateInfoRequest
-	41, // 49: state.v1.StateService.ListAllEdges:input_type -> state.v1.ListAllEdgesRequest
-	1,  // 50: state.v1.StateService.CreateState:output_type -> state.v1.CreateStateResponse
-	3,  // 51: state.v1.StateService.ListStates:output_type -> state.v1.ListStatesResponse
-	7,  // 52: state.v1.StateService.GetStateConfig:output_type -> state.v1.GetStateConfigResponse
-	11, // 53: state.v1.StateService.GetStateLock:output_type -> state.v1.GetStateLockResponse
-	13, // 54: state.v1.StateService.UnlockState:output_type -> state.v1.UnlockStateResponse
-	15, // 55: state.v1.StateService.AddDependency:output_type -> state.v1.AddDependencyResponse
-	17, // 56: state.v1.StateService.RemoveDependency:output_type -> state.v1.RemoveDependencyResponse
-	19, // 57: state.v1.StateService.ListDependencies:output_type -> state.v1.ListDependenciesResponse
-	21, // 58: state.v1.StateService.ListDependents:output_type -> state.v1.ListDependentsResponse
-	23, // 59: state.v1.StateService.SearchByOutput:output_type -> state.v1.SearchByOutputResponse
-	25, // 60: state.v1.StateService.GetTopologicalOrder:output_type -> state.v1.GetTopologicalOrderResponse
-	29, // 61: state.v1.StateService.GetStateStatus:output_type -> state.v1.GetStateStatusResponse
-	33, // 62: state.v1.StateService.GetDependencyGraph:output_type -> state.v1.GetDependencyGraphResponse
-	38, // 63: state.v1.StateService.ListStateOutputs:output_type -> state.v1.ListStateOutputsResponse
-	40, // 64: state.v1.StateService.GetStateInfo:output_type -> state.v1.GetStateInfoResponse
-	42, // 65: state.v1.StateService.ListAllEdges:output_type -> state.v1.ListAllEdgesResponse
-	50, // [50:66] is the sub-list for method output_type
-	34, // [34:50] is the sub-list for method input_type
-	34, // [34:34] is the sub-list for extension type_name
-	34, // [34:34] is the sub-list for extension extendee
-	0,  // [0:34] is the sub-list for field type_name
+	54, // 2: state.v1.StateInfo.created_at:type_name -> google.protobuf.Timestamp
+	54, // 3: state.v1.StateInfo.updated_at:type_name -> google.protobuf.Timestamp
+	50, // 4: state.v1.StateInfo.labels:type_name -> state.v1.StateInfo.LabelsEntry
+	5,  // 5: state.v1.GetStateConfigResponse.backend_config:type_name -> state.v1.BackendConfig
+	54, // 6: state.v1.LockInfo.created:type_name -> google.protobuf.Timestamp
+	9,  // 7: state.v1.StateLock.info:type_name -> state.v1.LockInfo
+	10, // 8: state.v1.GetStateLockResponse.lock:type_name -> state.v1.StateLock
+	10, // 9: state.v1.UnlockStateResponse.lock:type_name -> state.v1.StateLock
+	35, // 10: state.v1.AddDependencyResponse.edge:type_name -> state.v1.DependencyEdge
+	35, // 11: state.v1.ListDependenciesResponse.edges:type_name -> state.v1.DependencyEdge
+	35, // 12: state.v1.ListDependentsResponse.edges:type_name -> state.v1.DependencyEdge
+	35, // 13: state.v1.SearchByOutputResponse.edges:type_name -> state.v1.DependencyEdge
+	26, // 14: state.v1.GetTopologicalOrderResponse.layers:type_name -> state.v1.Layer
+	27, // 15: state.v1.Layer.states:type_name -> state.v1.StateRef
+	30, // 16: state.v1.GetStateStatusResponse.incoming:type_name -> state.v1.IncomingEdgeView
+	31, // 17: state.v1.GetStateStatusResponse.summary:type_name -> state.v1.StatusSummary
+	54, // 18: state.v1.IncomingEdgeView.last_in_at:type_name -> google.protobuf.Timestamp
+	54, // 19: state.v1.IncomingEdgeView.last_out_at:type_name -> google.protobuf.Timestamp
+	34, // 20: state.v1.GetDependencyGraphResponse.producers:type_name -> state.v1.ProducerState
+	35, // 21: state.v1.GetDependencyGraphResponse.edges:type_name -> state.v1.DependencyEdge
+	5,  // 22: state.v1.ProducerState.backend_config:type_name -> state.v1.BackendConfig
+	54, // 23: state.v1.DependencyEdge.last_in_at:type_name -> google.protobuf.Timestamp
+	54, // 24: state.v1.DependencyEdge.last_out_at:type_name -> google.protobuf.Timestamp
+	54, // 25: state.v1.DependencyEdge.created_at:type_name -> google.protobuf.Timestamp
+	54, // 26: state.v1.DependencyEdge.updated_at:type_name -> google.protobuf.Timestamp
+	36, // 27: state.v1.ListStateOutputsResponse.outputs:type_name -> state.v1.OutputKey
+	5,  // 28: state.v1.GetStateInfoResponse.backend_config:type_name -> state.v1.BackendConfig
+	35, // 29: state.v1.GetStateInfoResponse.dependencies:type_name -> state.v1.DependencyEdge
+	35, // 30: state.v1.GetStateInfoResponse.dependents:type_name -> state.v1.DependencyEdge
+	36, // 31: state.v1.GetStateInfoResponse.outputs:type_name -> state.v1.OutputKey
+	54, // 32: state.v1.GetStateInfoResponse.created_at:type_name -> google.protobuf.Timestamp
+	54, // 33: state.v1.GetStateInfoResponse.updated_at:type_name -> google.protobuf.Timestamp
+	51, // 34: state.v1.GetStateInfoResponse.labels:type_name -> state.v1.GetStateInfoResponse.LabelsEntry
+	35, // 35: state.v1.ListAllEdgesResponse.edges:type_name -> state.v1.DependencyEdge
+	52, // 36: state.v1.UpdateStateLabelsRequest.adds:type_name -> state.v1.UpdateStateLabelsRequest.AddsEntry
+	53, // 37: state.v1.UpdateStateLabelsResponse.labels:type_name -> state.v1.UpdateStateLabelsResponse.LabelsEntry
+	54, // 38: state.v1.UpdateStateLabelsResponse.updated_at:type_name -> google.protobuf.Timestamp
+	54, // 39: state.v1.GetLabelPolicyResponse.created_at:type_name -> google.protobuf.Timestamp
+	54, // 40: state.v1.GetLabelPolicyResponse.updated_at:type_name -> google.protobuf.Timestamp
+	54, // 41: state.v1.SetLabelPolicyResponse.updated_at:type_name -> google.protobuf.Timestamp
+	43, // 42: state.v1.StateInfo.LabelsEntry.value:type_name -> state.v1.LabelValue
+	43, // 43: state.v1.GetStateInfoResponse.LabelsEntry.value:type_name -> state.v1.LabelValue
+	43, // 44: state.v1.UpdateStateLabelsRequest.AddsEntry.value:type_name -> state.v1.LabelValue
+	43, // 45: state.v1.UpdateStateLabelsResponse.LabelsEntry.value:type_name -> state.v1.LabelValue
+	0,  // 46: state.v1.StateService.CreateState:input_type -> state.v1.CreateStateRequest
+	2,  // 47: state.v1.StateService.ListStates:input_type -> state.v1.ListStatesRequest
+	6,  // 48: state.v1.StateService.GetStateConfig:input_type -> state.v1.GetStateConfigRequest
+	8,  // 49: state.v1.StateService.GetStateLock:input_type -> state.v1.GetStateLockRequest
+	12, // 50: state.v1.StateService.UnlockState:input_type -> state.v1.UnlockStateRequest
+	14, // 51: state.v1.StateService.AddDependency:input_type -> state.v1.AddDependencyRequest
+	16, // 52: state.v1.StateService.RemoveDependency:input_type -> state.v1.RemoveDependencyRequest
+	18, // 53: state.v1.StateService.ListDependencies:input_type -> state.v1.ListDependenciesRequest
+	20, // 54: state.v1.StateService.ListDependents:input_type -> state.v1.ListDependentsRequest
+	22, // 55: state.v1.StateService.SearchByOutput:input_type -> state.v1.SearchByOutputRequest
+	24, // 56: state.v1.StateService.GetTopologicalOrder:input_type -> state.v1.GetTopologicalOrderRequest
+	28, // 57: state.v1.StateService.GetStateStatus:input_type -> state.v1.GetStateStatusRequest
+	32, // 58: state.v1.StateService.GetDependencyGraph:input_type -> state.v1.GetDependencyGraphRequest
+	37, // 59: state.v1.StateService.ListStateOutputs:input_type -> state.v1.ListStateOutputsRequest
+	39, // 60: state.v1.StateService.GetStateInfo:input_type -> state.v1.GetStateInfoRequest
+	41, // 61: state.v1.StateService.ListAllEdges:input_type -> state.v1.ListAllEdgesRequest
+	44, // 62: state.v1.StateService.UpdateStateLabels:input_type -> state.v1.UpdateStateLabelsRequest
+	46, // 63: state.v1.StateService.GetLabelPolicy:input_type -> state.v1.GetLabelPolicyRequest
+	48, // 64: state.v1.StateService.SetLabelPolicy:input_type -> state.v1.SetLabelPolicyRequest
+	1,  // 65: state.v1.StateService.CreateState:output_type -> state.v1.CreateStateResponse
+	3,  // 66: state.v1.StateService.ListStates:output_type -> state.v1.ListStatesResponse
+	7,  // 67: state.v1.StateService.GetStateConfig:output_type -> state.v1.GetStateConfigResponse
+	11, // 68: state.v1.StateService.GetStateLock:output_type -> state.v1.GetStateLockResponse
+	13, // 69: state.v1.StateService.UnlockState:output_type -> state.v1.UnlockStateResponse
+	15, // 70: state.v1.StateService.AddDependency:output_type -> state.v1.AddDependencyResponse
+	17, // 71: state.v1.StateService.RemoveDependency:output_type -> state.v1.RemoveDependencyResponse
+	19, // 72: state.v1.StateService.ListDependencies:output_type -> state.v1.ListDependenciesResponse
+	21, // 73: state.v1.StateService.ListDependents:output_type -> state.v1.ListDependentsResponse
+	23, // 74: state.v1.StateService.SearchByOutput:output_type -> state.v1.SearchByOutputResponse
+	25, // 75: state.v1.StateService.GetTopologicalOrder:output_type -> state.v1.GetTopologicalOrderResponse
+	29, // 76: state.v1.StateService.GetStateStatus:output_type -> state.v1.GetStateStatusResponse
+	33, // 77: state.v1.StateService.GetDependencyGraph:output_type -> state.v1.GetDependencyGraphResponse
+	38, // 78: state.v1.StateService.ListStateOutputs:output_type -> state.v1.ListStateOutputsResponse
+	40, // 79: state.v1.StateService.GetStateInfo:output_type -> state.v1.GetStateInfoResponse
+	42, // 80: state.v1.StateService.ListAllEdges:output_type -> state.v1.ListAllEdgesResponse
+	45, // 81: state.v1.StateService.UpdateStateLabels:output_type -> state.v1.UpdateStateLabelsResponse
+	47, // 82: state.v1.StateService.GetLabelPolicy:output_type -> state.v1.GetLabelPolicyResponse
+	49, // 83: state.v1.StateService.SetLabelPolicy:output_type -> state.v1.SetLabelPolicyResponse
+	65, // [65:84] is the sub-list for method output_type
+	46, // [46:65] is the sub-list for method input_type
+	46, // [46:46] is the sub-list for extension type_name
+	46, // [46:46] is the sub-list for extension extendee
+	0,  // [0:46] is the sub-list for field type_name
 }
 
 func init() { file_state_v1_state_proto_init() }
@@ -3294,6 +3881,7 @@ func file_state_v1_state_proto_init() {
 	if File_state_v1_state_proto != nil {
 		return
 	}
+	file_state_v1_state_proto_msgTypes[2].OneofWrappers = []any{}
 	file_state_v1_state_proto_msgTypes[4].OneofWrappers = []any{}
 	file_state_v1_state_proto_msgTypes[14].OneofWrappers = []any{
 		(*AddDependencyRequest_FromLogicId)(nil),
@@ -3332,13 +3920,19 @@ func file_state_v1_state_proto_init() {
 		(*GetStateInfoRequest_Guid)(nil),
 	}
 	file_state_v1_state_proto_msgTypes[40].OneofWrappers = []any{}
+	file_state_v1_state_proto_msgTypes[43].OneofWrappers = []any{
+		(*LabelValue_StringValue)(nil),
+		(*LabelValue_NumberValue)(nil),
+		(*LabelValue_BoolValue)(nil),
+	}
+	file_state_v1_state_proto_msgTypes[44].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_state_v1_state_proto_rawDesc), len(file_state_v1_state_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   43,
+			NumMessages:   54,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

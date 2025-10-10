@@ -24,9 +24,12 @@ require (
 	connectrpc.com/connect v1.19.0 // indirect
 	github.com/containerd/console v1.0.5 // indirect
 	github.com/gookit/color v1.5.4 // indirect
+	github.com/hashicorp/go-bexpr v0.1.14 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/lithammer/fuzzysearch v1.1.8 // indirect
 	github.com/mattn/go-runewidth v0.0.16 // indirect
+	github.com/mitchellh/mapstructure v1.4.1 // indirect
+	github.com/mitchellh/pointerstructure v1.2.1 // indirect
 	github.com/rivo/uniseg v0.4.7 // indirect
 	github.com/spf13/pflag v1.0.9 // indirect
 	github.com/terraconstructs/grid/api v0.0.0 // indirect

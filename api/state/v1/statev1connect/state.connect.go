@@ -80,6 +80,15 @@ const (
 	// StateServiceListAllEdgesProcedure is the fully-qualified name of the StateService's ListAllEdges
 	// RPC.
 	StateServiceListAllEdgesProcedure = "/state.v1.StateService/ListAllEdges"
+	// StateServiceUpdateStateLabelsProcedure is the fully-qualified name of the StateService's
+	// UpdateStateLabels RPC.
+	StateServiceUpdateStateLabelsProcedure = "/state.v1.StateService/UpdateStateLabels"
+	// StateServiceGetLabelPolicyProcedure is the fully-qualified name of the StateService's
+	// GetLabelPolicy RPC.
+	StateServiceGetLabelPolicyProcedure = "/state.v1.StateService/GetLabelPolicy"
+	// StateServiceSetLabelPolicyProcedure is the fully-qualified name of the StateService's
+	// SetLabelPolicy RPC.
+	StateServiceSetLabelPolicyProcedure = "/state.v1.StateService/SetLabelPolicy"
 )
 
 // StateServiceClient is a client for the state.v1.StateService service.
@@ -128,6 +137,12 @@ type StateServiceClient interface {
 	// Used by dashboards and monitoring tools to visualize complete topology.
 	// Returns edges in ascending order by ID (database insertion order).
 	ListAllEdges(context.Context, *connect.Request[v1.ListAllEdgesRequest]) (*connect.Response[v1.ListAllEdgesResponse], error)
+	// UpdateStateLabels mutates labels for an existing state (add/replace/remove).
+	UpdateStateLabels(context.Context, *connect.Request[v1.UpdateStateLabelsRequest]) (*connect.Response[v1.UpdateStateLabelsResponse], error)
+	// GetLabelPolicy retrieves the current label validation policy.
+	GetLabelPolicy(context.Context, *connect.Request[v1.GetLabelPolicyRequest]) (*connect.Response[v1.GetLabelPolicyResponse], error)
+	// SetLabelPolicy updates the label validation policy with version increment.
+	SetLabelPolicy(context.Context, *connect.Request[v1.SetLabelPolicyRequest]) (*connect.Response[v1.SetLabelPolicyResponse], error)
 }
 
 // NewStateServiceClient constructs a client for the state.v1.StateService service. By default, it
@@ -237,6 +252,24 @@ func NewStateServiceClient(httpClient connect.HTTPClient, baseURL string, opts .
 			connect.WithSchema(stateServiceMethods.ByName("ListAllEdges")),
 			connect.WithClientOptions(opts...),
 		),
+		updateStateLabels: connect.NewClient[v1.UpdateStateLabelsRequest, v1.UpdateStateLabelsResponse](
+			httpClient,
+			baseURL+StateServiceUpdateStateLabelsProcedure,
+			connect.WithSchema(stateServiceMethods.ByName("UpdateStateLabels")),
+			connect.WithClientOptions(opts...),
+		),
+		getLabelPolicy: connect.NewClient[v1.GetLabelPolicyRequest, v1.GetLabelPolicyResponse](
+			httpClient,
+			baseURL+StateServiceGetLabelPolicyProcedure,
+			connect.WithSchema(stateServiceMethods.ByName("GetLabelPolicy")),
+			connect.WithClientOptions(opts...),
+		),
+		setLabelPolicy: connect.NewClient[v1.SetLabelPolicyRequest, v1.SetLabelPolicyResponse](
+			httpClient,
+			baseURL+StateServiceSetLabelPolicyProcedure,
+			connect.WithSchema(stateServiceMethods.ByName("SetLabelPolicy")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
@@ -258,6 +291,9 @@ type stateServiceClient struct {
 	listStateOutputs    *connect.Client[v1.ListStateOutputsRequest, v1.ListStateOutputsResponse]
 	getStateInfo        *connect.Client[v1.GetStateInfoRequest, v1.GetStateInfoResponse]
 	listAllEdges        *connect.Client[v1.ListAllEdgesRequest, v1.ListAllEdgesResponse]
+	updateStateLabels   *connect.Client[v1.UpdateStateLabelsRequest, v1.UpdateStateLabelsResponse]
+	getLabelPolicy      *connect.Client[v1.GetLabelPolicyRequest, v1.GetLabelPolicyResponse]
+	setLabelPolicy      *connect.Client[v1.SetLabelPolicyRequest, v1.SetLabelPolicyResponse]
 }
 
 // CreateState calls state.v1.StateService.CreateState.
@@ -340,6 +376,21 @@ func (c *stateServiceClient) ListAllEdges(ctx context.Context, req *connect.Requ
 	return c.listAllEdges.CallUnary(ctx, req)
 }
 
+// UpdateStateLabels calls state.v1.StateService.UpdateStateLabels.
+func (c *stateServiceClient) UpdateStateLabels(ctx context.Context, req *connect.Request[v1.UpdateStateLabelsRequest]) (*connect.Response[v1.UpdateStateLabelsResponse], error) {
+	return c.updateStateLabels.CallUnary(ctx, req)
+}
+
+// GetLabelPolicy calls state.v1.StateService.GetLabelPolicy.
+func (c *stateServiceClient) GetLabelPolicy(ctx context.Context, req *connect.Request[v1.GetLabelPolicyRequest]) (*connect.Response[v1.GetLabelPolicyResponse], error) {
+	return c.getLabelPolicy.CallUnary(ctx, req)
+}
+
+// SetLabelPolicy calls state.v1.StateService.SetLabelPolicy.
+func (c *stateServiceClient) SetLabelPolicy(ctx context.Context, req *connect.Request[v1.SetLabelPolicyRequest]) (*connect.Response[v1.SetLabelPolicyResponse], error) {
+	return c.setLabelPolicy.CallUnary(ctx, req)
+}
+
 // StateServiceHandler is an implementation of the state.v1.StateService service.
 type StateServiceHandler interface {
 	// CreateState creates a new state with client-generated GUID and logic ID.
@@ -386,6 +437,12 @@ type StateServiceHandler interface {
 	// Used by dashboards and monitoring tools to visualize complete topology.
 	// Returns edges in ascending order by ID (database insertion order).
 	ListAllEdges(context.Context, *connect.Request[v1.ListAllEdgesRequest]) (*connect.Response[v1.ListAllEdgesResponse], error)
+	// UpdateStateLabels mutates labels for an existing state (add/replace/remove).
+	UpdateStateLabels(context.Context, *connect.Request[v1.UpdateStateLabelsRequest]) (*connect.Response[v1.UpdateStateLabelsResponse], error)
+	// GetLabelPolicy retrieves the current label validation policy.
+	GetLabelPolicy(context.Context, *connect.Request[v1.GetLabelPolicyRequest]) (*connect.Response[v1.GetLabelPolicyResponse], error)
+	// SetLabelPolicy updates the label validation policy with version increment.
+	SetLabelPolicy(context.Context, *connect.Request[v1.SetLabelPolicyRequest]) (*connect.Response[v1.SetLabelPolicyResponse], error)
 }
 
 // NewStateServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -491,6 +548,24 @@ func NewStateServiceHandler(svc StateServiceHandler, opts ...connect.HandlerOpti
 		connect.WithSchema(stateServiceMethods.ByName("ListAllEdges")),
 		connect.WithHandlerOptions(opts...),
 	)
+	stateServiceUpdateStateLabelsHandler := connect.NewUnaryHandler(
+		StateServiceUpdateStateLabelsProcedure,
+		svc.UpdateStateLabels,
+		connect.WithSchema(stateServiceMethods.ByName("UpdateStateLabels")),
+		connect.WithHandlerOptions(opts...),
+	)
+	stateServiceGetLabelPolicyHandler := connect.NewUnaryHandler(
+		StateServiceGetLabelPolicyProcedure,
+		svc.GetLabelPolicy,
+		connect.WithSchema(stateServiceMethods.ByName("GetLabelPolicy")),
+		connect.WithHandlerOptions(opts...),
+	)
+	stateServiceSetLabelPolicyHandler := connect.NewUnaryHandler(
+		StateServiceSetLabelPolicyProcedure,
+		svc.SetLabelPolicy,
+		connect.WithSchema(stateServiceMethods.ByName("SetLabelPolicy")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/state.v1.StateService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case StateServiceCreateStateProcedure:
@@ -525,6 +600,12 @@ func NewStateServiceHandler(svc StateServiceHandler, opts ...connect.HandlerOpti
 			stateServiceGetStateInfoHandler.ServeHTTP(w, r)
 		case StateServiceListAllEdgesProcedure:
 			stateServiceListAllEdgesHandler.ServeHTTP(w, r)
+		case StateServiceUpdateStateLabelsProcedure:
+			stateServiceUpdateStateLabelsHandler.ServeHTTP(w, r)
+		case StateServiceGetLabelPolicyProcedure:
+			stateServiceGetLabelPolicyHandler.ServeHTTP(w, r)
+		case StateServiceSetLabelPolicyProcedure:
+			stateServiceSetLabelPolicyHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -596,4 +677,16 @@ func (UnimplementedStateServiceHandler) GetStateInfo(context.Context, *connect.R
 
 func (UnimplementedStateServiceHandler) ListAllEdges(context.Context, *connect.Request[v1.ListAllEdgesRequest]) (*connect.Response[v1.ListAllEdgesResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("state.v1.StateService.ListAllEdges is not implemented"))
+}
+
+func (UnimplementedStateServiceHandler) UpdateStateLabels(context.Context, *connect.Request[v1.UpdateStateLabelsRequest]) (*connect.Response[v1.UpdateStateLabelsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("state.v1.StateService.UpdateStateLabels is not implemented"))
+}
+
+func (UnimplementedStateServiceHandler) GetLabelPolicy(context.Context, *connect.Request[v1.GetLabelPolicyRequest]) (*connect.Response[v1.GetLabelPolicyResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("state.v1.StateService.GetLabelPolicy is not implemented"))
+}
+
+func (UnimplementedStateServiceHandler) SetLabelPolicy(context.Context, *connect.Request[v1.SetLabelPolicyRequest]) (*connect.Response[v1.SetLabelPolicyResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("state.v1.StateService.SetLabelPolicy is not implemented"))
 }

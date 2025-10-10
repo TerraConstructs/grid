@@ -20,6 +20,7 @@ type RouterOptions struct {
 	Service           *statepkg.Service
 	DependencyService *dependency.Service
 	EdgeUpdater       *EdgeUpdateJob
+	PolicyService     *statepkg.PolicyService
 
 	// CORSOptions customises the access-control configuration. When nil,
 	// DefaultCORSOptions() is applied. A copy of the provided options is used.
@@ -97,7 +98,7 @@ func NewRouter(opts RouterOptions) chi.Router {
 	r.Use(cors.Handler(corsCfg))
 
 	if opts.Service != nil {
-		MountConnectHandlers(r, opts.Service, opts.DependencyService)
+		MountConnectHandlers(r, opts.Service, opts.DependencyService, opts.PolicyService)
 	}
 	if opts.Service != nil && opts.EdgeUpdater != nil {
 		MountTerraformBackend(r, opts.Service, opts.EdgeUpdater)
@@ -129,9 +130,12 @@ func NewHTTPServer(service *statepkg.Service) http.Handler {
 }
 
 // MountConnectHandlers mounts Connect RPC handlers on the provided router.
-func MountConnectHandlers(r chi.Router, service *statepkg.Service, depService *dependency.Service) {
+func MountConnectHandlers(r chi.Router, service *statepkg.Service, depService *dependency.Service, policyService *statepkg.PolicyService) {
 	stateHandler := NewStateServiceHandler(service)
 	stateHandler.depService = depService
+	if policyService != nil {
+		stateHandler.WithPolicyService(policyService)
+	}
 	path, handler := statev1connect.NewStateServiceHandler(stateHandler)
 	r.Mount(path, handler)
 }
