@@ -2,11 +2,13 @@
 
 **Feature**: 004-wire-up-grid
 **Date**: 2025-10-06
-**Status**: Design Phase
+**Status**: Complete
 
 ## Overview
 
 This document defines the data entities and type mappings for the live dashboard integration feature. The model maintains compatibility with the existing mockApi interface while mapping to protobuf definitions and database schema.
+
+All entities are delivered via the new `ListAllEdges` RPC defined in `plan.md`, enabling manual refresh semantics (no background polling) while preserving the mock API shapes consumed by the React dashboard.
 
 ---
 
@@ -28,7 +30,7 @@ StateInfo (root entity)
 
 **Purpose**: Represents a Terraform remote state with comprehensive metadata, dependencies, and outputs.
 
-**Source**: Protobuf `GetStateInfoResponse` + `StateInfo` message
+**Source**: Protobuf payload from the new `ListAllEdges` RPC combined with the existing `StateInfo` message
 
 **Fields**:
 
