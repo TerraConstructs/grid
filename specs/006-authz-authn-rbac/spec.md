@@ -42,6 +42,8 @@
 - Q: Should different roles be able to have different session/token durations? → A: No - all roles use the same default (12 hours)
 - Q: What format should label scope filters use? → A: go-bexpr expression strings (e.g., `env == "dev"` or `env == "dev" and team == "platform"`), evaluated against resource labels at enforcement time
 - Q: Should multiple roles use AND or OR semantics for access? → A: OR (union) semantics - Casbin's default behavior where any role granting access is sufficient
+- Q: What format should label scope filters use? → A: Similar to existing label filtering implementation - Boolean expression strings (e.g., `env == "dev"` or `env == "dev" and team == "platform"`), evaluated against resource labels at enforcement time by the authorization expression language.
+- Q: Should multiple roles use AND or OR semantics for access? → A: OR (union) semantics—any role that grants access is sufficient.
 
 ---
 
@@ -146,7 +148,7 @@ As a developer using the CLI tool, I need to authenticate from my terminal using
 
 #### Authentication Edge Cases
 
-> Because Casbin allows dynamic policy updates and role managers, role edits or deletion take effect immediately. Because Keycloak may return temporarily_unavailable, the system should model that error class specifically and possibly retry.”
+> Because the authorization policy engine allows dynamic updates, role edits or deletions take effect immediately. Because the identity provider may return transient errors (e.g., `temporarily_unavailable`), the system should model that error class specifically and possibly retry.
 
 - **What happens when an SSO provider is unreachable during login?**
   - The system should return a clear error message indicating the identity provider is unavailable and suggest retrying.
@@ -156,9 +158,11 @@ As a developer using the CLI tool, I need to authenticate from my terminal using
   - Existing tokens issued with old credentials remain valid until their expiration time.
   - New authentication attempts must use the new credentials.
   - Immediately invalidate new authentication attempts using old credentials, but do not revoke previously issued tokens until they expire.
+  - Admin-initiated revocations remain authoritative and take effect immediately (see FR-102a).
 
 - **What happens when a user's SSO account is disabled while they have an active Grid session?**
   - Sessions are validated only at login; existing sessions continue until token expiration.
+  - Admin revocations continue to block access immediately even if the token itself has not expired.
 
 - **What happens when authentication token expires mid-operation (e.g., during a long Terraform apply)?**
   - The Terraform operation should fail with a 401 Unauthorized error.
@@ -185,7 +189,7 @@ As a developer using the CLI tool, I need to authenticate from my terminal using
 
 - **What happens when a role definition is deleted while users are actively using it?**
   - Users with that role should be denied access on the next request.
-  - [NEEDS CLARIFICATION: based on research phase in implementation for supported technical solutions]
+  - Role deletion is prevented while assignments exist; once unassigned, deletion takes effect immediately on subsequent requests.
 
 - **What happens when a user with no assigned roles attempts to perform any operation?**
   - All operations should be denied with a 403 Forbidden error.
@@ -205,17 +209,14 @@ As a developer using the CLI tool, I need to authenticate from my terminal using
   - This is expected behavior (user has valid permissions but no matching resources).
 
 - **What happens when a state's labels are modified such that it moves out of a user's scope while they have it locked?**
-  - (lock wins): Once a user has acquired the lock on a state, they retain access to it (for that lock session) even if a later label change would move it out of their scope. The lock ensures exclusive editing, and the label change should not evict them mid-edit.
-  - Label update is allowed, even if it violates the user’s current scope (because they already had permission at the moment of locking).
-  - You might block the user from further actions on that state after they release the lock if the label now makes it out-of-scope.
+  - (lock wins for data plane writes): Once a principal has acquired the lock on a state, they retain `tfstate:write` and `tfstate:unlock` access for the duration of that lock even if later label changes would move it out of scope. The lock ensures exclusive editing and avoids mid-run eviction.
+  - Other operations (e.g., metadata updates) continue to respect label scope on each request; after the lock is released, normal authorization rules apply.
 
 - **What happens when a user creates a dependency and later one state's labels change such that the user no longer has access to both ends?**
   - see baseline: Deny the operation (403 Forbidden) because the user does not have access to the target state.
 
 - **What happens when a user with `env=dev` scope attempts to create a dependency from a `env=dev` state to a `env=prod` state?**
-  - The dependency creation should be denied with a 403 Forbidden error indicating lack of access to the target state.
-  - “Forbidden: you do not have permission to access state <target-id>.”
-    You may or may not reveal that the target exists (to avoid leaking existence).
+  - The dependency creation should be denied with a 403 Forbidden error indicating lack of access to the target state without confirming the target’s existence.
 
 - **What happens when listing states with a label filter that conflicts with the user's role scope?**
   - Example: User has a role scoped to `env=dev` but queries with filter `env=prod`.
@@ -361,7 +362,7 @@ As a developer using the CLI tool, I need to authenticate from my terminal using
 
 - **FR-022**: System MUST restrict label validation policy management (read/write) based on role permissions, allowing only designated admin roles to modify the policy.
 
-- **FR-023**: System MUST return clear, actionable error messages when authorization is denied, indicating the specific permission or constraint that was violated.
+- **FR-023**: System MUST return clear, actionable error messages when authorization is denied, indicating the specific permission or constraint that was violated. For 404 responses involving scope filtering, structured details MUST NOT be returned to the caller and MUST be logged server-side only.
 
 - **FR-024**: System MUST apply authorization rules consistently across both web application and CLI interfaces.
 
@@ -455,14 +456,11 @@ As a developer using the CLI tool, I need to authenticate from my terminal using
 
 - **FR-040**: System MUST deny requests that fail any authorization check, returning appropriate HTTP status codes:
   - 401 Unauthorized: No valid authentication token
-  - 403 Forbidden: Authenticated but lacking required permission
-  - 404 Not Found: Resource exists but is outside principal's label scope
+  - 403 Forbidden: Authenticated but lacking required permission (see FR-041 for disclosure rules)
+  - 404 Not Found: Resource exists but is outside principal's label scope (see FR-041)
   - 409 Conflict: Operation violates constraints (e.g., create constraint, immutable key)
 
-- **FR-041**: System MUST include structured error details in denial responses specifying:
-  - Which permission was missing (e.g., `state:create`)
-  - Which constraint was violated (e.g., "create constraint: env must be dev")
-  - For 404 responses: Whether resource truly doesn't exist or is scope-filtered [NEEDS CLARIFICATION: Should 404 responses leak information about resource existence outside user's scope, or always appear as "not found"?]
+- **FR-041**: For resources outside the caller’s label scope, the system MUST return 404 Not Found on read/get operations to avoid disclosing existence. For actions that the system can evaluate without disclosing existence (e.g., create with disallowed values, update without permission), it MUST return 403 Forbidden with a clear reason. List and search operations MUST silently filter out out-of-scope resources.
 
 #### Default Roles and Seeding
 
@@ -488,9 +486,11 @@ As a developer using the CLI tool, I need to authenticate from my terminal using
   - Create constraints: `env` must be one of `[dev]`
   - Immutable keys: `[env]` (cannot modify env key after creation)
 
+  Default role values above are illustrative; deployments MUST allow overriding them to match local label policies.
+
 - **FR-044**: System MUST allow administrators to customize default role definitions post-deployment without requiring code changes or redeployment.
 
-- **FR-045**: System MUST support exporting role definitions to JSON configuration files for version control and importing them for replication across environments.
+- **FR-045**: System MUST support exporting role definitions to JSON configuration files for version control and importing them for replication across environments. Imported roles that reference label keys not present in the current policy are accepted but may have no effect until the policy includes those keys.
 
 - **FR-046**: System MUST prevent deletion of roles that are currently assigned to active users or service accounts, requiring role unassignment before deletion.
 
@@ -523,7 +523,7 @@ As a developer using the CLI tool, I need to authenticate from my terminal using
 
 - **FR-052**: System MUST validate all label operations against the current label validation policy, rejecting labels that violate policy rules.
 
-- **FR-053**: System MUST cache the label validation policy in memory for fast validation, refreshing the cache when the policy is updated.
+- **FR-053**: System MUST cache the label validation policy in memory for fast validation, refreshing the cache  within one second of policy updates or immediately on explicit version bumps.
 
 - **FR-054**: System MUST include labels in state listing and information responses to support display and filtering in web and CLI interfaces.
 
@@ -542,6 +542,7 @@ As a developer using the CLI tool, I need to authenticate from my terminal using
 - **FR-060**: System MUST return 409 Conflict for lock/unlock operations that fail due to lock state conflicts (e.g., already locked, invalid lock ID).
 
 - **FR-061**: System MUST include clear error messages in Data Plane responses indicating the reason for denial (missing auth, insufficient permissions, lock conflict).
+- **FR-061a**: While a principal holds a valid lock on a state, `tfstate:write` and `tfstate:unlock` MUST remain allowed for that principal until the lock is released, even if label changes would otherwise move the state out of scope. All other operations remain subject to standard authorization checks.
 
 ### Functional Requirements - Administration & Configuration
 
@@ -561,7 +562,9 @@ As a developer using the CLI tool, I need to authenticate from my terminal using
 
 - **FR-069**: System MUST persist role definitions, user-role assignments, and configuration in durable storage.
 
-- **FR-070**: System MUST support creating and managing service accounts via administrative interfaces, generating client credentials.
+- **FR-070**: System MUST support creating and managing service accounts via administrative interfaces, generating client credentials.ß
+- **FR-070a**: Rotating service account credentials MUST NOT invalidate previously issued tokens for that account; they remain valid until their normal expiration.
+- **FR-070b**: Deleting a service account MUST immediately invalidate all active tokens or sessions associated with that account.
 
 ### Functional Requirements - Web Application
 
@@ -605,13 +608,13 @@ As a developer using the CLI tool, I need to authenticate from my terminal using
 
 #### Error Handling & Resilience
 
-- **FR-087**: Web application MUST handle identity provider unavailability (e.g., Keycloak timeout) by displaying a clear error message with retry instructions, rather than hanging indefinitely.
+- **FR-087**: Web application MUST handle identity provider unavailability (e.g., IdP timeout) by displaying a clear error message with retry instructions, rather than hanging indefinitely.
 
 - **FR-088**: Web application MUST implement client-side token refresh or re-authentication logic if the API server supports refresh tokens, minimizing user interruption during long sessions.
 
 - **FR-089**: Web application MUST log authentication and authorization errors to the browser console for debugging purposes, while displaying sanitized error messages to the user.
 
-**Note on Webapp Scope**: The current dashboard (webapp/) is **READ ONLY** - it displays states, dependencies, and labels but does not implement write operations (create state, update labels, delete state). Requirements FR-083, FR-084, and FR-086 that reference "edit controls," "modify," and "Create State button" are specified to prepare the authorization infrastructure for future write operations, but are not implemented in the current feature scope. The auth system protects existing read operations based on label scope (e.g., product-engineer sees only env=dev states). See research.md §13 "Dashboard READ ONLY Scope" for implementation details.
+**Note on Webapp Scope**: The current dashboard (webapp/) is **READ ONLY** - it displays states, dependencies, and labels but does not implement write operations (create state, update labels, delete state). Requirements FR-083, FR-084, and FR-086 that reference "edit controls," "modify," and "Create State button" are specified to prepare the authorization infrastructure for future write operations, but are not implemented in the current feature scope. The auth system protects existing read operations based on label scope (e.g., product-engineer sees only env=dev states). See research.md §13 "Dashboard READ ONLY Scope" for implementation details. CLI wrapper support (FR-097a–FR-097l) exists to streamline authenticated Terraform/Tofu runs against the same backend while the dashboard remains read-only.
 
 ### Functional Requirements - CLI
 
@@ -646,7 +649,7 @@ As a developer using the CLI tool, I need to authenticate from my terminal using
   3. if it still fails, exit with the underlying process exit code and a brief message indicating auth failure.
      The wrapper MUST NOT loop indefinitely.
 
-* **FR-097f**: `gridctl tf` MUST support `--cwd` to run the subcommand in a specific directory (default: current working directory) and MUST pass through any additional arguments verbatim after `--` (e.g., `gridctl tf -- plan -var-file=dev.tfvars`).
+* **FR-097f**: `gridctl tf` MUST pass through any additional arguments verbatim after `--` (e.g., `gridctl tf -- plan -var-file=dev.tfvars`).
 
 * **FR-097g**: `gridctl tf` MUST mask sensitive values (bearer tokens, client secrets) in all logs, debug output, and crash reports. When `--verbose` is used, the wrapper MAY print the effective terraform/tofu command line (with secrets redacted), but MUST NOT print headers or the token.
 
@@ -668,9 +671,13 @@ As a developer using the CLI tool, I need to authenticate from my terminal using
 
 - **FR-100**: System MUST support secure transmission of credentials (HTTPS/TLS required for web and API endpoints).
 
-- **FR-101**: System MUST NOT log or expose bearer tokens, client secrets, or other sensitive credentials in plain text.
+- **FR-101**: System MUST NOT log or expose bearer tokens, client secrets, or other sensitive credentials in plain text. `gridctl tf` MUST ensure tokens are never written to user files or Terraform diagnostics; any temporary files used for header injection MUST be deleted after completion.
 
-- **FR-102**: System MUST support token expiration with a default session duration of 12 hours, requiring users to re-authenticate after expiration. All roles use the same session duration (not configurable per role).
+- **FR-102**: System MUST support token expiration with a default session duration of 12 hours, requiring users to re-authenticate after expiration. All roles use the same session duration (not configurable per role). Tokens are short-lived bearer credentials; refresh tokens (if enabled) are deployment-configurable.
+
+- **FR-102a**: Grid MUST enforce admin revocation immediately using server-side revocation state so revoked tokens are blocked even if otherwise valid.
+
+- **FR-102b**: Disabling a user at the identity provider does not retroactively invalidate previously issued tokens; such sessions remain valid until token expiry.
 
 - **FR-103**: System MUST validate that OIDC tokens are issued by a trusted identity provider before accepting them.
 
@@ -678,27 +685,27 @@ As a developer using the CLI tool, I need to authenticate from my terminal using
 
 - **FR-105**: System MUST support group-to-role mappings managed via Admin RPC (`AssignGroupRole`, `RemoveGroupRole`, `ListGroupRoles`), where Grid admins type group names exactly as they appear in JWT claims (no UI for browsing IdP groups).
 
-- **FR-106**: System MUST resolve user permissions via group membership using transitive resolution: user → groups (from JWT) → roles (from group_roles table) → policies (from casbin_rule table), applying union (OR) semantics across all resolved roles.
+- **FR-106**: System MUST resolve user permissions via group membership using transitive resolution: user → groups (from JWT) → roles (from the role assignment store) → policies in the authorization rules store, applying union (OR) semantics across all resolved roles.
 
 - **FR-107**: System MUST support direct user-to-role assignments as fallback/override mechanism for edge cases where group-based assignment is insufficient.
 
 - **FR-108**: System MUST allow deployers to configure OIDC claim field names and extraction paths via deployment configuration (environment variables or config file), with sensible defaults (groups claim: `groups`, user ID claim: `sub`, email claim: `email`).
 
-- **FR-109**: System MUST use consistent prefixes for Casbin identifiers: `user:` for human users, `group:` for SSO groups, `sa:` for service accounts, `role:` for roles (see PREFIX-CONVENTIONS.md for complete taxonomy).
+- **FR-109**: System MUST use consistent prefixes for authorization identifiers: `user:` for human users, `group:` for SSO groups, `sa:` for service accounts, `role:` for roles (see PREFIX-CONVENTIONS.md for complete taxonomy).
 
 ### Key Entities
 
 - **User**: Represents an authenticated human user, identified by SSO provider user ID. Has assigned roles (directly or via group membership) that determine permissions. Associated with sessions/tokens for authentication state.
 
-- **Service Account**: Represents a non-interactive authentication principal (e.g., CI/CD pipeline). Has a client ID and secret. Has assigned roles. Used for automation scenarios.
+- **Service Account**: Represents a non-interactive authentication principal (e.g., CI/CD pipeline). Has a client ID and secret. Has assigned roles. Used for automation scenarios where operators trust the pipeline and enforce scope via labels.
 
 - **Group**: Represents an SSO group (extracted from JWT claims) that can be assigned roles. Group membership managed by IdP; role assignments managed by Grid admins. Examples: "dev-team", "platform-engineers".
 
-- **Role**: Defines a set of permissions, label scope expression (go-bexpr), create constraints, and immutable key restrictions. Can be assigned to users, groups, or service accounts. Examples: service-account, platform-engineer, product-engineer.
+- **Role**: Defines a set of permissions, label scope expression (evaluated by the authorization expression language), create constraints, and immutable key restrictions. Can be assigned to users, groups, or service accounts. Examples: service-account, platform-engineer, product-engineer.
 
 - **Permission**: Specifies an allowed action on a resource type (e.g., `state:create`, `tfstate:read`, `policy:write`). Attached to roles.
 
-- **Label Scope Expression**: A go-bexpr expression string that restricts which states a role can access (e.g., `env == "dev"` or `env == "dev" and team == "platform"`). Evaluated against resource labels at enforcement time. Empty expression means no restriction (all resources accessible).
+- **Label Scope Expression**: A boolean expression string that restricts which states a role can access (e.g., `env == "dev"` or `env == "dev" and team == "platform"`). Evaluated against resource labels at enforcement time. Empty expression means no restriction (all resources accessible).
 
 - **Create Constraint**: A restriction on which label values a role can set when creating a new state (e.g., product-engineer can only set `env=dev`).
 
@@ -734,8 +741,8 @@ As a developer using the CLI tool, I need to authenticate from my terminal using
 #### Permission Management & Syntax
 - All permission management questions have been resolved:
   - FR-029: Permission definition format is JSON (line 383)
-  - FR-033: Multiple role scopes use union (OR) semantics per Casbin's default (lines 150-153, 401)
-  - FR-041: Information disclosure handled per lines 186-187 (do not reveal existence)
+  - FR-033: Multiple role scopes use union (OR) semantics (lines 150-153, 401)
+  - FR-041: Information disclosure handled per updated FR-041 (lines 397-405)
   - FR-045: Export/import format is JSON (line 462)
   - FR-046: Role deletion requires unassignment first (line 464)
 
@@ -752,7 +759,7 @@ As a developer using the CLI tool, I need to authenticate from my terminal using
 
 #### Label Scope & Constraints
 - All label scope edge cases have been resolved in Edge Cases section (lines 170-212):
-  - Lock holder retains access even if labels change (lines 176-179)
+  - Lock holder retains data plane write/unlock access per FR-061a (lines 219-224)
   - Dependency creation denied if user lacks access to either end (lines 181-187)
   - Information disclosure: do not reveal state existence (lines 186-187)
   - Filter conflicts return empty results without error (lines 189-192)
@@ -761,9 +768,10 @@ As a developer using the CLI tool, I need to authenticate from my terminal using
 
 #### Data Plane & Terraform
 - All data plane edge cases have been resolved in Edge Cases section (lines 213-231):
-  - Preserve existing lock/unlock behavior (lines 219-221)
-  - Permission revocation: lock remains but operations denied (lines 223-224)
+  - Lock holder retains write/unlock access per FR-061a (lines 219-224)
+  - Admin revocation vs IdP disablement handled via FR-102a/FR-102b
   - No rate limiting for service accounts (lines 226-228)
+  - No built-in rate limiting; deployers may add reverse-proxy limits (lines 226-228)
   - Preserve existing state size behavior (warn at 10MB, no hard limit) (lines 230-231)
 
 #### Label Policy Management
@@ -774,15 +782,15 @@ As a developer using the CLI tool, I need to authenticate from my terminal using
 
 #### Performance & Scale
 - All performance edge cases resolved as YAGNI/KISS (lines 248-262):
-  - No pagination needed (max 500 states expected)
+  - No pagination needed (max 500 states expected; explicit assumption)
   - No premature optimization for permission resolution or query caching
 
 #### Administrative Operations
 - All administrative edge cases have been resolved in Edge Cases section (lines 264-279):
   - No role name suggestions (YAGNI)
   - Role names unique, overwrite with --force flag (line 271)
-  - Import is idempotent, no validation of referenced keys (lines 273-275)
-  - Token invalidation is immediate via Casbin (lines 277-279)
+  - Import is idempotent, no validation of referenced keys (lines 273-275), referenced label keys may be missing (FR-045)
+  - Admin revocations rely on server-side revocation state (FR-102a)
 
 ---
 
@@ -811,10 +819,10 @@ This specification defines a comprehensive authentication and authorization syst
 The specification identifies several areas requiring clarification before implementation, primarily around edge cases for session management, dependency validation under role changes, and policy update impacts on existing data.
 
 The next phase (planning) should produce detailed design decisions for:
-- Token format and validation strategy (OIDC/JWT)
-- Authorization middleware architecture (Casbin + Chi integration)
-- Label scope enforcement using go-bexpr evaluation
-- Admin API design (Connect RPC for role/permission management)
+- Token format and validation strategy aligned with the chosen identity provider standards
+- Authorization middleware architecture across HTTP and RPC surfaces
+- Label scope enforcement using the expression language
+- Administrative API design for role and permission management
 - Session storage and revocation mechanism
-- Casbin model definition with bexprMatch custom function
-- Database schema (casbin_rule table + auth tables)
+- Authorization policy model structure and required helper functions
+- Database schema for authorization and session data

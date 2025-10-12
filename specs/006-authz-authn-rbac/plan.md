@@ -50,6 +50,8 @@ Key architectural decisions:
 8. Group membership extracted from JWT claims (configurable field, supports flat and nested formats via mapstructure)
 9. Dynamic Casbin grouping at authentication time: user → groups (JWT) → roles (database) → policies (Casbin)
 10. Consistent prefix conventions: user:, group:, sa:, role: for all Casbin identifiers
+11. **Terraform HTTP Backend uses Basic Auth**: Server extracts bearer token from HTTP Basic Auth password field (username ignored, similar to [GitHub API pattern](https://docs2.lfe.io/guides/getting-started/#:~:text=The%20easiest%20way%20to%20authenticate,prompt%20you%20for%20the%20password.)). Client injects via TF_HTTP_PASSWORD. Lock-aware bypass: principals holding locks retain tfstate:write/unlock even if label scope changes.
+12. **gridctl tf wrapper** in pkg/sdk handles process spawning, token injection, 401 retry, and secret redaction. CLI provides .grid context and missing backend.tf hints.
 
 ## Technical Context
 
@@ -83,6 +85,7 @@ Key architectural decisions:
 - No rate limiting (YAGNI for <500 states scope)
 - Preserve existing Terraform HTTP Backend behavior
 - No pagination (max 500 states expected)
+- **Terraform HTTP Backend Auth Limitation**: Terraform only supports Basic Auth via `TF_HTTP_USERNAME`/`TF_HTTP_PASSWORD` environment variables (no Bearer token support). OpenTofu supports `headers` in backend config but not via env vars. Server-side must extract token from Basic Auth password field (GitHub API pattern: username can be blank, password contains bearer token).
 
 **Scale/Scope**:
 - Expected users: <100 humans, ~10 service accounts
@@ -99,17 +102,22 @@ Key architectural decisions:
 - Database migrations in cmd/gridapi/internal/migrations/ (existing pattern)
 - No new modules introduced
 
-### Principle II: Contract-Centric SDKs ✅ PASS (with noted exception)
+### Principle II: Contract-Centric SDKs ✅ PASS (with noted exceptions)
 - Auth RPCs will be added to proto/state/v1/state.proto as admin operations
 - Service account management via Connect RPC (e.g., CreateServiceAccount)
 - Token introspection via Connect RPC (e.g., GetEffectivePermissions)
-- **Exception**: Login flow uses HTTP endpoints (not Connect RPC) for OIDC redirect compatibility
+- **Exception 1**: Login flow uses HTTP endpoints (not Connect RPC) for OIDC redirect compatibility
   - `/auth/login` - Initiates OIDC flow (browser redirect)
   - `/auth/callback` - OIDC callback handler
   - `/auth/token` - OAuth2 token exchange for service accounts
   - Rationale: OIDC protocol mandates specific HTTP redirect flows incompatible with Connect RPC
+- **Exception 2**: Terraform HTTP Backend endpoints (not Connect RPC) for protocol compatibility
+  - `/tfstate/{guid}` - GET/POST state data (Terraform HTTP Backend spec)
+  - `/tfstate/{guid}/lock` - LOCK endpoint
+  - `/tfstate/{guid}/unlock` - UNLOCK endpoint
+  - Rationale: Terraform HTTP Backend protocol requires specific HTTP methods and paths
 - SDK wrappers will expose ergonomic auth functions backed by generated clients
-- **pkg/sdk Note**: The SDK will provide helper functions for OIDC flows (loginWithBrowser, loginWithServiceAccount) that use the HTTP endpoints directly, as these endpoints are exceptions to the "depend only on protobuf/Connect RPC" rule. The SDK's auth.go file will document this exception and provide direct HTTP client calls for /auth/* endpoints.
+- **pkg/sdk Note**: The SDK provides helper functions for OIDC flows (loginWithBrowser, loginWithServiceAccount) that use HTTP endpoints directly, and Terraform wrapper (pkg/sdk/terraform/) for process spawning and token injection. These are exceptions to "depend only on protobuf/Connect RPC". The SDK's auth.go and terraform/ package document these exceptions.
 
 ### Principle III: Dependency Flow Discipline ✅ PASS
 - cmd/gridapi depends on internal packages (auth, middleware) only
@@ -124,7 +132,10 @@ Key architectural decisions:
 - Admin auth operations (role management, user assignment) via Connect RPC
 - Token validation and permission checks server-side only (not SDK-exposed)
 - Login flows language-specific (Go CLI uses loopback server, webapp uses browser)
-- Documented exception: OIDC login endpoints are HTTP-only (see Principle II)
+- Documented exceptions:
+  - OIDC login endpoints are HTTP-only (see Principle II Exception 1)
+  - Terraform HTTP Backend endpoints are HTTP-only (see Principle II Exception 2)
+  - Terraform wrapper (pkg/sdk/terraform/) is Go-only (process spawning, no cross-language equivalent needed)
 
 ### Principle V: Test Strategy ✅ PASS
 - Contract tests for auth RPCs against proto definitions
@@ -201,17 +212,26 @@ cmd/gridctl/
 │   ├── login.go                 # NEW: OIDC device code flow
 │   ├── logout.go                # NEW: Clear local credentials
 │   ├── auth.go                  # NEW: Auth status commands
-│   └── role.go                  # NEW: Role management (assign-group, remove-group, list-groups)
+│   ├── role.go                  # NEW: Role management (assign-group, remove-group, list-groups)
+│   └── tf.go                    # NEW: Terraform wrapper command (delegates to pkg/sdk/terraform)
 └── internal/
-    └── auth/
-        ├── device_flow.go       # NEW: PKCE + loopback server
-        └── credential_store.go  # NEW: Local token storage
+    ├── auth/
+    │   ├── device_flow.go       # NEW: PKCE + loopback server
+    │   └── credential_store.go  # NEW: Local token storage
+    └── context/
+        └── reader.go            # EXISTING: .grid directory context file reading (DirCtx)
 
 pkg/sdk/
 ├── client.go                    # UPDATED: Add auth client methods
 ├── auth.go                      # NEW: Auth SDK wrapper (OIDC helpers, RPC wrappers)
 │                                # Note: OIDC helpers use HTTP endpoints directly (exception)
-└── auth_test.go                 # NEW: Auth SDK contract tests
+├── auth_test.go                 # NEW: Auth SDK contract tests
+└── terraform/                   # NEW: Terraform wrapper (exception: not using Connect RPC)
+    ├── wrapper.go               # Process spawning, token injection, 401 retry
+    ├── binary.go                # Binary discovery (--tf-bin, TF_BIN, auto-detect)
+    ├── auth.go                  # Token injection via TF_HTTP_PASSWORD
+    ├── output.go                # Secret redaction, 401 detection
+    └── wrapper_test.go          # Wrapper unit tests
 
 proto/state/v1/
 └── state.proto                  # UPDATED: Add admin auth RPCs
@@ -247,7 +267,7 @@ webapp/                          # EXISTING: React webapp
 docker-compose.yml               # UPDATED: Add Keycloak service
 ```
 
-**Structure Decision**: Existing Go workspace monorepo structure. Auth implementation lives in cmd/gridapi/internal/auth/ following established internal package pattern. No new modules introduced per Constitutional Principle I. Middleware lives in cmd/gridapi/internal/middleware/ (new directory, not new module). CLI auth code in cmd/gridctl/internal/auth/ (new directory). SDK wrappers in pkg/sdk/ (existing module). Webapp auth code in webapp/src with new context, hooks, and components following React patterns.
+**Structure Decision**: Existing Go workspace monorepo structure. Auth implementation lives in cmd/gridapi/internal/auth/ following established internal package pattern. No new modules introduced per Constitutional Principle I. Middleware lives in cmd/gridapi/internal/middleware/ (new directory, not new module). CLI auth code in cmd/gridctl/internal/auth/ (new directory). SDK wrappers in pkg/sdk/ (existing module). **Terraform wrapper** lives in pkg/sdk/terraform/ (process spawning, token injection, 401 retry) - pkg/sdk exception for non-RPC functionality. CLI tf command (cmd/gridctl/cmd/tf.go) delegates to pkg/sdk/terraform, reads .grid context via cmd/gridctl/internal/context. Webapp auth code in webapp/src with new context, hooks, and components following React patterns.
 
 ## Phase 0: Outline & Research
 
@@ -609,12 +629,15 @@ The /tasks command will generate tasks from Phase 1 artifacts in the following o
     - **Flow**: data-model.md §5 (lines 290-317, permission resolution diagram)
     - **Transient groupings**: CLARIFICATIONS.md §1 (lines 59-67, AddRoleForUser pattern)
     - **Prefix usage**: PREFIX-CONVENTIONS.md §5 (lines 274-288, authentication-time grouping)
-13. Session repository (CRUD operations)
+13. Session repository (CRUD operations + cascade revocation)
     - **Schema**: data-model.md §3 (lines 174-199)
     - **Hash pattern**: research.md §6 (token_hash for lookup)
+    - **Cascade revocation**: RevokeAllSessionsForServiceAccount(service_account_id) - updates sessions.revoked=true for FR-070b
+    - **Revocation check**: ValidateSession must check sessions.revoked column for FR-102a
 14. Service account repository (CRUD + secret hashing)
     - **Schema**: data-model.md §2 (lines 141-172)
     - **Secret handling**: research.md §4 (lines 221-285, bcrypt hashing)
+    - **Rotation behavior (FR-070a)**: Updating client_secret_hash does NOT invalidate existing tokens (JWT tokens are self-contained, validated against JWKS not secret). Update secret_rotated_at timestamp. Document this behavior in repository comments.
 15. Group-role repository (CRUD for group_roles table)
     - **Schema**: data-model.md §5 (lines 235-265)
     - **Casbin integration**: CLARIFICATIONS.md §1 (lines 48-68, static group→role mappings)
@@ -626,9 +649,12 @@ The /tasks command will generate tasks from Phase 1 artifacts in the following o
     - **Pattern**: research.md §6 (lines 313-375, JWT validation flow)
     - **Subject extraction**: research.md §1 (lines 13-46, custom resolver function)
     - **Dynamic grouping**: Call task #12 logic to create transient user→group→role mappings
-18. Authorization middleware (Chi-authz integration) [P]
+    - **Revocation check (FR-102a)**: Session repository validation must check sessions.revoked=FALSE (data-model.md §3 line 597)
+18. Authorization middleware (Chi-authz integration + lock-aware bypass) [P]
     - **Integration**: research.md §1 (lines 13-46, casbin/chi-authz usage)
     - **Enforcer**: Use enforcer from task #6
+    - **Basic Auth extraction**: For /tfstate/* endpoints, extract bearer token from HTTP Basic Auth password field (username ignored, GitHub API pattern per FR-057, FR-097c). Token passed to authentication middleware.
+    - **Lock-aware bypass (FR-061a)**: Before enforcing tfstate:write/tfstate:unlock, check if principal holds the lock (compare authenticated principal with state.LockInfo.Who). If lock holder matches, bypass label scope check for these actions only. All other operations: normal authorization.
 19. Context propagation (inject user identity into request context) [P]
     - **Pattern**: Standard Go context.WithValue for user identity storage
 
@@ -654,6 +680,11 @@ The /tasks command will generate tasks from Phase 1 artifacts in the following o
 25. ListServiceAccounts RPC implementation [P]
     - **Proto contract**: contracts/auth-rpc-additions.proto
     - **Repository**: Task #14
+25a. RevokeServiceAccount RPC implementation [P]
+    - **Proto contract**: contracts/auth-rpc-additions.proto (RevokeServiceAccount RPC)
+    - **Repository**: Task #14 (set service_accounts.disabled=true)
+    - **Cascade revocation (FR-070b)**: Call task #13 RevokeAllSessionsForServiceAccount to invalidate all active sessions
+    - **Authorization**: Requires admin:service-account-manage
 26. AssignRole RPC implementation [P]
     - **Proto contract**: contracts/auth-rpc-additions.proto
     - **Purpose**: Direct user→role assignments (fallback, see CLARIFICATIONS.md §1)
@@ -709,118 +740,176 @@ The /tasks command will generate tasks from Phase 1 artifacts in the following o
     - **RPC**: Call ListGroupRoles (task #30)
     - **Output**: Tab-delimited table (group_name, role_name, assigned_at)
 
+**CLI Terraform Wrapper** (pkg/sdk + gridctl):
+42. Binary discovery and selection (pkg/sdk/terraform/binary.go) [P]
+    - **Precedence**: --tf-bin flag → TF_BIN env var → auto-detect (terraform, then tofu)
+    - **Validation**: Check binary exists and is executable
+    - **Error handling**: Clear message if neither terraform nor tofu found (FR-097b, FR-097h)
+43. Process spawner with I/O pass-through (pkg/sdk/terraform/wrapper.go) [P]
+    - **STDIO**: Pipe STDIN/STDOUT/STDERR to/from terraform/tofu process unchanged
+    - **Exit codes**: Preserve exact exit code from subprocess (FR-097h)
+    - **Arguments**: Pass through all args after `--` verbatim (FR-097f)
+    - **Working directory**: Run in current directory (no --cwd flag)
+44. Token injection via TF_HTTP_PASSWORD (pkg/sdk/terraform/auth.go) [P]
+    - **Pattern**: Set TF_HTTP_USERNAME="" and TF_HTTP_PASSWORD=<bearer_token> environment variables (FR-097c)
+    - **Credential source**: Use stored credentials from pkg/sdk auth (task #35 credential store)
+    - **Validation**: Fail fast if no credentials available in non-interactive mode (FR-097j)
+    - **Security**: Never persist token to disk, only pass via env vars (FR-097k)
+45. Mid-run 401 detection and retry (pkg/sdk/terraform/output.go) [P]
+    - **Detection**: Parse terraform/tofu stderr for "401" or "Unauthorized" strings
+    - **Retry logic (FR-097e)**: On 401, attempt single token refresh, re-run exact same command once, then fail
+    - **No infinite loops**: Maximum 1 retry attempt
+    - **Error message**: Clear auth failure message if retry fails
+46. Secret redaction for logs (pkg/sdk/terraform/output.go) [P]
+    - **Redaction (FR-097g)**: Mask bearer tokens in all console output, logs, crash reports
+    - **Verbose mode**: When --verbose, print command line with tokens redacted (show "[REDACTED]")
+    - **Never print**: Bearer token values, TF_HTTP_PASSWORD, Authorization headers
+47. CI vs interactive detection (pkg/sdk/terraform/auth.go) [P]
+    - **Detection**: Check for TTY, CI env vars (CI=true, GITHUB_ACTIONS, GITLAB_CI, etc.)
+    - **Non-interactive (FR-097j)**: Use service account credentials, fail fast if missing
+    - **Interactive**: Allow device flow or existing credentials
+48. gridctl tf command (cmd/gridctl/cmd/tf.go)
+    - **Cobra wiring**: `gridctl tf [flags] -- <terraform args>`
+    - **Flags**: --tf-bin (binary override), --verbose (debug output)
+    - **Context**: Read .grid file via cmd/gridctl/internal/context (DirCtx) for backend endpoint (FR-097i)
+    - **Delegation**: Call pkg/sdk/terraform wrapper with credentials and context
+    - **Hint**: If backend.tf missing, print non-blocking suggestion to run `gridctl state init` (FR-097l, CLI-only)
+49. Context file integration (.grid reading, CLI-only)
+    - **Location**: cmd/gridctl/internal/context (existing DirCtx pattern)
+    - **Extract**: GUID, backend endpoints from .grid file
+    - **Pass to wrapper**: Provide context to pkg/sdk/terraform for validation
+    - **Note**: Context reading is CLI responsibility, not pkg/sdk
+
 **Webapp Auth** (React integration):
-42. Auth context provider (AuthContext.tsx) [P]
+50. Auth context provider (AuthContext.tsx) [P]
     - **Pattern**: research.md §13 (lines 885-940, mirror GridContext.tsx structure)
     - **Existing reference**: webapp/src/context/GridContext.tsx (React Context API pattern)
     - **State**: user, loading, error (useState pattern)
-43. Auth service for HTTP endpoints (authApi.ts) [P]
+51. Auth service for HTTP endpoints (authApi.ts) [P]
     - **Implementation**: research.md §13 (lines 942-974, HTTP fetch with credentials)
     - **OIDC exception**: Uses direct fetch (not Connect RPC) per Constitution Check
     - **Security**: credentials: 'include' for httpOnly cookies
-44. useAuth hook (login, logout, session state) [P]
+52. useAuth hook (login, logout, session state) [P]
     - **Pattern**: research.md §13 (exported from AuthContext.tsx)
     - **Existing reference**: webapp/src/hooks/useGridData.ts (custom hook pattern)
-45. usePermissions hook (permission checking) [P]
+53. usePermissions hook (permission checking) [P]
     - **Logic**: Call GetEffectivePermissions RPC, cache in state
     - **Helper**: hasPermission(action) function for component use
-46. AuthGuard route protection component [P]
+54. AuthGuard route protection component [P]
     - **Implementation**: research.md §13 (lines 976-997, conditional rendering)
     - **Behavior**: Redirect to login if unauthenticated, preserve return_to parameter
-47. LoginCallback component (OIDC callback handler) [P]
+55. LoginCallback component (OIDC callback handler) [P]
     - **Flow**: Parse code/state from URL, call authApi.handleCallback, redirect to return_to
     - **Error handling**: Display error message if callback fails
-48. UserMenu component (user identity display) [P]
+56. UserMenu component (user identity display) [P]
     - **Display**: User email/name from useAuth, logout button
     - **Existing patterns**: Follow webapp/src/components/ structure
-49. ProtectedAction component (permission-gated buttons) [P]
+57. ProtectedAction component (permission-gated buttons) [P]
     - **Implementation**: research.md §13 (lines 999-1023, conditional rendering based on permissions)
     - **Note**: Prepared for future use; dashboard is READ ONLY (research.md §13, lines 1061-1073)
-50. Update App.tsx to wrap with AuthProvider
+58. Update App.tsx to wrap with AuthProvider
     - **Pattern**: Wrap existing GridProvider with AuthProvider (auth wraps grid for dependency order)
     - **Existing file**: webapp/src/App.tsx
-51. Add login page/route
+59. Add login page/route
     - **Action**: Button to initiate authApi.initLogin(window.location.origin + '/callback')
     - **No routing library**: Use simple conditional rendering or add React Router if needed
-52. Handle 401 responses in gridApi.ts (redirect to login)
+60. Handle 401 responses in gridApi.ts (redirect to login)
     - **Implementation**: research.md §13 (lines 1025-1048, Connect interceptor pattern)
     - **Existing file**: webapp/src/services/gridApi.ts (add auth interceptor)
 
 **Integration** (wire everything together):
-53. Apply auth middleware to Chi router
+61. Apply auth middleware to Chi router
     - **Pattern**: research.md §1 (lines 13-46, Chi middleware attachment)
     - **Order**: Authentication (task #17) → Authorization (task #18)
-54. Apply auth middleware to Connect RPC handlers
+62. Apply auth middleware to Connect RPC handlers
     - **Pattern**: Apply to Connect RPC service registration
     - **Selective**: Some endpoints public (e.g., health check), most require auth
-55. Update existing endpoints with permission checks
-    - **Actions**: authorization-design.md (action taxonomy for each endpoint)
-    - **Enforcement**: Use enforcer.Enforce(...) in handlers
-56. Docker Compose Keycloak service and PostgreSQL init script
+63. Update existing tfstate endpoints with auth middleware
+    - **File**: cmd/gridapi/internal/server/tfstate.go
+    - **Basic Auth extraction**: Middleware extracts token from HTTP Basic Auth password field (task #18)
+    - **Actions**: authorization-design.md (tfstate:read, tfstate:write, tfstate:lock, tfstate:unlock)
+    - **Enforcement**: Use enforcer with lock-aware bypass (task #18)
+    - **Lock holder check**: Compare authenticated principal with LockInfo.Who for FR-061a
+64. Docker Compose Keycloak service and PostgreSQL init script
     - **Config**: plan.md §326-380 (docker-compose.yml additions)
     - **Init script**: plan.md §382-398 (initdb/01-init-keycloak-db.sql)
     - **Manual setup**: plan.md §400-459 (Keycloak realm/client configuration)
-57. Create action constants file (actions.go)
+65. Create action constants file (actions.go)
     - **Constants**: authorization-design.md (Actions Taxonomy section)
     - **Reference**: plan.md §288-303 (action enumeration)
     - **Location**: cmd/gridapi/internal/auth/actions.go
 
 **Testing** (TDD order):
-58. Auth repository unit tests (including group-role repository)
+66. Auth repository unit tests (including group-role repository)
     - **Pattern**: Follow cmd/gridapi/internal/repository/*_test.go patterns
     - **Fixtures**: Real PostgreSQL database, migrations run before tests
-59. JWT validation unit tests
+67. JWT validation unit tests
     - **Mock JWKS**: Use httptest.Server to mock OIDC provider JWKS endpoint
     - **Test cases**: Valid token, expired token, invalid signature, wrong issuer
-60. JWT claim extraction unit tests (flat and nested group claims)
+68. JWT claim extraction unit tests (flat and nested group claims)
     - **Flat array**: research.md §8 (lines 619-686, ["dev-team", "contractors"])
     - **Nested**: research.md §8 (lines 688-765, [{name: "dev-team"}] with mapstructure)
     - **Edge cases**: Empty groups, nil groups, invalid types
-61. Middleware unit tests (httptest)
+69. Middleware unit tests (httptest)
     - **Pattern**: Use httptest.NewRequest to test middleware in isolation
     - **Scenarios**: No token (401), invalid token (401), valid token (pass through)
-62. Contract tests for auth RPCs (including group-role RPCs)
+    - **Lock-aware bypass**: Test that lock holder bypasses label scope for tfstate:write/unlock
+70. Contract tests for auth RPCs (including group-role RPCs)
     - **Pattern**: Follow tests/contract/ patterns
-    - **Coverage**: All RPCs from tasks #24-33 (proto contract verification)
-63. Integration tests (Keycloak + real flow with group claims)
+    - **Coverage**: All RPCs from tasks #24-33 + 25a (proto contract verification)
+    - **Revocation**: Test RevokeServiceAccount cascades to sessions (FR-070b)
+71. Integration tests (Keycloak + real flow with group claims)
     - **Scenarios**: quickstart.md §1-5 (user stories as test cases)
     - **Setup**: Keycloak in docker-compose, real OIDC flow
     - **Group claims**: Test user with multiple groups gets union of permissions
-64. CLI E2E tests (mocked token server + group management)
+    - **Basic Auth**: Test /tfstate endpoints extract token from HTTP Basic Auth password
+72. CLI E2E tests (mocked token server + group management)
     - **Mock**: httptest.Server mocking /auth/login, /auth/callback endpoints
     - **Commands**: Test login, logout, status, role assign-group, list-groups
-65. Webapp auth flow tests (React Testing Library)
+73. Terraform wrapper unit tests (pkg/sdk/terraform)
+    - **Binary discovery**: Test precedence (--tf-bin → TF_BIN → auto-detect)
+    - **STDIO pass-through**: Verify output streaming, exit codes preserved
+    - **Token injection**: Verify TF_HTTP_PASSWORD set correctly, never logged
+    - **401 retry**: Test single retry on 401, then fail
+    - **Secret redaction**: Test --verbose masks tokens
+74. Terraform wrapper E2E tests
+    - **Mock HTTP backend**: httptest.Server mocking /tfstate/* with 401 scenarios
+    - **Test commands**: gridctl tf plan, gridctl tf apply with auth
+    - **CI mode**: Test non-interactive service account auth
+75. Webapp auth flow tests (React Testing Library)
     - **Pattern**: research.md §13 (lines 1075-1090, mock useAuth hook)
     - **Existing tests**: Follow webapp/src/__tests__/dashboard_*.test.tsx patterns
     - **Coverage**: AuthGuard, ProtectedAction, login flow, 401 handling
 
 ### Ordering Strategy
 
-- **TDD order**: Tests written before implementation (tasks 58-65 reference earlier tasks)
+- **TDD order**: Tests written before implementation (tasks 66-75 reference earlier tasks)
 - **Dependency order**:
-  - Database (1-3) → Config (4) → Foundation (5-8) → Core (9-16) → Middleware (17-19) → Endpoints (20-23) → RPC (24-33) → CLI (34-41) → Webapp (42-52) → Integration (53-57) → Tests (58-65)
+  - Database (1-3) → Config (4) → Foundation (5-8) → Core (9-16) → Middleware (17-19) → Endpoints (20-23) → RPC (24-33, 25a) → CLI Auth (34-41) → CLI TF Wrapper (42-49) → Webapp (50-60) → Integration (61-65) → Tests (66-75)
 - **Parallel execution markers [P]**:
   - Middleware tasks 17-19 can run in parallel (independent files)
   - HTTP endpoint tasks 20-23 can run in parallel
-  - RPC handler tasks 24-33 can run in parallel (all independent)
-  - CLI command tasks 36-38 can run in parallel (login/logout/status)
+  - RPC handler tasks 24-33, 25a can run in parallel (all independent)
+  - CLI auth command tasks 36-38 can run in parallel (login/logout/status)
   - CLI group commands 39-41 can run in parallel (assign/remove/list)
-  - Webapp component tasks 42-49 can run in parallel
+  - CLI TF wrapper core tasks 42-47 can run in parallel (pkg/sdk/terraform/ files)
+  - Webapp component tasks 50-57 can run in parallel
 
 ### Estimated Output
 
-**Total tasks**: ~65 numbered, ordered tasks in tasks.md
+**Total tasks**: ~75 numbered, ordered tasks in tasks.md
 
 **Breakdown**:
 - Foundation: 8 tasks (includes casbin_rule migration, auth tables with group_roles, seed policies with bexpr, config with OIDC claim fields, model.conf, enforcer init with bexprMatch, bexpr helper, identifier prefix helpers)
-- Auth Core: 8 tasks (includes JWT claim extraction with mapstructure, dynamic Casbin grouping, group-role repository)
-- Middleware: 3 tasks (all parallel)
+- Auth Core: 8 tasks (includes JWT claim extraction with mapstructure, dynamic Casbin grouping, group-role repository, cascade revocation)
+- Middleware: 3 tasks (includes lock-aware bypass, Basic Auth extraction - all parallel)
 - HTTP Endpoints: 4 tasks (all parallel)
-- RPC Handlers: 10 tasks (includes 3 new group-role RPCs, all parallel)
-- CLI: 8 tasks (includes 3 group management commands, 6 parallel)
+- RPC Handlers: 11 tasks (includes 3 group-role RPCs + RevokeServiceAccount with cascade - all parallel)
+- CLI Auth: 8 tasks (includes 3 group management commands, 6 parallel)
+- CLI TF Wrapper: 8 tasks (pkg/sdk/terraform + gridctl tf command, 6 parallel)
 - Webapp: 11 tasks (8 parallel)
-- Integration: 5 tasks (includes Docker Compose init script and action constants)
-- Testing: 8 tasks (includes group-role and claim extraction tests)
+- Integration: 5 tasks (includes Docker Compose init script, action constants, tfstate Basic Auth middleware)
+- Testing: 10 tasks (includes group-role, claim extraction, lock bypass, revocation cascade, TF wrapper unit + E2E tests)
 
 **Simplified vs Original Approach**:
 - Removed: scope intersection logic, permission definition JSONB deserialization
@@ -833,6 +922,18 @@ The /tasks command will generate tasks from Phase 1 artifacts in the following o
 - Type-only UI: Admins type group names (no IdP browsing integration)
 - Claim extraction: Supports flat arrays and nested objects via mapstructure
 - Configurable: groups_claim_field (default: "groups"), groups_claim_path (optional for nested extraction)
+
+**Terraform HTTP Backend Auth Additions**:
+- Server-side Basic Auth extraction: Password field contains bearer token (username ignored, GitHub API pattern)
+- Client-side token injection: pkg/sdk/terraform wrapper sets TF_HTTP_PASSWORD environment variable
+- Lock-aware authorization bypass: Lock holders retain tfstate:write/unlock even if labels change (FR-061a)
+- gridctl tf wrapper: Process spawning, STDIO pass-through, 401 retry, secret redaction, CI/interactive detection
+- No persistent tokens: All credentials passed via environment variables, never written to disk
+
+**Service Account Revocation Additions**:
+- Cascade revocation: RevokeServiceAccount invalidates all active sessions (FR-070b)
+- Revocation state: sessions.revoked column checked on every request (FR-102a)
+- Rotation behavior: Credential rotation does NOT invalidate existing tokens (FR-070a)
 
 **IMPORTANT**: This phase is executed by the /tasks command, NOT by /plan
 
