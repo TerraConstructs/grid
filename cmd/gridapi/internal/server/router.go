@@ -1,10 +1,15 @@
 package server
 
 import (
+	"log"
 	"net/http"
 
+	"connectrpc.com/connect"
 	"github.com/terraconstructs/grid/api/state/v1/statev1connect"
+	"github.com/terraconstructs/grid/cmd/gridapi/internal/auth"
+	"github.com/terraconstructs/grid/cmd/gridapi/internal/config"
 	"github.com/terraconstructs/grid/cmd/gridapi/internal/dependency"
+	gridmiddleware "github.com/terraconstructs/grid/cmd/gridapi/internal/middleware"
 	statepkg "github.com/terraconstructs/grid/cmd/gridapi/internal/state"
 
 	"github.com/go-chi/chi/v5"
@@ -17,24 +22,20 @@ import (
 // RouterOptions controls the construction of the Grid HTTP router.
 // The zero value is valid; sensible defaults are applied where fields are not set.
 type RouterOptions struct {
-	Service           *statepkg.Service
-	DependencyService *dependency.Service
-	EdgeUpdater       *EdgeUpdateJob
-	PolicyService     *statepkg.PolicyService
-
-	// CORSOptions customises the access-control configuration. When nil,
-	// DefaultCORSOptions() is applied. A copy of the provided options is used.
-	CORSOptions *cors.Options
-
-	// Middleware are appended after the default middleware stack
-	// (RequestID, RealIP, Logger, Recoverer).
-	Middleware []func(http.Handler) http.Handler
-
-	// HealthHandler overrides the default /health handler.
-	HealthHandler http.HandlerFunc
-
-	// ExtraRoutes can register additional endpoints after the built-in handlers.
-	ExtraRoutes func(chi.Router)
+	Service             *statepkg.Service
+	DependencyService   *dependency.Service
+	EdgeUpdater         *EdgeUpdateJob
+	PolicyService       *statepkg.PolicyService
+	Provider            *auth.Provider
+	RelyingParty        *auth.RelyingParty
+	AuthnDeps           gridmiddleware.AuthnDependencies
+	Cfg                 *config.Config
+	OIDCRouter          chi.Router
+	CORSOptions         *cors.Options
+	Middleware          []func(http.Handler) http.Handler
+	ConnectInterceptors []connect.Interceptor
+	HealthHandler       http.HandlerFunc
+	ExtraRoutes         func(chi.Router)
 }
 
 // DefaultCORSOptions returns the shared development CORS policy.
@@ -54,6 +55,7 @@ func DefaultCORSOptions() cors.Options {
 			"Grpc-Timeout",
 			"X-Grpc-Web",
 			"X-User-Agent",
+			"Authorization",
 		},
 		ExposedHeaders: []string{
 			"Connect-Protocol-Version",
@@ -63,7 +65,7 @@ func DefaultCORSOptions() cors.Options {
 			"Grpc-Message",
 			"Grpc-Status-Details-Bin",
 		},
-		AllowCredentials: false,
+		AllowCredentials: true,
 		MaxAge:           300,
 	}
 }
@@ -85,20 +87,32 @@ func NewRouter(opts RouterOptions) chi.Router {
 	r.Use(middleware.Logger)
 	r.Use(middleware.Recoverer)
 
-	for _, mw := range opts.Middleware {
-		if mw != nil {
-			r.Use(mw)
-		}
-	}
-
 	corsCfg := DefaultCORSOptions()
 	if opts.CORSOptions != nil {
 		corsCfg = *opts.CORSOptions
 	}
 	r.Use(cors.Handler(corsCfg))
 
+	// Apply custom middleware passed from the caller.
+	for _, mw := range opts.Middleware {
+		if mw != nil {
+			r.Use(mw)
+		}
+	}
+
+	if opts.OIDCRouter != nil {
+		log.Println("Mounting OIDC router")
+		r.Mount("/", opts.OIDCRouter)
+	}
+
+	if opts.RelyingParty != nil {
+		r.Get("/auth/sso/login", HandleSSOLogin(opts.RelyingParty))
+		r.Get("/auth/sso/callback", HandleSSOCallback(opts.RelyingParty, &opts.AuthnDeps))
+		r.Post("/auth/logout", HandleLogout(&opts.AuthnDeps))
+	}
+
 	if opts.Service != nil {
-		MountConnectHandlers(r, opts.Service, opts.DependencyService, opts.PolicyService)
+		MountConnectHandlers(r, opts)
 	}
 	if opts.Service != nil && opts.EdgeUpdater != nil {
 		MountTerraformBackend(r, opts.Service, opts.EdgeUpdater)
@@ -119,23 +133,27 @@ func NewRouter(opts RouterOptions) chi.Router {
 
 // NewH2CHandler wraps the shared router with an h2c server to provide HTTP/2 over
 // cleartext, matching the expectations of Connect clients during development.
-func NewH2CHandler(opts RouterOptions) http.Handler {
-	return h2c.NewHandler(NewRouter(opts), &http2.Server{})
+func NewH2CHandler(opts RouterOptions) (http.Handler, error) {
+	router := NewRouter(opts)
+	return h2c.NewHandler(router, &http2.Server{}), nil
 }
 
 // NewHTTPServer remains for compatibility with older callers that only need the
 // state service mounted with default settings.
-func NewHTTPServer(service *statepkg.Service) http.Handler {
+func NewHTTPServer(service *statepkg.Service) (http.Handler, error) {
 	return NewH2CHandler(RouterOptions{Service: service})
 }
 
 // MountConnectHandlers mounts Connect RPC handlers on the provided router.
-func MountConnectHandlers(r chi.Router, service *statepkg.Service, depService *dependency.Service, policyService *statepkg.PolicyService) {
-	stateHandler := NewStateServiceHandler(service)
-	stateHandler.depService = depService
-	if policyService != nil {
-		stateHandler.WithPolicyService(policyService)
+func MountConnectHandlers(r chi.Router, opts RouterOptions) {
+	stateHandler := NewStateServiceHandler(opts.Service, &opts.AuthnDeps, opts.Cfg)
+	stateHandler.depService = opts.DependencyService
+	if opts.PolicyService != nil {
+		stateHandler.WithPolicyService(opts.PolicyService)
 	}
-	path, handler := statev1connect.NewStateServiceHandler(stateHandler)
+	path, handler := statev1connect.NewStateServiceHandler(
+		stateHandler,
+		connect.WithInterceptors(opts.ConnectInterceptors...),
+	)
 	r.Mount(path, handler)
 }

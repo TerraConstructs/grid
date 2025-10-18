@@ -80,6 +80,35 @@ service StateService {
 
   // SetLabelPolicy updates the label validation policy with version increment.
   rpc SetLabelPolicy(SetLabelPolicyRequest) returns (SetLabelPolicyResponse);
+
+  // Service Account Management
+  rpc CreateServiceAccount(CreateServiceAccountRequest) returns (CreateServiceAccountResponse);
+  rpc ListServiceAccounts(ListServiceAccountsRequest) returns (ListServiceAccountsResponse);
+  rpc RevokeServiceAccount(RevokeServiceAccountRequest) returns (RevokeServiceAccountResponse);
+  rpc RotateServiceAccount(RotateServiceAccountRequest) returns (RotateServiceAccountResponse);
+
+  // Role Management
+  rpc CreateRole(CreateRoleRequest) returns (CreateRoleResponse);
+  rpc ListRoles(ListRolesRequest) returns (ListRolesResponse);
+  rpc UpdateRole(UpdateRoleRequest) returns (UpdateRoleResponse);
+  rpc DeleteRole(DeleteRoleRequest) returns (DeleteRoleResponse);
+
+  // Role Assignment (User/Service Account)
+  rpc AssignRole(AssignRoleRequest) returns (AssignRoleResponse);
+  rpc RemoveRole(RemoveRoleRequest) returns (RemoveRoleResponse);
+  rpc ListUserRoles(ListUserRolesRequest) returns (ListUserRolesResponse);
+
+  // Group-to-Role Management
+  rpc AssignGroupRole(AssignGroupRoleRequest) returns (AssignGroupRoleResponse);
+  rpc RemoveGroupRole(RemoveGroupRoleRequest) returns (RemoveGroupRoleResponse);
+  rpc ListGroupRoles(ListGroupRolesRequest) returns (ListGroupRolesResponse);
+
+  // Permission Introspection
+  rpc GetEffectivePermissions(GetEffectivePermissionsRequest) returns (GetEffectivePermissionsResponse);
+
+  // Session Management
+  rpc ListSessions(ListSessionsRequest) returns (ListSessionsResponse);
+  rpc RevokeSession(RevokeSessionRequest) returns (RevokeSessionResponse);
 }
 
 // CreateStateRequest creates a new state using a client-generated GUID.
@@ -527,3 +556,246 @@ message SetLabelPolicyResponse {
   int32 version = 1; // Incremented version number
   google.protobuf.Timestamp updated_at = 2;
 }
+
+// ========== Service Account Management ==========
+
+message CreateServiceAccountRequest {
+  string name = 1;
+  optional string description = 2;
+}
+
+message CreateServiceAccountResponse {
+  string id = 1;
+  string client_id = 2;
+  string client_secret = 3; // Only returned once on creation
+  string name = 4;
+  google.protobuf.Timestamp created_at = 5;
+}
+
+message ListServiceAccountsRequest {
+  // Future: Add pagination
+}
+
+message ServiceAccountInfo {
+  string id = 1;
+  string client_id = 2;
+  string name = 3;
+  optional string description = 4;
+  google.protobuf.Timestamp created_at = 5;
+  google.protobuf.Timestamp last_used_at = 6;
+  bool disabled = 7;
+}
+
+message ListServiceAccountsResponse {
+  repeated ServiceAccountInfo service_accounts = 1;
+}
+
+message RevokeServiceAccountRequest {
+  string client_id = 1;
+}
+
+message RevokeServiceAccountResponse {
+  bool success = 1;
+}
+
+message RotateServiceAccountRequest {
+  string client_id = 1; // Service account to rotate credentials for
+}
+
+message RotateServiceAccountResponse {
+  string client_id = 1; // Same client_id (identity preserved)
+  string client_secret = 2; // New secret (only returned once)
+  google.protobuf.Timestamp rotated_at = 3;
+}
+
+// ========== Role Management ==========
+
+message CreateRoleRequest {
+  string name = 1;
+  optional string description = 2;
+  repeated string actions = 3; // e.g., ["state:create", "tfstate:*"]
+  optional string label_scope_expr = 4; // go-bexpr expression (e.g., "env == \"dev\"" or "env == \"dev\" and team == \"platform\" or team == \"sre\"")
+  optional CreateConstraints create_constraints = 5;
+  repeated string immutable_keys = 6;
+}
+
+// LabelScope has been replaced with label_scope_expr string field
+// to support go-bexpr expressions for arbitrary boolean logic
+
+message CreateConstraints {
+  // Map of label key to constraint definition
+  map<string, CreateConstraint> constraints = 1;
+}
+
+message CreateConstraint {
+  repeated string allowed_values = 1;
+  bool required = 2;
+}
+
+message RoleInfo {
+  string id = 1;
+  string name = 2;
+  optional string description = 3;
+  repeated string actions = 4;
+  optional string label_scope_expr = 5; // go-bexpr expression evaluated at enforcement time
+  optional CreateConstraints create_constraints = 6;
+  repeated string immutable_keys = 7;
+  google.protobuf.Timestamp created_at = 8;
+  google.protobuf.Timestamp updated_at = 9;
+  int32 version = 10;
+}
+
+message CreateRoleResponse {
+  RoleInfo role = 1;
+}
+
+message ListRolesRequest {
+  // Future: Add filtering
+}
+
+message ListRolesResponse {
+  repeated RoleInfo roles = 1;
+}
+
+message UpdateRoleRequest {
+  string name = 1; // Role to update
+  optional string description = 2;
+  repeated string actions = 3;
+  optional string label_scope_expr = 4; // go-bexpr expression (e.g., "env == \"dev\" and team == \"platform\"")
+  optional CreateConstraints create_constraints = 5;
+  repeated string immutable_keys = 6;
+  int32 expected_version = 7; // Optimistic locking
+}
+
+message UpdateRoleResponse {
+  RoleInfo role = 1;
+}
+
+message DeleteRoleRequest {
+  string name = 1;
+}
+
+message DeleteRoleResponse {
+  bool success = 1;
+}
+
+// ========== Role Assignment ==========
+
+message AssignRoleRequest {
+  string principal_type = 1; // "user" or "service_account"
+  string principal_id = 2; // UUID
+  string role_name = 3;
+}
+
+message AssignRoleResponse {
+  bool success = 1;
+  google.protobuf.Timestamp assigned_at = 2;
+}
+
+message RemoveRoleRequest {
+  string principal_type = 1;
+  string principal_id = 2;
+  string role_name = 3;
+}
+
+message RemoveRoleResponse {
+  bool success = 1;
+}
+
+message ListUserRolesRequest {
+  string principal_type = 1;
+  string principal_id = 2;
+}
+
+message RoleAssignmentInfo {
+  string role_name = 1;
+  google.protobuf.Timestamp assigned_at = 2;
+  string assigned_by_user_id = 3;
+}
+
+message ListUserRolesResponse {
+  repeated RoleAssignmentInfo roles = 1;
+}
+
+// ========== Group-to-Role Management ==========
+
+message AssignGroupRoleRequest {
+  string group_name = 1; // Group name as it appears in JWT claims (e.g., "dev-team", "platform-engineers")
+  string role_name = 2;
+}
+
+message AssignGroupRoleResponse {
+  bool success = 1;
+  google.protobuf.Timestamp assigned_at = 2;
+}
+
+message RemoveGroupRoleRequest {
+  string group_name = 1;
+  string role_name = 2;
+}
+
+message RemoveGroupRoleResponse {
+  bool success = 1;
+}
+
+message ListGroupRolesRequest {
+  optional string group_name = 1; // If provided, list roles for specific group; if omitted, list all group-role mappings
+}
+
+message GroupRoleAssignmentInfo {
+  string group_name = 1;
+  string role_name = 2;
+  google.protobuf.Timestamp assigned_at = 3;
+  string assigned_by_user_id = 4;
+}
+
+message ListGroupRolesResponse {
+  repeated GroupRoleAssignmentInfo assignments = 1;
+}
+
+// ========== Permission Introspection ==========
+
+message GetEffectivePermissionsRequest {
+  string principal_type = 1;
+  string principal_id = 2;
+}
+
+message EffectivePermissions {
+  repeated string roles = 1; // Role names
+  repeated string actions = 2; // Aggregated actions (e.g., ["state:*", "tfstate:read"])
+  repeated string label_scope_exprs = 3; // List of go-bexpr expressions from all roles (union/OR semantics - access granted if ANY expression matches)
+  optional CreateConstraints effective_create_constraints = 4;
+  repeated string effective_immutable_keys = 5; // Union of all immutable keys
+}
+
+message GetEffectivePermissionsResponse {
+  EffectivePermissions permissions = 1;
+}
+
+// ========== Session Management ==========
+
+message ListSessionsRequest {
+  string user_id = 1;
+}
+
+message SessionInfo {
+  string id = 1;
+  google.protobuf.Timestamp created_at = 2;
+  google.protobuf.Timestamp last_used_at = 3;
+  google.protobuf.Timestamp expires_at = 4;
+  optional string user_agent = 5;
+  optional string ip_address = 6;
+}
+
+message ListSessionsResponse {
+  repeated SessionInfo sessions = 1;
+}
+
+message RevokeSessionRequest {
+  string session_id = 1;
+}
+
+message RevokeSessionResponse {
+  bool success = 1;
+}
+

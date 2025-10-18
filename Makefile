@@ -1,4 +1,4 @@
-.PHONY: help build db-up db-down db-reset test test-unit test-unit-db test-contract test-integration test-all ci-test test-integration-setup test-integration-teardown test-clean clean
+.PHONY: help build db-up db-down db-reset oidc-dev-keys keycloak-up keycloak-down keycloak-logs keycloak-reset test test-unit test-unit-db test-contract test-integration test-all ci-test test-integration-setup test-integration-teardown test-clean clean
 
 help: ## Display available targets
 	@echo "Grid Terraform State Management - Makefile"
@@ -31,6 +31,33 @@ db-reset: ## Fresh database (docker compose down -v && docker compose up -d)
 	@echo "Waiting for PostgreSQL to be healthy..."
 	@sleep 2
 	@docker compose ps postgres
+
+oidc-dev-keys: ## Generate OIDC signing keys for local development (FR-110)
+	@echo "Generating OIDC development signing keys..."
+	@mkdir -p cmd/gridapi/internal/auth/keys
+	@./scripts/dev/generate-oidc-keys.sh
+	@echo "✓ Keys generated in cmd/gridapi/internal/auth/keys/"
+	@echo "  Note: These are for local development only. Production must use secure key vault."
+
+keycloak-up: ## Start Keycloak via docker compose (FR-111)
+	@echo "Starting Keycloak..."
+	@docker compose up -d keycloak
+	@echo "Waiting for Keycloak to be healthy..."
+	@sleep 5
+	@docker compose ps keycloak
+	@echo "✓ Keycloak available at http://localhost:8443"
+	@echo "  Admin credentials: admin/admin"
+
+keycloak-down: ## Stop Keycloak via docker compose (FR-111)
+	@echo "Stopping Keycloak..."
+	@docker compose stop keycloak
+
+keycloak-logs: ## Show Keycloak logs (FR-111)
+	@docker compose logs -f keycloak
+
+keycloak-reset: ## Reset Keycloak environment (stop, prune volumes, restart) (FR-112)
+	@echo "Resetting Keycloak environment..."
+	@./scripts/dev/keycloak-reset.sh
 
 test: test-all ## Run all tests (alias for test-all)
 

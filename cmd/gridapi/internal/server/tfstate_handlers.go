@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/terraconstructs/grid/cmd/gridapi/internal/auth"
 	"github.com/terraconstructs/grid/cmd/gridapi/internal/db/models"
 	statepkg "github.com/terraconstructs/grid/cmd/gridapi/internal/state"
 )
@@ -171,6 +172,14 @@ func (h *TerraformHandlers) LockState(w http.ResponseWriter, r *http.Request) {
 	if lockInfo.Created.IsZero() {
 		lockInfo.Created = time.Now()
 	}
+
+	// Augment lock info with server-verified principal ID
+	principal, ok := auth.GetUserFromContext(r.Context())
+	if !ok {
+		http.Error(w, "unauthenticated", http.StatusUnauthorized)
+		return
+	}
+	lockInfo.OwnerPrincipalID = principal.PrincipalID
 
 	// Attempt to acquire lock via service
 	err = h.service.LockState(r.Context(), guid, &lockInfo)

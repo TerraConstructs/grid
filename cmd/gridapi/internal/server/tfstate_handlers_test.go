@@ -11,6 +11,8 @@ import (
 	"time"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/stretchr/testify/assert"
+	"github.com/terraconstructs/grid/cmd/gridapi/internal/auth"
 	"github.com/terraconstructs/grid/cmd/gridapi/internal/db/models"
 	statepkg "github.com/terraconstructs/grid/cmd/gridapi/internal/state"
 )
@@ -271,11 +273,17 @@ func TestUpdateState(t *testing.T) {
 }
 
 func TestLockState(t *testing.T) {
+	// Create a mock principal for testing the context
+	mockPrincipal := auth.AuthenticatedPrincipal{
+		PrincipalID: "user:test-user-123",
+	}
+
 	tests := []struct {
 		name           string
 		guid           string
 		lockInfo       models.LockInfo
 		mockService    *mockStateService
+		principal      *auth.AuthenticatedPrincipal // Optional principal
 		expectedStatus int
 	}{
 		{
@@ -291,6 +299,26 @@ func TestLockState(t *testing.T) {
 					return &models.State{GUID: guid}, nil
 				},
 				lockStateFunc: func(ctx context.Context, guid string, lockInfo *models.LockInfo) error {
+					return nil
+				},
+			},
+			expectedStatus: http.StatusOK,
+		},
+		{
+			name:      "success with principal context",
+			guid:      "test-guid-principal",
+			principal: &mockPrincipal,
+			lockInfo: models.LockInfo{
+				ID:        "lock-principal",
+				Operation: "apply",
+				Who:       "user@host",
+			},
+			mockService: &mockStateService{
+				getByGUIDFunc: func(ctx context.Context, guid string) (*models.State, error) {
+					return &models.State{GUID: guid}, nil
+				},
+				lockStateFunc: func(ctx context.Context, guid string, lockInfo *models.LockInfo) error {
+					assert.Equal(t, mockPrincipal.PrincipalID, lockInfo.OwnerPrincipalID, "OwnerPrincipalID should be set from context")
 					return nil
 				},
 			},
@@ -349,6 +377,13 @@ func TestLockState(t *testing.T) {
 
 			body, _ := json.Marshal(tt.lockInfo)
 			req := httptest.NewRequest("LOCK", "/tfstate/"+tt.guid+"/lock", bytes.NewBuffer(body))
+
+			// If the test case has a principal, add it to the request context
+			if tt.principal != nil {
+				ctx := auth.SetUserContext(req.Context(), *tt.principal)
+				req = req.WithContext(ctx)
+			}
+
 			w := httptest.NewRecorder()
 
 			r.ServeHTTP(w, req)

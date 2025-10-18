@@ -5,8 +5,10 @@ import (
 	"os"
 
 	"github.com/spf13/cobra"
+	"github.com/terraconstructs/grid/cmd/gridctl/cmd/auth"
 	"github.com/terraconstructs/grid/cmd/gridctl/cmd/deps"
 	"github.com/terraconstructs/grid/cmd/gridctl/cmd/policy"
+	"github.com/terraconstructs/grid/cmd/gridctl/cmd/role"
 	"github.com/terraconstructs/grid/cmd/gridctl/cmd/state"
 )
 
@@ -33,6 +35,10 @@ system for Terraform and OpenTofu. Use it to create, list, and initialize states
 		deps.SetNonInteractive(nonInteractive)
 		policy.SetServerURL(serverURL)
 		policy.SetNonInteractive(nonInteractive)
+		auth.SetServerURL(serverURL)
+		auth.SetNonInteractive(nonInteractive)
+		role.SetServerURL(serverURL)
+		role.SetNonInteractive(nonInteractive)
 	},
 }
 
@@ -50,4 +56,6 @@ func init() {
 	rootCmd.AddCommand(state.StateCmd)
 	rootCmd.AddCommand(deps.DepsCmd)
 	rootCmd.AddCommand(policy.PolicyCmd)
+	rootCmd.AddCommand(auth.AuthCmd)
+	rootCmd.AddCommand(role.RoleCmd)
 }

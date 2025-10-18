@@ -13,54 +13,59 @@ This document consolidates research findings for implementing authentication and
 ## 1. Casbin Integration with Chi Router
 
 ### Decision
-Use **github.com/casbin/chi-authz** middleware with **github.com/casbin/casbin/v2** enforcer and **github.com/msales/casbin-bun-adapter** for PostgreSQL storage.
+Implement a bespoke Chi middleware around **github.com/casbin/casbin/v2** (backed by **github.com/msales/casbin-bun-adapter**) instead of using **github.com/casbin/chi-authz**.
 
 ### Rationale
-- Official Chi middleware maintained by Casbin project
-- msales/casbin-bun-adapter accepts existing *bun.DB (shares connection pool, supports transactions)
-- Zero custom middleware development required
-- Proven integration pattern (used in production by multiple projects)
-- Supports policy hot-reloading without server restart
-- In-memory policy evaluation (<1ms latency)
-- Union (OR) semantics by default - any role granting access is sufficient
+- chi-authz depends on the legacy casbin v1 API; mixing it with casbin/v2 introduces type mismatches and prevents use of SyncedEnforcer.
+- Custom middleware keeps the request signature aligned with Grid’s needs (`subject`, `objectType`, `action`, `labels`) without extra adapters.
+- Direct control makes it easy to add lock-aware bypass logic (FR-061a) and structured logging.
+- msales/casbin-bun-adapter continues to share the existing *bun.DB connection pool, so only the middleware layer changes.
+- Still benefits from Casbin’s in-memory evaluation (<1ms) and union (OR) semantics.
 
 ### Implementation Pattern
 ```go
 import (
+    "net/http"
+
     "github.com/casbin/casbin/v2"
     casbinbunadapter "github.com/msales/casbin-bun-adapter"
-    chiauth "github.com/casbin/chi-authz"
-    "github.com/hashicorp/go-bexpr"
 )
 
-// Initialize adapter with existing *bun.DB instance
-adapter := casbinbunadapter.NewAdapter(bunDB)
+func NewAuthorizer(enforcer casbin.IEnforcer, subjectFn func(*http.Request) string, labelsFn func(*http.Request) (map[string]any, error)) func(http.Handler) http.Handler {
+    return func(next http.Handler) http.Handler {
+        return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+            sub := subjectFn(r)
+            if sub == "" {
+                http.Error(w, "unauthenticated", http.StatusUnauthorized)
+                return
+            }
 
-// Create enforcer with model and adapter
-enforcer, _ := casbin.NewEnforcer("model.conf", adapter)
+            labels, err := labelsFn(r)
+            if err != nil {
+                http.Error(w, "authorization lookup failed", http.StatusInternalServerError)
+                return
+            }
 
-// Register custom bexprMatch function for label filtering
-enforcer.AddFunction("bexprMatch", func(args ...any) (any, error) {
-    scopeExpr := args[0].(string)
-    labels := args[1].(map[string]any)
-    return evaluateBexpr(scopeExpr, labels), nil
-})
-
-// Load policies from database
-_ = enforcer.LoadPolicy()
-
-// Attach middleware
-r.Use(chiauth.NewAuthorizer(enforcer, chiauth.WithSubjectFn(extractSubject)))
-
-// Custom subject extraction from JWT claims
-func extractSubject(r *http.Request) string {
-    // Extract user ID from context (set by auth middleware)
-    userID, ok := r.Context().Value("user_id").(string)
-    if !ok {
-        return ""
+            objType, act := resolveRequest(r)
+            ok, err := enforcer.Enforce(sub, objType, act, labels)
+            if err != nil {
+                http.Error(w, "authorization error", http.StatusInternalServerError)
+                return
+            }
+            if !ok {
+                http.Error(w, "forbidden", http.StatusForbidden)
+                return
+            }
+            next.ServeHTTP(w, r)
+        })
     }
-    return userID
 }
+
+// Adapter + enforcer initialisation
+adapter, _ := casbinbunadapter.NewAdapter(bunDB)
+enforcer, _ := casbin.NewSyncedEnforcer("model.conf", adapter)
+enforcer.AddFunction("bexprMatch", bexprMatch)
+_ = enforcer.LoadPolicy()
 ```
 
 model.conf Example
@@ -109,25 +114,115 @@ Explanation:
 
 ---
 
-## 2. OIDC Provider Setup
+## 2. Deployment Mode Architecture
 
-### Decision
-- **Development**: Keycloak 22+ in Docker Compose
-- **Production**: Azure Entra ID (Microsoft identity platform)
+### Decision: Grid Supports Two Mutually Exclusive Authentication Modes
 
-### Rationale
+A deployment must choose **exactly ONE** mode. Hybrid mode is NOT supported.
 
-**Keycloak**:
-- Open-source, self-hosted (no cloud vendor lock-in for dev)
-- Full OIDC support with discovery endpoint
-- Supports all required flows (authorization code, client credentials, device code)
-- Docker image: quay.io/keycloak/keycloak:22.0
+#### Mode 1: External IdP Only (Recommended)
+**Principle**: Grid is a **Resource Server** - validates tokens, never issues them.
 
-**Azure Entra ID**:
-- Production-grade SLA (99.99% uptime)
-- Native integration with Microsoft 365 (if org uses it)
-- Enterprise features: Conditional Access, MFA policies
-- Well-documented OAuth2/OIDC endpoints
+**Configuration**:
+- Environment: `EXTERNAL_IDP_ISSUER`, `EXTERNAL_IDP_CLIENT_ID`, `EXTERNAL_IDP_CLIENT_SECRET`, `EXTERNAL_IDP_REDIRECT_URI`
+- `OIDC_ISSUER` must be empty
+
+**Libraries**:
+- `golang.org/x/oauth2` (authorization code flow)
+- `github.com/coreos/go-oidc/v3` (ID token verification)
+
+**Token Flow**:
+- **Human SSO (Web/CLI)**: User authenticates at external IdP → IdP issues JWT (`iss` = IdP URL) → Grid validates via JWKS
+- **Service Accounts**: Created as **IdP clients** (not Grid entities) → machine calls IdP's `/token` with client credentials → IdP issues JWT → Grid validates
+
+**Session Creation**: On first API request after token validation (in authentication middleware)
+
+**Implementation**:
+- Custom handlers: `/auth/sso/login` (redirect to IdP), `/auth/sso/callback` (receive tokens)
+- No Grid signing keys, no Grid OIDC provider endpoints
+- Single verifier configured for `ExternalIdP.Issuer`
+
+**External IdP Options**:
+- **Development**: Keycloak 22+ in Docker Compose (open-source, self-hosted)
+- **Production**: Azure Entra ID, Okta, Google Workspace, Auth0, or any OIDC-compliant provider
+
+**Benefits**:
+- Simplest deployment (no key management, no token issuance logic)
+- Offloads all identity concerns to enterprise IdP
+- Standard OAuth2/OIDC flows
+- Service accounts managed in familiar IdP admin interface
+
+**Tradeoffs**:
+- Requires external IdP (cannot run fully air-gapped)
+- Depends on IdP availability
+
+#### Mode 2: Internal IdP Only (Air-Gapped)
+**Principle**: Grid is a **self-contained IdP** - issues and validates its own tokens.
+
+**Configuration**:
+- Environment: `OIDC_ISSUER` set to Grid's URL (e.g., `https://grid.example.com`)
+- `EXTERNAL_IDP_*` must be empty
+
+**Library**: `github.com/zitadel/oidc/v3/pkg/op` (provider package)
+
+**Token Flow**:
+- **Service Accounts**: Created in Grid → machine calls Grid's `/token` with client credentials → Grid issues JWT (`iss` = Grid URL)
+- **Human Users**: Grid manages credentials (username/password) → authentication via Grid's login forms → Grid issues tokens
+
+**Session Creation**: At issuance time in `CreateAccessToken()` callback (oidc.go:194)
+
+**Implementation**:
+- Grid issues JWT tokens signed with its own RSA 2048 private keys
+- Auto-mounted endpoints via `op.CreateRouter()`:
+  - `/device_authorization` - CLI initiates device code flow (RFC 8628)
+  - `/token` - Token endpoint (device_code, client_credentials, refresh_token grants)
+  - `/keys` - Grid's JWKS for validating Grid-issued tokens
+  - `/.well-known/openid-configuration` - Discovery for Grid-as-provider
+- Custom handler: `/auth/device/verify` (user approval UI for device flow)
+- Single verifier configured for `OIDC.Issuer`
+
+**Benefits**:
+- Full autonomy (no external dependencies)
+- Works in air-gapped/offline environments
+- Complete control over token lifecycle
+
+**Tradeoffs**:
+- Operational burden: key rotation, user credential management, login UI
+- Grid must implement authentication flows (password reset, MFA, etc.)
+
+### Token Validation Strategy
+
+Authentication middleware uses **single-issuer validation** based on deployment mode:
+
+**Mode Detection**:
+```go
+if cfg.OIDC.ExternalIdP != nil {
+    // Mode 1: External IdP Only
+    verifier, err = NewExternalIDPVerifier(cfg.OIDC.ExternalIdP)
+} else if cfg.OIDC.Issuer != "" {
+    // Mode 2: Internal IdP Only
+    verifier, err = NewInternalIDPVerifier(cfg.OIDC.Issuer)
+} else {
+    // Auth disabled (development mode)
+}
+```
+
+**Key Insight**: No dynamic issuer selection needed - each deployment validates tokens from **one trusted issuer** only.
+
+### Session Persistence by Mode
+
+**Mode 1 (External IdP)**:
+- Session created **on first authenticated request** (in authentication middleware)
+- Token hash extracted from validated JWT
+- User record created/updated based on IdP claims (sub, email, name)
+- Subsequent requests reuse existing session
+
+**Mode 2 (Internal IdP)**:
+- Session created **at token issuance** in `persistSession()` callback (oidc.go:784)
+- Token hash stored immediately for revocation support
+- User/service account lookup happens during issuance
+
+Both strategies support immediate revocation via `sessions.revoked` column (FR-007/FR-102a)
 
 ### Discovery & JWKS
 
@@ -167,54 +262,43 @@ oidc:
 ## 3. CLI Authentication Flow
 
 ### Decision
-Use **PKCE + Loopback Redirect** (OAuth2 Authorization Code Flow with PKCE).
+Adopt the **OIDC Device Authorization Grant** (RFC 8628) as the primary CLI authentication mechanism, using zitadel/oidc helpers for both provider endpoints and client polling.
 
 ### Rationale
-- Standard OAuth2 flow recommended by IETF RFC 8252
-- No client secret required (public client)
-- Secure against authorization code interception attacks
-- Works on machines with browser access
-- Azure Entra ID officially supports localhost redirect (https://localhost:port)
+- Works uniformly across headless environments (SSH sessions, CI runners) and desktops
+- Avoids local callback server/network gymnastics; only needs outbound HTTPS
+- zitadel/oidc already provides `op.DeviceAuthorizationHandler` / `op.DeviceTokenHandler` and compatible client helpers, reducing custom code
+- Aligns with FR-003a requirement to rely on maintained OIDC libraries instead of hand-rolled implementations
+- Keeps CLI UX consistent with `gridctl tf` non-interactive usage (same credential store)
 
 ### Flow Steps
-1. Generate PKCE code verifier (random 43-128 char string)
-2. Derive code challenge: SHA256(verifier) → Base64URL
-3. Start local HTTP server on random port (e.g., :5432)
-4. Build authorization URL with challenge + redirect_uri=http://localhost:5432
-5. Open browser (or print URL for user to copy)
-6. User authenticates at IdP
-7. IdP redirects to localhost:5432?code=...
-8. Exchange code + verifier for tokens
-9. Store access token locally (~/.grid/credentials.json)
-10. Shutdown local server
+1. CLI invokes `/auth/device/code` via zitadel/oidc client to obtain `device_code`, `user_code`, verification URI, and polling interval
+2. CLI displays the verification URI + user code (and attempts to open the browser when possible)
+3. User visits the IdP-hosted verification page, enters the code, and completes authentication (Keycloak in dev, Azure Entra ID in production). The approval UI is delivered entirely by the identity provider, so no Grid-specific web surface is required (see Keycloak device grant docs, server_admin/index.html §“Auth 2.0 Device Authorization Grant”).
+4. CLI polls `/auth/device/token` at the provider-specified interval
+5. On approval, the CLI receives access/refresh tokens (or an error such as `slow_down`, `authorization_pending`, `access_denied`)
+6. Tokens are persisted via the shared `CredentialStore` (`~/.grid/credentials.json` with mode 0600)
 
 ### Implementation Libraries
-- **golang.org/x/oauth2**: Standard OAuth2 client (code exchange, refresh)
-- **github.com/nirasan/go-oauth-pkce-code-verifier**: PKCE generation helper
-- **net/http + net.Listen**: Loopback server (stdlib, no deps)
-
-### Port Handling
-```go
-// Find random free port
-listener, err := net.Listen("tcp", "127.0.0.1:0")
-if err != nil {
-    return err
-}
-port := listener.Addr().(*net.TCPAddr).Port
-redirectURI := fmt.Sprintf("http://127.0.0.1:%d/callback", port)
-```
+- **github.com/zitadel/oidc/v3/pkg/op**: Device authorization + token handlers mounted in `cmd/gridapi/internal/auth/oidc.go`
+- **github.com/zitadel/oidc/v3/pkg/client**: Device client utilities for polling/token exchange
+- **golang.org/x/oauth2**: Shared structures for token metadata (already in dependency tree)
 
 ### Error Handling
-- User cancels: Server timeout after 5 minutes, return error
-- Code reused: OAuth2 error response, prompt re-login
-- Port collision: Try next random port (loop 3 times)
-- Firewall blocks localhost: Fallback to manual code entry (future enhancement)
+- Respect `slow_down` by backing off before next poll
+- Abort after provider-reported expiry (`expires_in`) and prompt the user to restart login
+- Surface `access_denied` and other error codes with actionable CLI messaging
 
 ### Alternatives Considered
-- Device code flow: Rejected for primary flow (worse UX, requires typing code)
-  - Note: Still supported for headless environments
-- Embedded browser: Rejected (platform-specific, security concerns)
-- Copy/paste token: Rejected (poor UX, token exposure risk)
+- PKCE + loopback redirect (RFC 8252): Deferred for now; more ergonomic on desktops but adds callback server complexity. Documented as future enhancement below.
+- Embedded browser: Rejected (platform-specific, security and maintenance concerns)
+- Copy/paste bearer tokens: Rejected (poor UX, security exposure)
+
+### Deferred Improvement: PKCE Loopback
+The libraries in use (zitadel/oidc and go-oidc-middleware) already support authorization code + PKCE flows. Once the device grant is validated in production, we can layer a loopback-based PKCE experience on top for users who prefer seamless browser redirects. Tracking issue TBD; no changes are required in the current milestone.
+
+- **Library hooks**: `pkg/client/rp/relying_party.go` exposes `WithPKCE` / `WithPKCEFromDiscovery` options plus `GenerateAndStoreCodeChallenge` helpers, making it straightforward to enable PKCE when instantiating a relying party. The CLI can reuse these helpers to spin up a loopback server while still persisting credentials through the shared `CredentialStore`.
+- **Integration sketch**: create a secondary auth path that constructs a `rp.RelyingParty` with PKCE enabled, launch `AuthURLHandler` to open the browser (see `pkg/client/rp/cli/browser.go`), and exchange the code via zitadel/oidc’s existing token helpers. Device flow remains the default; PKCE becomes an opt-in enhancement for rich desktop users.
 
 ---
 
@@ -310,71 +394,114 @@ token, err := config.Token(ctx)
 
 ---
 
-## 6. JWT Validation
+## 6. Resource-Server Token Validation
 
 ### Decision
-Use **github.com/coreos/go-oidc/v3/oidc** for validation.
+Use **github.com/XenitAB/go-oidc-middleware** to protect Chi routes, leveraging its embedded `github.com/coreos/go-oidc/v3/oidc` verifier.
 
 ### Rationale
-- Handles JWKS fetching and caching automatically
-- Verifies all standard claims (iss, aud, exp, nbf, iat)
-- Validates signature using keys from IdP's JWKS endpoint
-- Thread-safe caching (no race conditions)
-- Used by Kubernetes, Prometheus, and other CNCF projects
+- Drop-in Chi middleware: `verifier.VerifyToken()` extracts bearer tokens, validates them, and injects claims into request context.
+- Handles discovery metadata and JWKS caching automatically, removing bespoke HTTP clients and retry logic.
+- Provides hook points for custom logic (session revocation, group resolution) that we can wire immediately after validation.
+- Keeps our code focused on revocation (FR-007) and Casbin policy enforcement (FR-011–FR-024), satisfying FR-006a.
 
-### Validation Process
+### Evaluation: go-oidc-middleware vs hand-rolled go-oidc
+| Dimension | go-oidc-middleware | Manual go-oidc wiring | Impact |
+|-----------|--------------------|-----------------------|--------|
+| Discovery & JWKS caching | Built-in, background refreshed | Must implement HTTP client, retries, caching | Reduces error-prone plumbing; mitigates FR-006 token validation risks |
+| Token extraction | Handles `Authorization` header parsing, bearer vs token type errors | Custom parsing per handler | Ensures consistent 401 responses (FR-040) |
+| Middleware ergonomics | Chi-style `VerifyToken()` + skipper; claims stored in context | Need to build middleware scaffolding | Faster adoption, less code to audit |
+| Error handling | Returns typed errors mapped to HTTP 401/403, supports logging hooks | Custom error taxonomy | Aligns with FR-023 clear denial messaging |
+| Extension points | Exposes `WithErrorHandler`, `WithAccessor`, `ClaimsFromContext` for downstream use | Need to design context propagation and hooks | Simplifies revocation + Casbin layering (FR-007, FR-038) |
+| Maintenance | Upstream maintained; consumes latest go-oidc fixes | Grid must track upstream API changes | Lower ongoing cost |
+| Footprint | Small wrapper, no additional transitive deps beyond go-oidc | Same base deps | No bloat introduced |
+
+**Cons / Trade-offs**
+- Middleware opinionates on context keys → when requirements change we conform to its types. Mitigation: wrap access in thin helper (`type ClaimsMap map[string]any`).
+- Library lifecycle tied to XenitAB upstream; if abandoned we can drop-in our own middleware using identical underlying go-oidc verifier. Plan: pin version, monitor releases.
+- Slightly less visibility into internals; however we can enable debug logging via provided options.
+
+### Functional Requirement Alignment & Hook Usage
+- **FR-006 / FR-006a**: Middleware guarantees signature/claim validation using discovery & JWKS; we keep enforcement code minimal.
+- **FR-007 / FR-102a**: Immediately after `VerifyToken()`, insert `checkRevocation` middleware that reads custom `session_id` claim and consults `sessions` repository, returning 401/403 as required.
+- **FR-011–FR-024 / FR-038–FR-039**: `applyCasbinGroups` middleware converts claims to principal/group sets and feeds Casbin before handlers execute.
+- **FR-057–FR-061**: Shared middleware stack attaches to both Connect RPC and `/tfstate` routes, ensuring consistent 401/403 semantics.
+- **FR-057–FR-059 (Terraform Basic Auth quirk)**: go-oidc-middleware expects a bearer token in the Authorization header; for Terraform HTTP backend we first run a shim that converts the Basic Auth password into a `Bearer <token>` header before the middleware executes, allowing tfstate requests to reuse the same verifier without library changes.
+- **FR-098–FR-099**: Use middleware error hooks (`WithErrorHandler`) to emit structured audit logs on validation failures or authorization denials.
+
+### Integration Pattern
 ```go
-import "github.com/coreos/go-oidc/v3/oidc"
+import (
+    oidcmiddleware "github.com/XenitAB/go-oidc-middleware"
+)
 
-// Initialize verifier (startup)
-provider, err := oidc.NewProvider(ctx, issuerURL)
-verifier := provider.Verifier(&oidc.Config{
-    ClientID: clientID,
-})
+verifier := oidcmiddleware.NewVerifier(
+    cfg.OIDC.Issuer,
+    oidcmiddleware.WithClientID(cfg.OIDC.Audience),
+    oidcmiddleware.WithSkipper(func(r *http.Request) bool {
+        return strings.HasPrefix(r.URL.Path, "/health") || strings.HasPrefix(r.URL.Path, "/auth/")
+    }),
+)
 
-// Validate token (per request)
-idToken, err := verifier.Verify(ctx, rawIDToken)
-if err != nil {
-    // Invalid signature, expired, wrong issuer, etc.
-    return err
-}
-
-// Extract claims
-var claims struct {
-    Sub   string `json:"sub"`
-    Email string `json:"email"`
-    Roles []string `json:"roles"`
-}
-idToken.Claims(&claims)
+r.Use(verifier.VerifyToken())
+r.Use(checkRevocation(sessionsRepo))
+r.Use(applyCasbinGroups(enforcer, ExtractGroups))
 ```
 
-### JWKS Caching
-- go-oidc fetches JWKS on first use
-- Cached in memory (no external store needed)
-- Refresh on kid (key ID) not found (handles key rotation)
-- Respects Cache-Control headers from IdP
+### Claims Access
+- Middleware stores parsed claims in context: `claims, _ := oidcmiddleware.ClaimsFromContext(r.Context())`.
+- `ExtractGroups` operates on the claims map to derive `[]string` for Casbin grouping using `github.com/mitchellh/mapstructure` to handle heterogeneous claim shapes (flat arrays, nested objects).
+- Session metadata (e.g., session ID hash) should be added as custom claim so revocation middleware can look up `sessions` table rows directly.
 
-### Key Rotation Handling
-1. IdP publishes new key to JWKS (both old and new keys present)
-2. New tokens signed with new key
-3. go-oidc detects unknown kid → refetches JWKS
-4. Old tokens still valid (old key still in JWKS)
-5. IdP removes old key after grace period (e.g., 24 hours)
-
-### No Custom Signing
-- Grid NEVER signs JWTs
-- IdP is sole issuer (Grid is consumer only)
-- Tokens verified against IdP's public keys (JWKS)
-- No private keys stored in Grid
+### Functionality Overlap
+- Both go-oidc-middleware and manual go-oidc wiring rely on the same verifier (`oidc.NewProvider(...).Verifier(...)`). Selecting the middleware avoids duplicating:
+  - HTTP round-tripping for discovery documents
+  - JWKS caching implementation
+  - Request-scoped claim storage and context key management
+  - Token-type error semantics and WWW-Authenticate headers
+- If future requirements demand bespoke behavior, we can unwrap the embedded verifier (`middleware.Provider().Verifier(...)`) and extend selectively without re-implementing the full stack.
 
 ### Alternatives Considered
-- golang-jwt/jwt: Rejected (manual JWKS handling)
-- jose: Rejected (lower-level, more code)
-- Custom validation: Rejected (security risk)
+- Manual go-oidc wiring: More boilerplate (token extraction, error handling, context storage).
+- dexidp/oidc: Archived.
+- govalidator-based JWT parsing: Lacks discovery/JWKS support; security risk.
 
 ---
 
-## 7. Casbin Policy Management
+## 7. Provider-Side Implementation with `zitadel/oidc`
+
+### Decision
+Adopt `github.com/zitadel/oidc/v3` for hosting OpenID Provider endpoints (authorization, device, token, revocation, discovery) so Grid avoids reimplementing protocol-critical flows.
+
+### Rationale
+- Exposes `op.NewOpenIDProvider` that mounts handlers on Chi, fitting our routing layer.
+- Includes RFC 8628 device authorization flow with sample CLI application—covers FR-003/FR-003a without bespoke polling.
+- Manages discovery metadata (`/.well-known/openid-configuration`) and JWKS publishing automatically.
+- Modular storage interfaces let us back sessions, device codes, and approvals with existing PostgreSQL repositories.
+
+### Integration Checklist
+1. Implement `op.Storage` adapters backed by our auth repositories (clients, users, sessions, device codes).
+2. Configure signing keys (ed25519 or RSA). For dev we can reuse Keycloak-style static keys; production should load from secure key vault.
+3. Wrap handlers to:
+   - Persist Grid session rows on successful token issuance.
+   - Attach HTTP-only cookies or return bearer tokens per spec FR-005.
+   - Emit audit logs (FR-098/FR-099).
+4. Expose device approval UI/API leveraging existing admin endpoints for service account approvals if required.
+
+### Coordination with External IdPs
+- When delegating to upstream IdPs (Keycloak/Azure AD), `zitadel/oidc` can operate in "federation" mode by implementing the respective upstream authentication in the Storage/Handler hooks, keeping Grid as the relying party while still benefiting from shared device/token endpoints.
+
+### Risks / Mitigations
+- **Storage Complexity**: Library expects certain tables (clients, users). Mitigate by mapping to our domain models and documenting schema mapping.
+- **Session Duplication**: Ensure we do not double-store sessions (library + Grid). Consolidate into our `sessions` table via adapters.
+- **Version Drift**: Pin module version and add Renovate/Dependabot rules.
+- **Key Management**: Add a TODO to tasks to cover development key generation commands (ed25519/RSA), local config docs, and instructions for production deployments to load keys from secure vault/secrets manager.
+
+---
+
+---
+
+## 8. Casbin Policy Management
 
 ### Decision
 - **Server-side**: Casbin Go API (`enforcer.AddPolicy`, `enforcer.RemovePolicy`)
@@ -594,7 +721,7 @@ func (s *AuthService) Enforce(userID, resource, action string) (bool, error) {
 
 ---
 
-## 8. JWT Claim Extraction for Nested Structures
+## 9. JWT Claim Extraction for Nested Structures
 
 ### Decision
 Use **github.com/mitchellh/mapstructure** (already in dependency tree via go-bexpr) for nested claim extraction, with optional JSONPath support for complex cases.
@@ -764,7 +891,7 @@ func TestExtractGroups_NestedObjects(t *testing.T) {
 
 ---
 
-## 9. Additional Libraries
+## 10. Additional Libraries
 
 ### go-chi/chi/v5
 - **Purpose**: HTTP router (existing dependency)
@@ -806,7 +933,7 @@ func TestExtractGroups_NestedObjects(t *testing.T) {
 
 ---
 
-## 10. Performance Considerations
+## 11. Performance Considerations
 
 ### Token Validation
 - Target: <10ms per request
@@ -835,7 +962,7 @@ func TestExtractGroups_NestedObjects(t *testing.T) {
 
 ---
 
-## 11. Security Considerations
+## 12. Security Considerations
 
 ### Token Storage (CLI)
 - Location: `~/.grid/credentials.json`
@@ -863,7 +990,7 @@ func TestExtractGroups_NestedObjects(t *testing.T) {
 
 ---
 
-## 12. Open Questions Resolved
+## 13. Open Questions Resolved
 
 All questions resolved via user input and spec clarifications:
 
@@ -880,7 +1007,7 @@ All questions resolved via user input and spec clarifications:
 
 ---
 
-## 13. Webapp Authentication Patterns (React + Vite)
+## 14. Webapp Authentication Patterns (React + Vite)
 
 ### Existing Patterns Analysis
 
@@ -1094,7 +1221,7 @@ export const gridTransport = createGridTransport(getApiBaseUrl(), {
 ## References
 
 - [Casbin Documentation](https://casbin.org/docs/overview)
-- [Chi-authz Middleware](https://github.com/casbin/chi-authz)
+- [Casbin SyncedEnforcer](https://casbin.org/docs/en/synced-enforcer)
 - [go-oidc Library](https://github.com/coreos/go-oidc)
 - [RFC 8252: OAuth 2.0 for Native Apps](https://datatracker.ietf.org/doc/html/rfc8252)
 - [RFC 7636: PKCE](https://datatracker.ietf.org/doc/html/rfc7636)

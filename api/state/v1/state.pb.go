@@ -3415,6 +3415,2303 @@ func (x *SetLabelPolicyResponse) GetUpdatedAt() *timestamppb.Timestamp {
 	return nil
 }
 
+type CreateServiceAccountRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Name          string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	Description   *string                `protobuf:"bytes,2,opt,name=description,proto3,oneof" json:"description,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CreateServiceAccountRequest) Reset() {
+	*x = CreateServiceAccountRequest{}
+	mi := &file_state_v1_state_proto_msgTypes[50]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CreateServiceAccountRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CreateServiceAccountRequest) ProtoMessage() {}
+
+func (x *CreateServiceAccountRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_state_v1_state_proto_msgTypes[50]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CreateServiceAccountRequest.ProtoReflect.Descriptor instead.
+func (*CreateServiceAccountRequest) Descriptor() ([]byte, []int) {
+	return file_state_v1_state_proto_rawDescGZIP(), []int{50}
+}
+
+func (x *CreateServiceAccountRequest) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *CreateServiceAccountRequest) GetDescription() string {
+	if x != nil && x.Description != nil {
+		return *x.Description
+	}
+	return ""
+}
+
+type CreateServiceAccountResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	ClientId      string                 `protobuf:"bytes,2,opt,name=client_id,json=clientId,proto3" json:"client_id,omitempty"`
+	ClientSecret  string                 `protobuf:"bytes,3,opt,name=client_secret,json=clientSecret,proto3" json:"client_secret,omitempty"` // Only returned once on creation
+	Name          string                 `protobuf:"bytes,4,opt,name=name,proto3" json:"name,omitempty"`
+	CreatedAt     *timestamppb.Timestamp `protobuf:"bytes,5,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CreateServiceAccountResponse) Reset() {
+	*x = CreateServiceAccountResponse{}
+	mi := &file_state_v1_state_proto_msgTypes[51]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CreateServiceAccountResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CreateServiceAccountResponse) ProtoMessage() {}
+
+func (x *CreateServiceAccountResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_state_v1_state_proto_msgTypes[51]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CreateServiceAccountResponse.ProtoReflect.Descriptor instead.
+func (*CreateServiceAccountResponse) Descriptor() ([]byte, []int) {
+	return file_state_v1_state_proto_rawDescGZIP(), []int{51}
+}
+
+func (x *CreateServiceAccountResponse) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *CreateServiceAccountResponse) GetClientId() string {
+	if x != nil {
+		return x.ClientId
+	}
+	return ""
+}
+
+func (x *CreateServiceAccountResponse) GetClientSecret() string {
+	if x != nil {
+		return x.ClientSecret
+	}
+	return ""
+}
+
+func (x *CreateServiceAccountResponse) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *CreateServiceAccountResponse) GetCreatedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.CreatedAt
+	}
+	return nil
+}
+
+type ListServiceAccountsRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListServiceAccountsRequest) Reset() {
+	*x = ListServiceAccountsRequest{}
+	mi := &file_state_v1_state_proto_msgTypes[52]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListServiceAccountsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListServiceAccountsRequest) ProtoMessage() {}
+
+func (x *ListServiceAccountsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_state_v1_state_proto_msgTypes[52]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListServiceAccountsRequest.ProtoReflect.Descriptor instead.
+func (*ListServiceAccountsRequest) Descriptor() ([]byte, []int) {
+	return file_state_v1_state_proto_rawDescGZIP(), []int{52}
+}
+
+type ServiceAccountInfo struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	ClientId      string                 `protobuf:"bytes,2,opt,name=client_id,json=clientId,proto3" json:"client_id,omitempty"`
+	Name          string                 `protobuf:"bytes,3,opt,name=name,proto3" json:"name,omitempty"`
+	Description   *string                `protobuf:"bytes,4,opt,name=description,proto3,oneof" json:"description,omitempty"`
+	CreatedAt     *timestamppb.Timestamp `protobuf:"bytes,5,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	LastUsedAt    *timestamppb.Timestamp `protobuf:"bytes,6,opt,name=last_used_at,json=lastUsedAt,proto3" json:"last_used_at,omitempty"`
+	Disabled      bool                   `protobuf:"varint,7,opt,name=disabled,proto3" json:"disabled,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ServiceAccountInfo) Reset() {
+	*x = ServiceAccountInfo{}
+	mi := &file_state_v1_state_proto_msgTypes[53]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ServiceAccountInfo) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ServiceAccountInfo) ProtoMessage() {}
+
+func (x *ServiceAccountInfo) ProtoReflect() protoreflect.Message {
+	mi := &file_state_v1_state_proto_msgTypes[53]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ServiceAccountInfo.ProtoReflect.Descriptor instead.
+func (*ServiceAccountInfo) Descriptor() ([]byte, []int) {
+	return file_state_v1_state_proto_rawDescGZIP(), []int{53}
+}
+
+func (x *ServiceAccountInfo) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *ServiceAccountInfo) GetClientId() string {
+	if x != nil {
+		return x.ClientId
+	}
+	return ""
+}
+
+func (x *ServiceAccountInfo) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *ServiceAccountInfo) GetDescription() string {
+	if x != nil && x.Description != nil {
+		return *x.Description
+	}
+	return ""
+}
+
+func (x *ServiceAccountInfo) GetCreatedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.CreatedAt
+	}
+	return nil
+}
+
+func (x *ServiceAccountInfo) GetLastUsedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.LastUsedAt
+	}
+	return nil
+}
+
+func (x *ServiceAccountInfo) GetDisabled() bool {
+	if x != nil {
+		return x.Disabled
+	}
+	return false
+}
+
+type ListServiceAccountsResponse struct {
+	state           protoimpl.MessageState `protogen:"open.v1"`
+	ServiceAccounts []*ServiceAccountInfo  `protobuf:"bytes,1,rep,name=service_accounts,json=serviceAccounts,proto3" json:"service_accounts,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
+}
+
+func (x *ListServiceAccountsResponse) Reset() {
+	*x = ListServiceAccountsResponse{}
+	mi := &file_state_v1_state_proto_msgTypes[54]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListServiceAccountsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListServiceAccountsResponse) ProtoMessage() {}
+
+func (x *ListServiceAccountsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_state_v1_state_proto_msgTypes[54]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListServiceAccountsResponse.ProtoReflect.Descriptor instead.
+func (*ListServiceAccountsResponse) Descriptor() ([]byte, []int) {
+	return file_state_v1_state_proto_rawDescGZIP(), []int{54}
+}
+
+func (x *ListServiceAccountsResponse) GetServiceAccounts() []*ServiceAccountInfo {
+	if x != nil {
+		return x.ServiceAccounts
+	}
+	return nil
+}
+
+type RevokeServiceAccountRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	ClientId      string                 `protobuf:"bytes,1,opt,name=client_id,json=clientId,proto3" json:"client_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RevokeServiceAccountRequest) Reset() {
+	*x = RevokeServiceAccountRequest{}
+	mi := &file_state_v1_state_proto_msgTypes[55]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RevokeServiceAccountRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RevokeServiceAccountRequest) ProtoMessage() {}
+
+func (x *RevokeServiceAccountRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_state_v1_state_proto_msgTypes[55]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RevokeServiceAccountRequest.ProtoReflect.Descriptor instead.
+func (*RevokeServiceAccountRequest) Descriptor() ([]byte, []int) {
+	return file_state_v1_state_proto_rawDescGZIP(), []int{55}
+}
+
+func (x *RevokeServiceAccountRequest) GetClientId() string {
+	if x != nil {
+		return x.ClientId
+	}
+	return ""
+}
+
+type RevokeServiceAccountResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Success       bool                   `protobuf:"varint,1,opt,name=success,proto3" json:"success,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RevokeServiceAccountResponse) Reset() {
+	*x = RevokeServiceAccountResponse{}
+	mi := &file_state_v1_state_proto_msgTypes[56]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RevokeServiceAccountResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RevokeServiceAccountResponse) ProtoMessage() {}
+
+func (x *RevokeServiceAccountResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_state_v1_state_proto_msgTypes[56]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RevokeServiceAccountResponse.ProtoReflect.Descriptor instead.
+func (*RevokeServiceAccountResponse) Descriptor() ([]byte, []int) {
+	return file_state_v1_state_proto_rawDescGZIP(), []int{56}
+}
+
+func (x *RevokeServiceAccountResponse) GetSuccess() bool {
+	if x != nil {
+		return x.Success
+	}
+	return false
+}
+
+type RotateServiceAccountRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	ClientId      string                 `protobuf:"bytes,1,opt,name=client_id,json=clientId,proto3" json:"client_id,omitempty"` // Service account to rotate credentials for
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RotateServiceAccountRequest) Reset() {
+	*x = RotateServiceAccountRequest{}
+	mi := &file_state_v1_state_proto_msgTypes[57]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RotateServiceAccountRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RotateServiceAccountRequest) ProtoMessage() {}
+
+func (x *RotateServiceAccountRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_state_v1_state_proto_msgTypes[57]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RotateServiceAccountRequest.ProtoReflect.Descriptor instead.
+func (*RotateServiceAccountRequest) Descriptor() ([]byte, []int) {
+	return file_state_v1_state_proto_rawDescGZIP(), []int{57}
+}
+
+func (x *RotateServiceAccountRequest) GetClientId() string {
+	if x != nil {
+		return x.ClientId
+	}
+	return ""
+}
+
+type RotateServiceAccountResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	ClientId      string                 `protobuf:"bytes,1,opt,name=client_id,json=clientId,proto3" json:"client_id,omitempty"`             // Same client_id (identity preserved)
+	ClientSecret  string                 `protobuf:"bytes,2,opt,name=client_secret,json=clientSecret,proto3" json:"client_secret,omitempty"` // New secret (only returned once)
+	RotatedAt     *timestamppb.Timestamp `protobuf:"bytes,3,opt,name=rotated_at,json=rotatedAt,proto3" json:"rotated_at,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RotateServiceAccountResponse) Reset() {
+	*x = RotateServiceAccountResponse{}
+	mi := &file_state_v1_state_proto_msgTypes[58]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RotateServiceAccountResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RotateServiceAccountResponse) ProtoMessage() {}
+
+func (x *RotateServiceAccountResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_state_v1_state_proto_msgTypes[58]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RotateServiceAccountResponse.ProtoReflect.Descriptor instead.
+func (*RotateServiceAccountResponse) Descriptor() ([]byte, []int) {
+	return file_state_v1_state_proto_rawDescGZIP(), []int{58}
+}
+
+func (x *RotateServiceAccountResponse) GetClientId() string {
+	if x != nil {
+		return x.ClientId
+	}
+	return ""
+}
+
+func (x *RotateServiceAccountResponse) GetClientSecret() string {
+	if x != nil {
+		return x.ClientSecret
+	}
+	return ""
+}
+
+func (x *RotateServiceAccountResponse) GetRotatedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.RotatedAt
+	}
+	return nil
+}
+
+type CreateRoleRequest struct {
+	state             protoimpl.MessageState `protogen:"open.v1"`
+	Name              string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	Description       *string                `protobuf:"bytes,2,opt,name=description,proto3,oneof" json:"description,omitempty"`
+	Actions           []string               `protobuf:"bytes,3,rep,name=actions,proto3" json:"actions,omitempty"`                                             // e.g., ["state:create", "tfstate:*"]
+	LabelScopeExpr    *string                `protobuf:"bytes,4,opt,name=label_scope_expr,json=labelScopeExpr,proto3,oneof" json:"label_scope_expr,omitempty"` // go-bexpr expression (e.g., "env == \"dev\"" or "env == \"dev\" and team == \"platform\" or team == \"sre\"")
+	CreateConstraints *CreateConstraints     `protobuf:"bytes,5,opt,name=create_constraints,json=createConstraints,proto3,oneof" json:"create_constraints,omitempty"`
+	ImmutableKeys     []string               `protobuf:"bytes,6,rep,name=immutable_keys,json=immutableKeys,proto3" json:"immutable_keys,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
+}
+
+func (x *CreateRoleRequest) Reset() {
+	*x = CreateRoleRequest{}
+	mi := &file_state_v1_state_proto_msgTypes[59]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CreateRoleRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CreateRoleRequest) ProtoMessage() {}
+
+func (x *CreateRoleRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_state_v1_state_proto_msgTypes[59]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CreateRoleRequest.ProtoReflect.Descriptor instead.
+func (*CreateRoleRequest) Descriptor() ([]byte, []int) {
+	return file_state_v1_state_proto_rawDescGZIP(), []int{59}
+}
+
+func (x *CreateRoleRequest) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *CreateRoleRequest) GetDescription() string {
+	if x != nil && x.Description != nil {
+		return *x.Description
+	}
+	return ""
+}
+
+func (x *CreateRoleRequest) GetActions() []string {
+	if x != nil {
+		return x.Actions
+	}
+	return nil
+}
+
+func (x *CreateRoleRequest) GetLabelScopeExpr() string {
+	if x != nil && x.LabelScopeExpr != nil {
+		return *x.LabelScopeExpr
+	}
+	return ""
+}
+
+func (x *CreateRoleRequest) GetCreateConstraints() *CreateConstraints {
+	if x != nil {
+		return x.CreateConstraints
+	}
+	return nil
+}
+
+func (x *CreateRoleRequest) GetImmutableKeys() []string {
+	if x != nil {
+		return x.ImmutableKeys
+	}
+	return nil
+}
+
+type CreateConstraints struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Map of label key to constraint definition
+	Constraints   map[string]*CreateConstraint `protobuf:"bytes,1,rep,name=constraints,proto3" json:"constraints,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CreateConstraints) Reset() {
+	*x = CreateConstraints{}
+	mi := &file_state_v1_state_proto_msgTypes[60]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CreateConstraints) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CreateConstraints) ProtoMessage() {}
+
+func (x *CreateConstraints) ProtoReflect() protoreflect.Message {
+	mi := &file_state_v1_state_proto_msgTypes[60]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CreateConstraints.ProtoReflect.Descriptor instead.
+func (*CreateConstraints) Descriptor() ([]byte, []int) {
+	return file_state_v1_state_proto_rawDescGZIP(), []int{60}
+}
+
+func (x *CreateConstraints) GetConstraints() map[string]*CreateConstraint {
+	if x != nil {
+		return x.Constraints
+	}
+	return nil
+}
+
+type CreateConstraint struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	AllowedValues []string               `protobuf:"bytes,1,rep,name=allowed_values,json=allowedValues,proto3" json:"allowed_values,omitempty"`
+	Required      bool                   `protobuf:"varint,2,opt,name=required,proto3" json:"required,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CreateConstraint) Reset() {
+	*x = CreateConstraint{}
+	mi := &file_state_v1_state_proto_msgTypes[61]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CreateConstraint) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CreateConstraint) ProtoMessage() {}
+
+func (x *CreateConstraint) ProtoReflect() protoreflect.Message {
+	mi := &file_state_v1_state_proto_msgTypes[61]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CreateConstraint.ProtoReflect.Descriptor instead.
+func (*CreateConstraint) Descriptor() ([]byte, []int) {
+	return file_state_v1_state_proto_rawDescGZIP(), []int{61}
+}
+
+func (x *CreateConstraint) GetAllowedValues() []string {
+	if x != nil {
+		return x.AllowedValues
+	}
+	return nil
+}
+
+func (x *CreateConstraint) GetRequired() bool {
+	if x != nil {
+		return x.Required
+	}
+	return false
+}
+
+type RoleInfo struct {
+	state             protoimpl.MessageState `protogen:"open.v1"`
+	Id                string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Name              string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
+	Description       *string                `protobuf:"bytes,3,opt,name=description,proto3,oneof" json:"description,omitempty"`
+	Actions           []string               `protobuf:"bytes,4,rep,name=actions,proto3" json:"actions,omitempty"`
+	LabelScopeExpr    *string                `protobuf:"bytes,5,opt,name=label_scope_expr,json=labelScopeExpr,proto3,oneof" json:"label_scope_expr,omitempty"` // go-bexpr expression evaluated at enforcement time
+	CreateConstraints *CreateConstraints     `protobuf:"bytes,6,opt,name=create_constraints,json=createConstraints,proto3,oneof" json:"create_constraints,omitempty"`
+	ImmutableKeys     []string               `protobuf:"bytes,7,rep,name=immutable_keys,json=immutableKeys,proto3" json:"immutable_keys,omitempty"`
+	CreatedAt         *timestamppb.Timestamp `protobuf:"bytes,8,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	UpdatedAt         *timestamppb.Timestamp `protobuf:"bytes,9,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
+	Version           int32                  `protobuf:"varint,10,opt,name=version,proto3" json:"version,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
+}
+
+func (x *RoleInfo) Reset() {
+	*x = RoleInfo{}
+	mi := &file_state_v1_state_proto_msgTypes[62]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RoleInfo) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RoleInfo) ProtoMessage() {}
+
+func (x *RoleInfo) ProtoReflect() protoreflect.Message {
+	mi := &file_state_v1_state_proto_msgTypes[62]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RoleInfo.ProtoReflect.Descriptor instead.
+func (*RoleInfo) Descriptor() ([]byte, []int) {
+	return file_state_v1_state_proto_rawDescGZIP(), []int{62}
+}
+
+func (x *RoleInfo) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *RoleInfo) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *RoleInfo) GetDescription() string {
+	if x != nil && x.Description != nil {
+		return *x.Description
+	}
+	return ""
+}
+
+func (x *RoleInfo) GetActions() []string {
+	if x != nil {
+		return x.Actions
+	}
+	return nil
+}
+
+func (x *RoleInfo) GetLabelScopeExpr() string {
+	if x != nil && x.LabelScopeExpr != nil {
+		return *x.LabelScopeExpr
+	}
+	return ""
+}
+
+func (x *RoleInfo) GetCreateConstraints() *CreateConstraints {
+	if x != nil {
+		return x.CreateConstraints
+	}
+	return nil
+}
+
+func (x *RoleInfo) GetImmutableKeys() []string {
+	if x != nil {
+		return x.ImmutableKeys
+	}
+	return nil
+}
+
+func (x *RoleInfo) GetCreatedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.CreatedAt
+	}
+	return nil
+}
+
+func (x *RoleInfo) GetUpdatedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.UpdatedAt
+	}
+	return nil
+}
+
+func (x *RoleInfo) GetVersion() int32 {
+	if x != nil {
+		return x.Version
+	}
+	return 0
+}
+
+type CreateRoleResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Role          *RoleInfo              `protobuf:"bytes,1,opt,name=role,proto3" json:"role,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CreateRoleResponse) Reset() {
+	*x = CreateRoleResponse{}
+	mi := &file_state_v1_state_proto_msgTypes[63]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CreateRoleResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CreateRoleResponse) ProtoMessage() {}
+
+func (x *CreateRoleResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_state_v1_state_proto_msgTypes[63]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CreateRoleResponse.ProtoReflect.Descriptor instead.
+func (*CreateRoleResponse) Descriptor() ([]byte, []int) {
+	return file_state_v1_state_proto_rawDescGZIP(), []int{63}
+}
+
+func (x *CreateRoleResponse) GetRole() *RoleInfo {
+	if x != nil {
+		return x.Role
+	}
+	return nil
+}
+
+type ListRolesRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListRolesRequest) Reset() {
+	*x = ListRolesRequest{}
+	mi := &file_state_v1_state_proto_msgTypes[64]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListRolesRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListRolesRequest) ProtoMessage() {}
+
+func (x *ListRolesRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_state_v1_state_proto_msgTypes[64]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListRolesRequest.ProtoReflect.Descriptor instead.
+func (*ListRolesRequest) Descriptor() ([]byte, []int) {
+	return file_state_v1_state_proto_rawDescGZIP(), []int{64}
+}
+
+type ListRolesResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Roles         []*RoleInfo            `protobuf:"bytes,1,rep,name=roles,proto3" json:"roles,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListRolesResponse) Reset() {
+	*x = ListRolesResponse{}
+	mi := &file_state_v1_state_proto_msgTypes[65]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListRolesResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListRolesResponse) ProtoMessage() {}
+
+func (x *ListRolesResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_state_v1_state_proto_msgTypes[65]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListRolesResponse.ProtoReflect.Descriptor instead.
+func (*ListRolesResponse) Descriptor() ([]byte, []int) {
+	return file_state_v1_state_proto_rawDescGZIP(), []int{65}
+}
+
+func (x *ListRolesResponse) GetRoles() []*RoleInfo {
+	if x != nil {
+		return x.Roles
+	}
+	return nil
+}
+
+type UpdateRoleRequest struct {
+	state             protoimpl.MessageState `protogen:"open.v1"`
+	Name              string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"` // Role to update
+	Description       *string                `protobuf:"bytes,2,opt,name=description,proto3,oneof" json:"description,omitempty"`
+	Actions           []string               `protobuf:"bytes,3,rep,name=actions,proto3" json:"actions,omitempty"`
+	LabelScopeExpr    *string                `protobuf:"bytes,4,opt,name=label_scope_expr,json=labelScopeExpr,proto3,oneof" json:"label_scope_expr,omitempty"` // go-bexpr expression (e.g., "env == \"dev\" and team == \"platform\"")
+	CreateConstraints *CreateConstraints     `protobuf:"bytes,5,opt,name=create_constraints,json=createConstraints,proto3,oneof" json:"create_constraints,omitempty"`
+	ImmutableKeys     []string               `protobuf:"bytes,6,rep,name=immutable_keys,json=immutableKeys,proto3" json:"immutable_keys,omitempty"`
+	ExpectedVersion   int32                  `protobuf:"varint,7,opt,name=expected_version,json=expectedVersion,proto3" json:"expected_version,omitempty"` // Optimistic locking
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
+}
+
+func (x *UpdateRoleRequest) Reset() {
+	*x = UpdateRoleRequest{}
+	mi := &file_state_v1_state_proto_msgTypes[66]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UpdateRoleRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UpdateRoleRequest) ProtoMessage() {}
+
+func (x *UpdateRoleRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_state_v1_state_proto_msgTypes[66]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UpdateRoleRequest.ProtoReflect.Descriptor instead.
+func (*UpdateRoleRequest) Descriptor() ([]byte, []int) {
+	return file_state_v1_state_proto_rawDescGZIP(), []int{66}
+}
+
+func (x *UpdateRoleRequest) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *UpdateRoleRequest) GetDescription() string {
+	if x != nil && x.Description != nil {
+		return *x.Description
+	}
+	return ""
+}
+
+func (x *UpdateRoleRequest) GetActions() []string {
+	if x != nil {
+		return x.Actions
+	}
+	return nil
+}
+
+func (x *UpdateRoleRequest) GetLabelScopeExpr() string {
+	if x != nil && x.LabelScopeExpr != nil {
+		return *x.LabelScopeExpr
+	}
+	return ""
+}
+
+func (x *UpdateRoleRequest) GetCreateConstraints() *CreateConstraints {
+	if x != nil {
+		return x.CreateConstraints
+	}
+	return nil
+}
+
+func (x *UpdateRoleRequest) GetImmutableKeys() []string {
+	if x != nil {
+		return x.ImmutableKeys
+	}
+	return nil
+}
+
+func (x *UpdateRoleRequest) GetExpectedVersion() int32 {
+	if x != nil {
+		return x.ExpectedVersion
+	}
+	return 0
+}
+
+type UpdateRoleResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Role          *RoleInfo              `protobuf:"bytes,1,opt,name=role,proto3" json:"role,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UpdateRoleResponse) Reset() {
+	*x = UpdateRoleResponse{}
+	mi := &file_state_v1_state_proto_msgTypes[67]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UpdateRoleResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UpdateRoleResponse) ProtoMessage() {}
+
+func (x *UpdateRoleResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_state_v1_state_proto_msgTypes[67]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UpdateRoleResponse.ProtoReflect.Descriptor instead.
+func (*UpdateRoleResponse) Descriptor() ([]byte, []int) {
+	return file_state_v1_state_proto_rawDescGZIP(), []int{67}
+}
+
+func (x *UpdateRoleResponse) GetRole() *RoleInfo {
+	if x != nil {
+		return x.Role
+	}
+	return nil
+}
+
+type DeleteRoleRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Name          string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DeleteRoleRequest) Reset() {
+	*x = DeleteRoleRequest{}
+	mi := &file_state_v1_state_proto_msgTypes[68]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DeleteRoleRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DeleteRoleRequest) ProtoMessage() {}
+
+func (x *DeleteRoleRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_state_v1_state_proto_msgTypes[68]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DeleteRoleRequest.ProtoReflect.Descriptor instead.
+func (*DeleteRoleRequest) Descriptor() ([]byte, []int) {
+	return file_state_v1_state_proto_rawDescGZIP(), []int{68}
+}
+
+func (x *DeleteRoleRequest) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+type DeleteRoleResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Success       bool                   `protobuf:"varint,1,opt,name=success,proto3" json:"success,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DeleteRoleResponse) Reset() {
+	*x = DeleteRoleResponse{}
+	mi := &file_state_v1_state_proto_msgTypes[69]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DeleteRoleResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DeleteRoleResponse) ProtoMessage() {}
+
+func (x *DeleteRoleResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_state_v1_state_proto_msgTypes[69]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DeleteRoleResponse.ProtoReflect.Descriptor instead.
+func (*DeleteRoleResponse) Descriptor() ([]byte, []int) {
+	return file_state_v1_state_proto_rawDescGZIP(), []int{69}
+}
+
+func (x *DeleteRoleResponse) GetSuccess() bool {
+	if x != nil {
+		return x.Success
+	}
+	return false
+}
+
+type AssignRoleRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	PrincipalType string                 `protobuf:"bytes,1,opt,name=principal_type,json=principalType,proto3" json:"principal_type,omitempty"` // "user" or "service_account"
+	PrincipalId   string                 `protobuf:"bytes,2,opt,name=principal_id,json=principalId,proto3" json:"principal_id,omitempty"`       // UUID
+	RoleName      string                 `protobuf:"bytes,3,opt,name=role_name,json=roleName,proto3" json:"role_name,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *AssignRoleRequest) Reset() {
+	*x = AssignRoleRequest{}
+	mi := &file_state_v1_state_proto_msgTypes[70]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AssignRoleRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AssignRoleRequest) ProtoMessage() {}
+
+func (x *AssignRoleRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_state_v1_state_proto_msgTypes[70]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AssignRoleRequest.ProtoReflect.Descriptor instead.
+func (*AssignRoleRequest) Descriptor() ([]byte, []int) {
+	return file_state_v1_state_proto_rawDescGZIP(), []int{70}
+}
+
+func (x *AssignRoleRequest) GetPrincipalType() string {
+	if x != nil {
+		return x.PrincipalType
+	}
+	return ""
+}
+
+func (x *AssignRoleRequest) GetPrincipalId() string {
+	if x != nil {
+		return x.PrincipalId
+	}
+	return ""
+}
+
+func (x *AssignRoleRequest) GetRoleName() string {
+	if x != nil {
+		return x.RoleName
+	}
+	return ""
+}
+
+type AssignRoleResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Success       bool                   `protobuf:"varint,1,opt,name=success,proto3" json:"success,omitempty"`
+	AssignedAt    *timestamppb.Timestamp `protobuf:"bytes,2,opt,name=assigned_at,json=assignedAt,proto3" json:"assigned_at,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *AssignRoleResponse) Reset() {
+	*x = AssignRoleResponse{}
+	mi := &file_state_v1_state_proto_msgTypes[71]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AssignRoleResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AssignRoleResponse) ProtoMessage() {}
+
+func (x *AssignRoleResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_state_v1_state_proto_msgTypes[71]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AssignRoleResponse.ProtoReflect.Descriptor instead.
+func (*AssignRoleResponse) Descriptor() ([]byte, []int) {
+	return file_state_v1_state_proto_rawDescGZIP(), []int{71}
+}
+
+func (x *AssignRoleResponse) GetSuccess() bool {
+	if x != nil {
+		return x.Success
+	}
+	return false
+}
+
+func (x *AssignRoleResponse) GetAssignedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.AssignedAt
+	}
+	return nil
+}
+
+type RemoveRoleRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	PrincipalType string                 `protobuf:"bytes,1,opt,name=principal_type,json=principalType,proto3" json:"principal_type,omitempty"`
+	PrincipalId   string                 `protobuf:"bytes,2,opt,name=principal_id,json=principalId,proto3" json:"principal_id,omitempty"`
+	RoleName      string                 `protobuf:"bytes,3,opt,name=role_name,json=roleName,proto3" json:"role_name,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RemoveRoleRequest) Reset() {
+	*x = RemoveRoleRequest{}
+	mi := &file_state_v1_state_proto_msgTypes[72]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RemoveRoleRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RemoveRoleRequest) ProtoMessage() {}
+
+func (x *RemoveRoleRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_state_v1_state_proto_msgTypes[72]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RemoveRoleRequest.ProtoReflect.Descriptor instead.
+func (*RemoveRoleRequest) Descriptor() ([]byte, []int) {
+	return file_state_v1_state_proto_rawDescGZIP(), []int{72}
+}
+
+func (x *RemoveRoleRequest) GetPrincipalType() string {
+	if x != nil {
+		return x.PrincipalType
+	}
+	return ""
+}
+
+func (x *RemoveRoleRequest) GetPrincipalId() string {
+	if x != nil {
+		return x.PrincipalId
+	}
+	return ""
+}
+
+func (x *RemoveRoleRequest) GetRoleName() string {
+	if x != nil {
+		return x.RoleName
+	}
+	return ""
+}
+
+type RemoveRoleResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Success       bool                   `protobuf:"varint,1,opt,name=success,proto3" json:"success,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RemoveRoleResponse) Reset() {
+	*x = RemoveRoleResponse{}
+	mi := &file_state_v1_state_proto_msgTypes[73]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RemoveRoleResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RemoveRoleResponse) ProtoMessage() {}
+
+func (x *RemoveRoleResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_state_v1_state_proto_msgTypes[73]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RemoveRoleResponse.ProtoReflect.Descriptor instead.
+func (*RemoveRoleResponse) Descriptor() ([]byte, []int) {
+	return file_state_v1_state_proto_rawDescGZIP(), []int{73}
+}
+
+func (x *RemoveRoleResponse) GetSuccess() bool {
+	if x != nil {
+		return x.Success
+	}
+	return false
+}
+
+type ListUserRolesRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	PrincipalType string                 `protobuf:"bytes,1,opt,name=principal_type,json=principalType,proto3" json:"principal_type,omitempty"`
+	PrincipalId   string                 `protobuf:"bytes,2,opt,name=principal_id,json=principalId,proto3" json:"principal_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListUserRolesRequest) Reset() {
+	*x = ListUserRolesRequest{}
+	mi := &file_state_v1_state_proto_msgTypes[74]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListUserRolesRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListUserRolesRequest) ProtoMessage() {}
+
+func (x *ListUserRolesRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_state_v1_state_proto_msgTypes[74]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListUserRolesRequest.ProtoReflect.Descriptor instead.
+func (*ListUserRolesRequest) Descriptor() ([]byte, []int) {
+	return file_state_v1_state_proto_rawDescGZIP(), []int{74}
+}
+
+func (x *ListUserRolesRequest) GetPrincipalType() string {
+	if x != nil {
+		return x.PrincipalType
+	}
+	return ""
+}
+
+func (x *ListUserRolesRequest) GetPrincipalId() string {
+	if x != nil {
+		return x.PrincipalId
+	}
+	return ""
+}
+
+type RoleAssignmentInfo struct {
+	state            protoimpl.MessageState `protogen:"open.v1"`
+	RoleName         string                 `protobuf:"bytes,1,opt,name=role_name,json=roleName,proto3" json:"role_name,omitempty"`
+	AssignedAt       *timestamppb.Timestamp `protobuf:"bytes,2,opt,name=assigned_at,json=assignedAt,proto3" json:"assigned_at,omitempty"`
+	AssignedByUserId string                 `protobuf:"bytes,3,opt,name=assigned_by_user_id,json=assignedByUserId,proto3" json:"assigned_by_user_id,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
+}
+
+func (x *RoleAssignmentInfo) Reset() {
+	*x = RoleAssignmentInfo{}
+	mi := &file_state_v1_state_proto_msgTypes[75]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RoleAssignmentInfo) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RoleAssignmentInfo) ProtoMessage() {}
+
+func (x *RoleAssignmentInfo) ProtoReflect() protoreflect.Message {
+	mi := &file_state_v1_state_proto_msgTypes[75]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RoleAssignmentInfo.ProtoReflect.Descriptor instead.
+func (*RoleAssignmentInfo) Descriptor() ([]byte, []int) {
+	return file_state_v1_state_proto_rawDescGZIP(), []int{75}
+}
+
+func (x *RoleAssignmentInfo) GetRoleName() string {
+	if x != nil {
+		return x.RoleName
+	}
+	return ""
+}
+
+func (x *RoleAssignmentInfo) GetAssignedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.AssignedAt
+	}
+	return nil
+}
+
+func (x *RoleAssignmentInfo) GetAssignedByUserId() string {
+	if x != nil {
+		return x.AssignedByUserId
+	}
+	return ""
+}
+
+type ListUserRolesResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Roles         []*RoleAssignmentInfo  `protobuf:"bytes,1,rep,name=roles,proto3" json:"roles,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListUserRolesResponse) Reset() {
+	*x = ListUserRolesResponse{}
+	mi := &file_state_v1_state_proto_msgTypes[76]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListUserRolesResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListUserRolesResponse) ProtoMessage() {}
+
+func (x *ListUserRolesResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_state_v1_state_proto_msgTypes[76]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListUserRolesResponse.ProtoReflect.Descriptor instead.
+func (*ListUserRolesResponse) Descriptor() ([]byte, []int) {
+	return file_state_v1_state_proto_rawDescGZIP(), []int{76}
+}
+
+func (x *ListUserRolesResponse) GetRoles() []*RoleAssignmentInfo {
+	if x != nil {
+		return x.Roles
+	}
+	return nil
+}
+
+type AssignGroupRoleRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	GroupName     string                 `protobuf:"bytes,1,opt,name=group_name,json=groupName,proto3" json:"group_name,omitempty"` // Group name as it appears in JWT claims (e.g., "dev-team", "platform-engineers")
+	RoleName      string                 `protobuf:"bytes,2,opt,name=role_name,json=roleName,proto3" json:"role_name,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *AssignGroupRoleRequest) Reset() {
+	*x = AssignGroupRoleRequest{}
+	mi := &file_state_v1_state_proto_msgTypes[77]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AssignGroupRoleRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AssignGroupRoleRequest) ProtoMessage() {}
+
+func (x *AssignGroupRoleRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_state_v1_state_proto_msgTypes[77]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AssignGroupRoleRequest.ProtoReflect.Descriptor instead.
+func (*AssignGroupRoleRequest) Descriptor() ([]byte, []int) {
+	return file_state_v1_state_proto_rawDescGZIP(), []int{77}
+}
+
+func (x *AssignGroupRoleRequest) GetGroupName() string {
+	if x != nil {
+		return x.GroupName
+	}
+	return ""
+}
+
+func (x *AssignGroupRoleRequest) GetRoleName() string {
+	if x != nil {
+		return x.RoleName
+	}
+	return ""
+}
+
+type AssignGroupRoleResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Success       bool                   `protobuf:"varint,1,opt,name=success,proto3" json:"success,omitempty"`
+	AssignedAt    *timestamppb.Timestamp `protobuf:"bytes,2,opt,name=assigned_at,json=assignedAt,proto3" json:"assigned_at,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *AssignGroupRoleResponse) Reset() {
+	*x = AssignGroupRoleResponse{}
+	mi := &file_state_v1_state_proto_msgTypes[78]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AssignGroupRoleResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AssignGroupRoleResponse) ProtoMessage() {}
+
+func (x *AssignGroupRoleResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_state_v1_state_proto_msgTypes[78]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AssignGroupRoleResponse.ProtoReflect.Descriptor instead.
+func (*AssignGroupRoleResponse) Descriptor() ([]byte, []int) {
+	return file_state_v1_state_proto_rawDescGZIP(), []int{78}
+}
+
+func (x *AssignGroupRoleResponse) GetSuccess() bool {
+	if x != nil {
+		return x.Success
+	}
+	return false
+}
+
+func (x *AssignGroupRoleResponse) GetAssignedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.AssignedAt
+	}
+	return nil
+}
+
+type RemoveGroupRoleRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	GroupName     string                 `protobuf:"bytes,1,opt,name=group_name,json=groupName,proto3" json:"group_name,omitempty"`
+	RoleName      string                 `protobuf:"bytes,2,opt,name=role_name,json=roleName,proto3" json:"role_name,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RemoveGroupRoleRequest) Reset() {
+	*x = RemoveGroupRoleRequest{}
+	mi := &file_state_v1_state_proto_msgTypes[79]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RemoveGroupRoleRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RemoveGroupRoleRequest) ProtoMessage() {}
+
+func (x *RemoveGroupRoleRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_state_v1_state_proto_msgTypes[79]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RemoveGroupRoleRequest.ProtoReflect.Descriptor instead.
+func (*RemoveGroupRoleRequest) Descriptor() ([]byte, []int) {
+	return file_state_v1_state_proto_rawDescGZIP(), []int{79}
+}
+
+func (x *RemoveGroupRoleRequest) GetGroupName() string {
+	if x != nil {
+		return x.GroupName
+	}
+	return ""
+}
+
+func (x *RemoveGroupRoleRequest) GetRoleName() string {
+	if x != nil {
+		return x.RoleName
+	}
+	return ""
+}
+
+type RemoveGroupRoleResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Success       bool                   `protobuf:"varint,1,opt,name=success,proto3" json:"success,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RemoveGroupRoleResponse) Reset() {
+	*x = RemoveGroupRoleResponse{}
+	mi := &file_state_v1_state_proto_msgTypes[80]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RemoveGroupRoleResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RemoveGroupRoleResponse) ProtoMessage() {}
+
+func (x *RemoveGroupRoleResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_state_v1_state_proto_msgTypes[80]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RemoveGroupRoleResponse.ProtoReflect.Descriptor instead.
+func (*RemoveGroupRoleResponse) Descriptor() ([]byte, []int) {
+	return file_state_v1_state_proto_rawDescGZIP(), []int{80}
+}
+
+func (x *RemoveGroupRoleResponse) GetSuccess() bool {
+	if x != nil {
+		return x.Success
+	}
+	return false
+}
+
+type ListGroupRolesRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	GroupName     *string                `protobuf:"bytes,1,opt,name=group_name,json=groupName,proto3,oneof" json:"group_name,omitempty"` // If provided, list roles for specific group; if omitted, list all group-role mappings
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListGroupRolesRequest) Reset() {
+	*x = ListGroupRolesRequest{}
+	mi := &file_state_v1_state_proto_msgTypes[81]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListGroupRolesRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListGroupRolesRequest) ProtoMessage() {}
+
+func (x *ListGroupRolesRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_state_v1_state_proto_msgTypes[81]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListGroupRolesRequest.ProtoReflect.Descriptor instead.
+func (*ListGroupRolesRequest) Descriptor() ([]byte, []int) {
+	return file_state_v1_state_proto_rawDescGZIP(), []int{81}
+}
+
+func (x *ListGroupRolesRequest) GetGroupName() string {
+	if x != nil && x.GroupName != nil {
+		return *x.GroupName
+	}
+	return ""
+}
+
+type GroupRoleAssignmentInfo struct {
+	state            protoimpl.MessageState `protogen:"open.v1"`
+	GroupName        string                 `protobuf:"bytes,1,opt,name=group_name,json=groupName,proto3" json:"group_name,omitempty"`
+	RoleName         string                 `protobuf:"bytes,2,opt,name=role_name,json=roleName,proto3" json:"role_name,omitempty"`
+	AssignedAt       *timestamppb.Timestamp `protobuf:"bytes,3,opt,name=assigned_at,json=assignedAt,proto3" json:"assigned_at,omitempty"`
+	AssignedByUserId string                 `protobuf:"bytes,4,opt,name=assigned_by_user_id,json=assignedByUserId,proto3" json:"assigned_by_user_id,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
+}
+
+func (x *GroupRoleAssignmentInfo) Reset() {
+	*x = GroupRoleAssignmentInfo{}
+	mi := &file_state_v1_state_proto_msgTypes[82]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GroupRoleAssignmentInfo) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GroupRoleAssignmentInfo) ProtoMessage() {}
+
+func (x *GroupRoleAssignmentInfo) ProtoReflect() protoreflect.Message {
+	mi := &file_state_v1_state_proto_msgTypes[82]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GroupRoleAssignmentInfo.ProtoReflect.Descriptor instead.
+func (*GroupRoleAssignmentInfo) Descriptor() ([]byte, []int) {
+	return file_state_v1_state_proto_rawDescGZIP(), []int{82}
+}
+
+func (x *GroupRoleAssignmentInfo) GetGroupName() string {
+	if x != nil {
+		return x.GroupName
+	}
+	return ""
+}
+
+func (x *GroupRoleAssignmentInfo) GetRoleName() string {
+	if x != nil {
+		return x.RoleName
+	}
+	return ""
+}
+
+func (x *GroupRoleAssignmentInfo) GetAssignedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.AssignedAt
+	}
+	return nil
+}
+
+func (x *GroupRoleAssignmentInfo) GetAssignedByUserId() string {
+	if x != nil {
+		return x.AssignedByUserId
+	}
+	return ""
+}
+
+type ListGroupRolesResponse struct {
+	state         protoimpl.MessageState     `protogen:"open.v1"`
+	Assignments   []*GroupRoleAssignmentInfo `protobuf:"bytes,1,rep,name=assignments,proto3" json:"assignments,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListGroupRolesResponse) Reset() {
+	*x = ListGroupRolesResponse{}
+	mi := &file_state_v1_state_proto_msgTypes[83]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListGroupRolesResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListGroupRolesResponse) ProtoMessage() {}
+
+func (x *ListGroupRolesResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_state_v1_state_proto_msgTypes[83]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListGroupRolesResponse.ProtoReflect.Descriptor instead.
+func (*ListGroupRolesResponse) Descriptor() ([]byte, []int) {
+	return file_state_v1_state_proto_rawDescGZIP(), []int{83}
+}
+
+func (x *ListGroupRolesResponse) GetAssignments() []*GroupRoleAssignmentInfo {
+	if x != nil {
+		return x.Assignments
+	}
+	return nil
+}
+
+type GetEffectivePermissionsRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	PrincipalType string                 `protobuf:"bytes,1,opt,name=principal_type,json=principalType,proto3" json:"principal_type,omitempty"`
+	PrincipalId   string                 `protobuf:"bytes,2,opt,name=principal_id,json=principalId,proto3" json:"principal_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetEffectivePermissionsRequest) Reset() {
+	*x = GetEffectivePermissionsRequest{}
+	mi := &file_state_v1_state_proto_msgTypes[84]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetEffectivePermissionsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetEffectivePermissionsRequest) ProtoMessage() {}
+
+func (x *GetEffectivePermissionsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_state_v1_state_proto_msgTypes[84]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetEffectivePermissionsRequest.ProtoReflect.Descriptor instead.
+func (*GetEffectivePermissionsRequest) Descriptor() ([]byte, []int) {
+	return file_state_v1_state_proto_rawDescGZIP(), []int{84}
+}
+
+func (x *GetEffectivePermissionsRequest) GetPrincipalType() string {
+	if x != nil {
+		return x.PrincipalType
+	}
+	return ""
+}
+
+func (x *GetEffectivePermissionsRequest) GetPrincipalId() string {
+	if x != nil {
+		return x.PrincipalId
+	}
+	return ""
+}
+
+type EffectivePermissions struct {
+	state                      protoimpl.MessageState `protogen:"open.v1"`
+	Roles                      []string               `protobuf:"bytes,1,rep,name=roles,proto3" json:"roles,omitempty"`                                              // Role names
+	Actions                    []string               `protobuf:"bytes,2,rep,name=actions,proto3" json:"actions,omitempty"`                                          // Aggregated actions (e.g., ["state:*", "tfstate:read"])
+	LabelScopeExprs            []string               `protobuf:"bytes,3,rep,name=label_scope_exprs,json=labelScopeExprs,proto3" json:"label_scope_exprs,omitempty"` // List of go-bexpr expressions from all roles (union/OR semantics - access granted if ANY expression matches)
+	EffectiveCreateConstraints *CreateConstraints     `protobuf:"bytes,4,opt,name=effective_create_constraints,json=effectiveCreateConstraints,proto3,oneof" json:"effective_create_constraints,omitempty"`
+	EffectiveImmutableKeys     []string               `protobuf:"bytes,5,rep,name=effective_immutable_keys,json=effectiveImmutableKeys,proto3" json:"effective_immutable_keys,omitempty"` // Union of all immutable keys
+	unknownFields              protoimpl.UnknownFields
+	sizeCache                  protoimpl.SizeCache
+}
+
+func (x *EffectivePermissions) Reset() {
+	*x = EffectivePermissions{}
+	mi := &file_state_v1_state_proto_msgTypes[85]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *EffectivePermissions) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*EffectivePermissions) ProtoMessage() {}
+
+func (x *EffectivePermissions) ProtoReflect() protoreflect.Message {
+	mi := &file_state_v1_state_proto_msgTypes[85]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use EffectivePermissions.ProtoReflect.Descriptor instead.
+func (*EffectivePermissions) Descriptor() ([]byte, []int) {
+	return file_state_v1_state_proto_rawDescGZIP(), []int{85}
+}
+
+func (x *EffectivePermissions) GetRoles() []string {
+	if x != nil {
+		return x.Roles
+	}
+	return nil
+}
+
+func (x *EffectivePermissions) GetActions() []string {
+	if x != nil {
+		return x.Actions
+	}
+	return nil
+}
+
+func (x *EffectivePermissions) GetLabelScopeExprs() []string {
+	if x != nil {
+		return x.LabelScopeExprs
+	}
+	return nil
+}
+
+func (x *EffectivePermissions) GetEffectiveCreateConstraints() *CreateConstraints {
+	if x != nil {
+		return x.EffectiveCreateConstraints
+	}
+	return nil
+}
+
+func (x *EffectivePermissions) GetEffectiveImmutableKeys() []string {
+	if x != nil {
+		return x.EffectiveImmutableKeys
+	}
+	return nil
+}
+
+type GetEffectivePermissionsResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Permissions   *EffectivePermissions  `protobuf:"bytes,1,opt,name=permissions,proto3" json:"permissions,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetEffectivePermissionsResponse) Reset() {
+	*x = GetEffectivePermissionsResponse{}
+	mi := &file_state_v1_state_proto_msgTypes[86]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetEffectivePermissionsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetEffectivePermissionsResponse) ProtoMessage() {}
+
+func (x *GetEffectivePermissionsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_state_v1_state_proto_msgTypes[86]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetEffectivePermissionsResponse.ProtoReflect.Descriptor instead.
+func (*GetEffectivePermissionsResponse) Descriptor() ([]byte, []int) {
+	return file_state_v1_state_proto_rawDescGZIP(), []int{86}
+}
+
+func (x *GetEffectivePermissionsResponse) GetPermissions() *EffectivePermissions {
+	if x != nil {
+		return x.Permissions
+	}
+	return nil
+}
+
+type ListSessionsRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	UserId        string                 `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListSessionsRequest) Reset() {
+	*x = ListSessionsRequest{}
+	mi := &file_state_v1_state_proto_msgTypes[87]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListSessionsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListSessionsRequest) ProtoMessage() {}
+
+func (x *ListSessionsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_state_v1_state_proto_msgTypes[87]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListSessionsRequest.ProtoReflect.Descriptor instead.
+func (*ListSessionsRequest) Descriptor() ([]byte, []int) {
+	return file_state_v1_state_proto_rawDescGZIP(), []int{87}
+}
+
+func (x *ListSessionsRequest) GetUserId() string {
+	if x != nil {
+		return x.UserId
+	}
+	return ""
+}
+
+type SessionInfo struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	CreatedAt     *timestamppb.Timestamp `protobuf:"bytes,2,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	LastUsedAt    *timestamppb.Timestamp `protobuf:"bytes,3,opt,name=last_used_at,json=lastUsedAt,proto3" json:"last_used_at,omitempty"`
+	ExpiresAt     *timestamppb.Timestamp `protobuf:"bytes,4,opt,name=expires_at,json=expiresAt,proto3" json:"expires_at,omitempty"`
+	UserAgent     *string                `protobuf:"bytes,5,opt,name=user_agent,json=userAgent,proto3,oneof" json:"user_agent,omitempty"`
+	IpAddress     *string                `protobuf:"bytes,6,opt,name=ip_address,json=ipAddress,proto3,oneof" json:"ip_address,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SessionInfo) Reset() {
+	*x = SessionInfo{}
+	mi := &file_state_v1_state_proto_msgTypes[88]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SessionInfo) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SessionInfo) ProtoMessage() {}
+
+func (x *SessionInfo) ProtoReflect() protoreflect.Message {
+	mi := &file_state_v1_state_proto_msgTypes[88]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SessionInfo.ProtoReflect.Descriptor instead.
+func (*SessionInfo) Descriptor() ([]byte, []int) {
+	return file_state_v1_state_proto_rawDescGZIP(), []int{88}
+}
+
+func (x *SessionInfo) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *SessionInfo) GetCreatedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.CreatedAt
+	}
+	return nil
+}
+
+func (x *SessionInfo) GetLastUsedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.LastUsedAt
+	}
+	return nil
+}
+
+func (x *SessionInfo) GetExpiresAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.ExpiresAt
+	}
+	return nil
+}
+
+func (x *SessionInfo) GetUserAgent() string {
+	if x != nil && x.UserAgent != nil {
+		return *x.UserAgent
+	}
+	return ""
+}
+
+func (x *SessionInfo) GetIpAddress() string {
+	if x != nil && x.IpAddress != nil {
+		return *x.IpAddress
+	}
+	return ""
+}
+
+type ListSessionsResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Sessions      []*SessionInfo         `protobuf:"bytes,1,rep,name=sessions,proto3" json:"sessions,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListSessionsResponse) Reset() {
+	*x = ListSessionsResponse{}
+	mi := &file_state_v1_state_proto_msgTypes[89]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListSessionsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListSessionsResponse) ProtoMessage() {}
+
+func (x *ListSessionsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_state_v1_state_proto_msgTypes[89]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListSessionsResponse.ProtoReflect.Descriptor instead.
+func (*ListSessionsResponse) Descriptor() ([]byte, []int) {
+	return file_state_v1_state_proto_rawDescGZIP(), []int{89}
+}
+
+func (x *ListSessionsResponse) GetSessions() []*SessionInfo {
+	if x != nil {
+		return x.Sessions
+	}
+	return nil
+}
+
+type RevokeSessionRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	SessionId     string                 `protobuf:"bytes,1,opt,name=session_id,json=sessionId,proto3" json:"session_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RevokeSessionRequest) Reset() {
+	*x = RevokeSessionRequest{}
+	mi := &file_state_v1_state_proto_msgTypes[90]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RevokeSessionRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RevokeSessionRequest) ProtoMessage() {}
+
+func (x *RevokeSessionRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_state_v1_state_proto_msgTypes[90]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RevokeSessionRequest.ProtoReflect.Descriptor instead.
+func (*RevokeSessionRequest) Descriptor() ([]byte, []int) {
+	return file_state_v1_state_proto_rawDescGZIP(), []int{90}
+}
+
+func (x *RevokeSessionRequest) GetSessionId() string {
+	if x != nil {
+		return x.SessionId
+	}
+	return ""
+}
+
+type RevokeSessionResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Success       bool                   `protobuf:"varint,1,opt,name=success,proto3" json:"success,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RevokeSessionResponse) Reset() {
+	*x = RevokeSessionResponse{}
+	mi := &file_state_v1_state_proto_msgTypes[91]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RevokeSessionResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RevokeSessionResponse) ProtoMessage() {}
+
+func (x *RevokeSessionResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_state_v1_state_proto_msgTypes[91]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RevokeSessionResponse.ProtoReflect.Descriptor instead.
+func (*RevokeSessionResponse) Descriptor() ([]byte, []int) {
+	return file_state_v1_state_proto_rawDescGZIP(), []int{91}
+}
+
+func (x *RevokeSessionResponse) GetSuccess() bool {
+	if x != nil {
+		return x.Success
+	}
+	return false
+}
+
 var File_state_v1_state_proto protoreflect.FileDescriptor
 
 const file_state_v1_state_proto_rawDesc = "" +
@@ -3691,7 +5988,186 @@ const file_state_v1_state_proto_rawDesc = "" +
 	"\x16SetLabelPolicyResponse\x12\x18\n" +
 	"\aversion\x18\x01 \x01(\x05R\aversion\x129\n" +
 	"\n" +
-	"updated_at\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt2\xe0\f\n" +
+	"updated_at\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\"h\n" +
+	"\x1bCreateServiceAccountRequest\x12\x12\n" +
+	"\x04name\x18\x01 \x01(\tR\x04name\x12%\n" +
+	"\vdescription\x18\x02 \x01(\tH\x00R\vdescription\x88\x01\x01B\x0e\n" +
+	"\f_description\"\xbf\x01\n" +
+	"\x1cCreateServiceAccountResponse\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1b\n" +
+	"\tclient_id\x18\x02 \x01(\tR\bclientId\x12#\n" +
+	"\rclient_secret\x18\x03 \x01(\tR\fclientSecret\x12\x12\n" +
+	"\x04name\x18\x04 \x01(\tR\x04name\x129\n" +
+	"\n" +
+	"created_at\x18\x05 \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\"\x1c\n" +
+	"\x1aListServiceAccountsRequest\"\xa1\x02\n" +
+	"\x12ServiceAccountInfo\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1b\n" +
+	"\tclient_id\x18\x02 \x01(\tR\bclientId\x12\x12\n" +
+	"\x04name\x18\x03 \x01(\tR\x04name\x12%\n" +
+	"\vdescription\x18\x04 \x01(\tH\x00R\vdescription\x88\x01\x01\x129\n" +
+	"\n" +
+	"created_at\x18\x05 \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x12<\n" +
+	"\flast_used_at\x18\x06 \x01(\v2\x1a.google.protobuf.TimestampR\n" +
+	"lastUsedAt\x12\x1a\n" +
+	"\bdisabled\x18\a \x01(\bR\bdisabledB\x0e\n" +
+	"\f_description\"f\n" +
+	"\x1bListServiceAccountsResponse\x12G\n" +
+	"\x10service_accounts\x18\x01 \x03(\v2\x1c.state.v1.ServiceAccountInfoR\x0fserviceAccounts\":\n" +
+	"\x1bRevokeServiceAccountRequest\x12\x1b\n" +
+	"\tclient_id\x18\x01 \x01(\tR\bclientId\"8\n" +
+	"\x1cRevokeServiceAccountResponse\x12\x18\n" +
+	"\asuccess\x18\x01 \x01(\bR\asuccess\":\n" +
+	"\x1bRotateServiceAccountRequest\x12\x1b\n" +
+	"\tclient_id\x18\x01 \x01(\tR\bclientId\"\x9b\x01\n" +
+	"\x1cRotateServiceAccountResponse\x12\x1b\n" +
+	"\tclient_id\x18\x01 \x01(\tR\bclientId\x12#\n" +
+	"\rclient_secret\x18\x02 \x01(\tR\fclientSecret\x129\n" +
+	"\n" +
+	"rotated_at\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\trotatedAt\"\xcb\x02\n" +
+	"\x11CreateRoleRequest\x12\x12\n" +
+	"\x04name\x18\x01 \x01(\tR\x04name\x12%\n" +
+	"\vdescription\x18\x02 \x01(\tH\x00R\vdescription\x88\x01\x01\x12\x18\n" +
+	"\aactions\x18\x03 \x03(\tR\aactions\x12-\n" +
+	"\x10label_scope_expr\x18\x04 \x01(\tH\x01R\x0elabelScopeExpr\x88\x01\x01\x12O\n" +
+	"\x12create_constraints\x18\x05 \x01(\v2\x1b.state.v1.CreateConstraintsH\x02R\x11createConstraints\x88\x01\x01\x12%\n" +
+	"\x0eimmutable_keys\x18\x06 \x03(\tR\rimmutableKeysB\x0e\n" +
+	"\f_descriptionB\x13\n" +
+	"\x11_label_scope_exprB\x15\n" +
+	"\x13_create_constraints\"\xbf\x01\n" +
+	"\x11CreateConstraints\x12N\n" +
+	"\vconstraints\x18\x01 \x03(\v2,.state.v1.CreateConstraints.ConstraintsEntryR\vconstraints\x1aZ\n" +
+	"\x10ConstraintsEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x120\n" +
+	"\x05value\x18\x02 \x01(\v2\x1a.state.v1.CreateConstraintR\x05value:\x028\x01\"U\n" +
+	"\x10CreateConstraint\x12%\n" +
+	"\x0eallowed_values\x18\x01 \x03(\tR\rallowedValues\x12\x1a\n" +
+	"\brequired\x18\x02 \x01(\bR\brequired\"\xe2\x03\n" +
+	"\bRoleInfo\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
+	"\x04name\x18\x02 \x01(\tR\x04name\x12%\n" +
+	"\vdescription\x18\x03 \x01(\tH\x00R\vdescription\x88\x01\x01\x12\x18\n" +
+	"\aactions\x18\x04 \x03(\tR\aactions\x12-\n" +
+	"\x10label_scope_expr\x18\x05 \x01(\tH\x01R\x0elabelScopeExpr\x88\x01\x01\x12O\n" +
+	"\x12create_constraints\x18\x06 \x01(\v2\x1b.state.v1.CreateConstraintsH\x02R\x11createConstraints\x88\x01\x01\x12%\n" +
+	"\x0eimmutable_keys\x18\a \x03(\tR\rimmutableKeys\x129\n" +
+	"\n" +
+	"created_at\x18\b \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x129\n" +
+	"\n" +
+	"updated_at\x18\t \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\x12\x18\n" +
+	"\aversion\x18\n" +
+	" \x01(\x05R\aversionB\x0e\n" +
+	"\f_descriptionB\x13\n" +
+	"\x11_label_scope_exprB\x15\n" +
+	"\x13_create_constraints\"<\n" +
+	"\x12CreateRoleResponse\x12&\n" +
+	"\x04role\x18\x01 \x01(\v2\x12.state.v1.RoleInfoR\x04role\"\x12\n" +
+	"\x10ListRolesRequest\"=\n" +
+	"\x11ListRolesResponse\x12(\n" +
+	"\x05roles\x18\x01 \x03(\v2\x12.state.v1.RoleInfoR\x05roles\"\xf6\x02\n" +
+	"\x11UpdateRoleRequest\x12\x12\n" +
+	"\x04name\x18\x01 \x01(\tR\x04name\x12%\n" +
+	"\vdescription\x18\x02 \x01(\tH\x00R\vdescription\x88\x01\x01\x12\x18\n" +
+	"\aactions\x18\x03 \x03(\tR\aactions\x12-\n" +
+	"\x10label_scope_expr\x18\x04 \x01(\tH\x01R\x0elabelScopeExpr\x88\x01\x01\x12O\n" +
+	"\x12create_constraints\x18\x05 \x01(\v2\x1b.state.v1.CreateConstraintsH\x02R\x11createConstraints\x88\x01\x01\x12%\n" +
+	"\x0eimmutable_keys\x18\x06 \x03(\tR\rimmutableKeys\x12)\n" +
+	"\x10expected_version\x18\a \x01(\x05R\x0fexpectedVersionB\x0e\n" +
+	"\f_descriptionB\x13\n" +
+	"\x11_label_scope_exprB\x15\n" +
+	"\x13_create_constraints\"<\n" +
+	"\x12UpdateRoleResponse\x12&\n" +
+	"\x04role\x18\x01 \x01(\v2\x12.state.v1.RoleInfoR\x04role\"'\n" +
+	"\x11DeleteRoleRequest\x12\x12\n" +
+	"\x04name\x18\x01 \x01(\tR\x04name\".\n" +
+	"\x12DeleteRoleResponse\x12\x18\n" +
+	"\asuccess\x18\x01 \x01(\bR\asuccess\"z\n" +
+	"\x11AssignRoleRequest\x12%\n" +
+	"\x0eprincipal_type\x18\x01 \x01(\tR\rprincipalType\x12!\n" +
+	"\fprincipal_id\x18\x02 \x01(\tR\vprincipalId\x12\x1b\n" +
+	"\trole_name\x18\x03 \x01(\tR\broleName\"k\n" +
+	"\x12AssignRoleResponse\x12\x18\n" +
+	"\asuccess\x18\x01 \x01(\bR\asuccess\x12;\n" +
+	"\vassigned_at\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\n" +
+	"assignedAt\"z\n" +
+	"\x11RemoveRoleRequest\x12%\n" +
+	"\x0eprincipal_type\x18\x01 \x01(\tR\rprincipalType\x12!\n" +
+	"\fprincipal_id\x18\x02 \x01(\tR\vprincipalId\x12\x1b\n" +
+	"\trole_name\x18\x03 \x01(\tR\broleName\".\n" +
+	"\x12RemoveRoleResponse\x12\x18\n" +
+	"\asuccess\x18\x01 \x01(\bR\asuccess\"`\n" +
+	"\x14ListUserRolesRequest\x12%\n" +
+	"\x0eprincipal_type\x18\x01 \x01(\tR\rprincipalType\x12!\n" +
+	"\fprincipal_id\x18\x02 \x01(\tR\vprincipalId\"\x9d\x01\n" +
+	"\x12RoleAssignmentInfo\x12\x1b\n" +
+	"\trole_name\x18\x01 \x01(\tR\broleName\x12;\n" +
+	"\vassigned_at\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\n" +
+	"assignedAt\x12-\n" +
+	"\x13assigned_by_user_id\x18\x03 \x01(\tR\x10assignedByUserId\"K\n" +
+	"\x15ListUserRolesResponse\x122\n" +
+	"\x05roles\x18\x01 \x03(\v2\x1c.state.v1.RoleAssignmentInfoR\x05roles\"T\n" +
+	"\x16AssignGroupRoleRequest\x12\x1d\n" +
+	"\n" +
+	"group_name\x18\x01 \x01(\tR\tgroupName\x12\x1b\n" +
+	"\trole_name\x18\x02 \x01(\tR\broleName\"p\n" +
+	"\x17AssignGroupRoleResponse\x12\x18\n" +
+	"\asuccess\x18\x01 \x01(\bR\asuccess\x12;\n" +
+	"\vassigned_at\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\n" +
+	"assignedAt\"T\n" +
+	"\x16RemoveGroupRoleRequest\x12\x1d\n" +
+	"\n" +
+	"group_name\x18\x01 \x01(\tR\tgroupName\x12\x1b\n" +
+	"\trole_name\x18\x02 \x01(\tR\broleName\"3\n" +
+	"\x17RemoveGroupRoleResponse\x12\x18\n" +
+	"\asuccess\x18\x01 \x01(\bR\asuccess\"J\n" +
+	"\x15ListGroupRolesRequest\x12\"\n" +
+	"\n" +
+	"group_name\x18\x01 \x01(\tH\x00R\tgroupName\x88\x01\x01B\r\n" +
+	"\v_group_name\"\xc1\x01\n" +
+	"\x17GroupRoleAssignmentInfo\x12\x1d\n" +
+	"\n" +
+	"group_name\x18\x01 \x01(\tR\tgroupName\x12\x1b\n" +
+	"\trole_name\x18\x02 \x01(\tR\broleName\x12;\n" +
+	"\vassigned_at\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\n" +
+	"assignedAt\x12-\n" +
+	"\x13assigned_by_user_id\x18\x04 \x01(\tR\x10assignedByUserId\"]\n" +
+	"\x16ListGroupRolesResponse\x12C\n" +
+	"\vassignments\x18\x01 \x03(\v2!.state.v1.GroupRoleAssignmentInfoR\vassignments\"j\n" +
+	"\x1eGetEffectivePermissionsRequest\x12%\n" +
+	"\x0eprincipal_type\x18\x01 \x01(\tR\rprincipalType\x12!\n" +
+	"\fprincipal_id\x18\x02 \x01(\tR\vprincipalId\"\xb1\x02\n" +
+	"\x14EffectivePermissions\x12\x14\n" +
+	"\x05roles\x18\x01 \x03(\tR\x05roles\x12\x18\n" +
+	"\aactions\x18\x02 \x03(\tR\aactions\x12*\n" +
+	"\x11label_scope_exprs\x18\x03 \x03(\tR\x0flabelScopeExprs\x12b\n" +
+	"\x1ceffective_create_constraints\x18\x04 \x01(\v2\x1b.state.v1.CreateConstraintsH\x00R\x1aeffectiveCreateConstraints\x88\x01\x01\x128\n" +
+	"\x18effective_immutable_keys\x18\x05 \x03(\tR\x16effectiveImmutableKeysB\x1f\n" +
+	"\x1d_effective_create_constraints\"c\n" +
+	"\x1fGetEffectivePermissionsResponse\x12@\n" +
+	"\vpermissions\x18\x01 \x01(\v2\x1e.state.v1.EffectivePermissionsR\vpermissions\".\n" +
+	"\x13ListSessionsRequest\x12\x17\n" +
+	"\auser_id\x18\x01 \x01(\tR\x06userId\"\xb7\x02\n" +
+	"\vSessionInfo\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x129\n" +
+	"\n" +
+	"created_at\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x12<\n" +
+	"\flast_used_at\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\n" +
+	"lastUsedAt\x129\n" +
+	"\n" +
+	"expires_at\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\texpiresAt\x12\"\n" +
+	"\n" +
+	"user_agent\x18\x05 \x01(\tH\x00R\tuserAgent\x88\x01\x01\x12\"\n" +
+	"\n" +
+	"ip_address\x18\x06 \x01(\tH\x01R\tipAddress\x88\x01\x01B\r\n" +
+	"\v_user_agentB\r\n" +
+	"\v_ip_address\"I\n" +
+	"\x14ListSessionsResponse\x121\n" +
+	"\bsessions\x18\x01 \x03(\v2\x15.state.v1.SessionInfoR\bsessions\"5\n" +
+	"\x14RevokeSessionRequest\x12\x1d\n" +
+	"\n" +
+	"session_id\x18\x01 \x01(\tR\tsessionId\"1\n" +
+	"\x15RevokeSessionResponse\x12\x18\n" +
+	"\asuccess\x18\x01 \x01(\bR\asuccess2\x94\x18\n" +
 	"\fStateService\x12J\n" +
 	"\vCreateState\x12\x1c.state.v1.CreateStateRequest\x1a\x1d.state.v1.CreateStateResponse\x12G\n" +
 	"\n" +
@@ -3712,7 +6188,29 @@ const file_state_v1_state_proto_rawDesc = "" +
 	"\fListAllEdges\x12\x1d.state.v1.ListAllEdgesRequest\x1a\x1e.state.v1.ListAllEdgesResponse\x12\\\n" +
 	"\x11UpdateStateLabels\x12\".state.v1.UpdateStateLabelsRequest\x1a#.state.v1.UpdateStateLabelsResponse\x12S\n" +
 	"\x0eGetLabelPolicy\x12\x1f.state.v1.GetLabelPolicyRequest\x1a .state.v1.GetLabelPolicyResponse\x12S\n" +
-	"\x0eSetLabelPolicy\x12\x1f.state.v1.SetLabelPolicyRequest\x1a .state.v1.SetLabelPolicyResponseB6Z4github.com/terraconstructs/grid/api/state/v1;statev1b\x06proto3"
+	"\x0eSetLabelPolicy\x12\x1f.state.v1.SetLabelPolicyRequest\x1a .state.v1.SetLabelPolicyResponse\x12e\n" +
+	"\x14CreateServiceAccount\x12%.state.v1.CreateServiceAccountRequest\x1a&.state.v1.CreateServiceAccountResponse\x12b\n" +
+	"\x13ListServiceAccounts\x12$.state.v1.ListServiceAccountsRequest\x1a%.state.v1.ListServiceAccountsResponse\x12e\n" +
+	"\x14RevokeServiceAccount\x12%.state.v1.RevokeServiceAccountRequest\x1a&.state.v1.RevokeServiceAccountResponse\x12e\n" +
+	"\x14RotateServiceAccount\x12%.state.v1.RotateServiceAccountRequest\x1a&.state.v1.RotateServiceAccountResponse\x12G\n" +
+	"\n" +
+	"CreateRole\x12\x1b.state.v1.CreateRoleRequest\x1a\x1c.state.v1.CreateRoleResponse\x12D\n" +
+	"\tListRoles\x12\x1a.state.v1.ListRolesRequest\x1a\x1b.state.v1.ListRolesResponse\x12G\n" +
+	"\n" +
+	"UpdateRole\x12\x1b.state.v1.UpdateRoleRequest\x1a\x1c.state.v1.UpdateRoleResponse\x12G\n" +
+	"\n" +
+	"DeleteRole\x12\x1b.state.v1.DeleteRoleRequest\x1a\x1c.state.v1.DeleteRoleResponse\x12G\n" +
+	"\n" +
+	"AssignRole\x12\x1b.state.v1.AssignRoleRequest\x1a\x1c.state.v1.AssignRoleResponse\x12G\n" +
+	"\n" +
+	"RemoveRole\x12\x1b.state.v1.RemoveRoleRequest\x1a\x1c.state.v1.RemoveRoleResponse\x12P\n" +
+	"\rListUserRoles\x12\x1e.state.v1.ListUserRolesRequest\x1a\x1f.state.v1.ListUserRolesResponse\x12V\n" +
+	"\x0fAssignGroupRole\x12 .state.v1.AssignGroupRoleRequest\x1a!.state.v1.AssignGroupRoleResponse\x12V\n" +
+	"\x0fRemoveGroupRole\x12 .state.v1.RemoveGroupRoleRequest\x1a!.state.v1.RemoveGroupRoleResponse\x12S\n" +
+	"\x0eListGroupRoles\x12\x1f.state.v1.ListGroupRolesRequest\x1a .state.v1.ListGroupRolesResponse\x12n\n" +
+	"\x17GetEffectivePermissions\x12(.state.v1.GetEffectivePermissionsRequest\x1a).state.v1.GetEffectivePermissionsResponse\x12M\n" +
+	"\fListSessions\x12\x1d.state.v1.ListSessionsRequest\x1a\x1e.state.v1.ListSessionsResponse\x12P\n" +
+	"\rRevokeSession\x12\x1e.state.v1.RevokeSessionRequest\x1a\x1f.state.v1.RevokeSessionResponseB6Z4github.com/terraconstructs/grid/api/state/v1;statev1b\x06proto3"
 
 var (
 	file_state_v1_state_proto_rawDescOnce sync.Once
@@ -3726,154 +6224,258 @@ func file_state_v1_state_proto_rawDescGZIP() []byte {
 	return file_state_v1_state_proto_rawDescData
 }
 
-var file_state_v1_state_proto_msgTypes = make([]protoimpl.MessageInfo, 54)
+var file_state_v1_state_proto_msgTypes = make([]protoimpl.MessageInfo, 97)
 var file_state_v1_state_proto_goTypes = []any{
-	(*CreateStateRequest)(nil),          // 0: state.v1.CreateStateRequest
-	(*CreateStateResponse)(nil),         // 1: state.v1.CreateStateResponse
-	(*ListStatesRequest)(nil),           // 2: state.v1.ListStatesRequest
-	(*ListStatesResponse)(nil),          // 3: state.v1.ListStatesResponse
-	(*StateInfo)(nil),                   // 4: state.v1.StateInfo
-	(*BackendConfig)(nil),               // 5: state.v1.BackendConfig
-	(*GetStateConfigRequest)(nil),       // 6: state.v1.GetStateConfigRequest
-	(*GetStateConfigResponse)(nil),      // 7: state.v1.GetStateConfigResponse
-	(*GetStateLockRequest)(nil),         // 8: state.v1.GetStateLockRequest
-	(*LockInfo)(nil),                    // 9: state.v1.LockInfo
-	(*StateLock)(nil),                   // 10: state.v1.StateLock
-	(*GetStateLockResponse)(nil),        // 11: state.v1.GetStateLockResponse
-	(*UnlockStateRequest)(nil),          // 12: state.v1.UnlockStateRequest
-	(*UnlockStateResponse)(nil),         // 13: state.v1.UnlockStateResponse
-	(*AddDependencyRequest)(nil),        // 14: state.v1.AddDependencyRequest
-	(*AddDependencyResponse)(nil),       // 15: state.v1.AddDependencyResponse
-	(*RemoveDependencyRequest)(nil),     // 16: state.v1.RemoveDependencyRequest
-	(*RemoveDependencyResponse)(nil),    // 17: state.v1.RemoveDependencyResponse
-	(*ListDependenciesRequest)(nil),     // 18: state.v1.ListDependenciesRequest
-	(*ListDependenciesResponse)(nil),    // 19: state.v1.ListDependenciesResponse
-	(*ListDependentsRequest)(nil),       // 20: state.v1.ListDependentsRequest
-	(*ListDependentsResponse)(nil),      // 21: state.v1.ListDependentsResponse
-	(*SearchByOutputRequest)(nil),       // 22: state.v1.SearchByOutputRequest
-	(*SearchByOutputResponse)(nil),      // 23: state.v1.SearchByOutputResponse
-	(*GetTopologicalOrderRequest)(nil),  // 24: state.v1.GetTopologicalOrderRequest
-	(*GetTopologicalOrderResponse)(nil), // 25: state.v1.GetTopologicalOrderResponse
-	(*Layer)(nil),                       // 26: state.v1.Layer
-	(*StateRef)(nil),                    // 27: state.v1.StateRef
-	(*GetStateStatusRequest)(nil),       // 28: state.v1.GetStateStatusRequest
-	(*GetStateStatusResponse)(nil),      // 29: state.v1.GetStateStatusResponse
-	(*IncomingEdgeView)(nil),            // 30: state.v1.IncomingEdgeView
-	(*StatusSummary)(nil),               // 31: state.v1.StatusSummary
-	(*GetDependencyGraphRequest)(nil),   // 32: state.v1.GetDependencyGraphRequest
-	(*GetDependencyGraphResponse)(nil),  // 33: state.v1.GetDependencyGraphResponse
-	(*ProducerState)(nil),               // 34: state.v1.ProducerState
-	(*DependencyEdge)(nil),              // 35: state.v1.DependencyEdge
-	(*OutputKey)(nil),                   // 36: state.v1.OutputKey
-	(*ListStateOutputsRequest)(nil),     // 37: state.v1.ListStateOutputsRequest
-	(*ListStateOutputsResponse)(nil),    // 38: state.v1.ListStateOutputsResponse
-	(*GetStateInfoRequest)(nil),         // 39: state.v1.GetStateInfoRequest
-	(*GetStateInfoResponse)(nil),        // 40: state.v1.GetStateInfoResponse
-	(*ListAllEdgesRequest)(nil),         // 41: state.v1.ListAllEdgesRequest
-	(*ListAllEdgesResponse)(nil),        // 42: state.v1.ListAllEdgesResponse
-	(*LabelValue)(nil),                  // 43: state.v1.LabelValue
-	(*UpdateStateLabelsRequest)(nil),    // 44: state.v1.UpdateStateLabelsRequest
-	(*UpdateStateLabelsResponse)(nil),   // 45: state.v1.UpdateStateLabelsResponse
-	(*GetLabelPolicyRequest)(nil),       // 46: state.v1.GetLabelPolicyRequest
-	(*GetLabelPolicyResponse)(nil),      // 47: state.v1.GetLabelPolicyResponse
-	(*SetLabelPolicyRequest)(nil),       // 48: state.v1.SetLabelPolicyRequest
-	(*SetLabelPolicyResponse)(nil),      // 49: state.v1.SetLabelPolicyResponse
-	nil,                                 // 50: state.v1.StateInfo.LabelsEntry
-	nil,                                 // 51: state.v1.GetStateInfoResponse.LabelsEntry
-	nil,                                 // 52: state.v1.UpdateStateLabelsRequest.AddsEntry
-	nil,                                 // 53: state.v1.UpdateStateLabelsResponse.LabelsEntry
-	(*timestamppb.Timestamp)(nil),       // 54: google.protobuf.Timestamp
+	(*CreateStateRequest)(nil),              // 0: state.v1.CreateStateRequest
+	(*CreateStateResponse)(nil),             // 1: state.v1.CreateStateResponse
+	(*ListStatesRequest)(nil),               // 2: state.v1.ListStatesRequest
+	(*ListStatesResponse)(nil),              // 3: state.v1.ListStatesResponse
+	(*StateInfo)(nil),                       // 4: state.v1.StateInfo
+	(*BackendConfig)(nil),                   // 5: state.v1.BackendConfig
+	(*GetStateConfigRequest)(nil),           // 6: state.v1.GetStateConfigRequest
+	(*GetStateConfigResponse)(nil),          // 7: state.v1.GetStateConfigResponse
+	(*GetStateLockRequest)(nil),             // 8: state.v1.GetStateLockRequest
+	(*LockInfo)(nil),                        // 9: state.v1.LockInfo
+	(*StateLock)(nil),                       // 10: state.v1.StateLock
+	(*GetStateLockResponse)(nil),            // 11: state.v1.GetStateLockResponse
+	(*UnlockStateRequest)(nil),              // 12: state.v1.UnlockStateRequest
+	(*UnlockStateResponse)(nil),             // 13: state.v1.UnlockStateResponse
+	(*AddDependencyRequest)(nil),            // 14: state.v1.AddDependencyRequest
+	(*AddDependencyResponse)(nil),           // 15: state.v1.AddDependencyResponse
+	(*RemoveDependencyRequest)(nil),         // 16: state.v1.RemoveDependencyRequest
+	(*RemoveDependencyResponse)(nil),        // 17: state.v1.RemoveDependencyResponse
+	(*ListDependenciesRequest)(nil),         // 18: state.v1.ListDependenciesRequest
+	(*ListDependenciesResponse)(nil),        // 19: state.v1.ListDependenciesResponse
+	(*ListDependentsRequest)(nil),           // 20: state.v1.ListDependentsRequest
+	(*ListDependentsResponse)(nil),          // 21: state.v1.ListDependentsResponse
+	(*SearchByOutputRequest)(nil),           // 22: state.v1.SearchByOutputRequest
+	(*SearchByOutputResponse)(nil),          // 23: state.v1.SearchByOutputResponse
+	(*GetTopologicalOrderRequest)(nil),      // 24: state.v1.GetTopologicalOrderRequest
+	(*GetTopologicalOrderResponse)(nil),     // 25: state.v1.GetTopologicalOrderResponse
+	(*Layer)(nil),                           // 26: state.v1.Layer
+	(*StateRef)(nil),                        // 27: state.v1.StateRef
+	(*GetStateStatusRequest)(nil),           // 28: state.v1.GetStateStatusRequest
+	(*GetStateStatusResponse)(nil),          // 29: state.v1.GetStateStatusResponse
+	(*IncomingEdgeView)(nil),                // 30: state.v1.IncomingEdgeView
+	(*StatusSummary)(nil),                   // 31: state.v1.StatusSummary
+	(*GetDependencyGraphRequest)(nil),       // 32: state.v1.GetDependencyGraphRequest
+	(*GetDependencyGraphResponse)(nil),      // 33: state.v1.GetDependencyGraphResponse
+	(*ProducerState)(nil),                   // 34: state.v1.ProducerState
+	(*DependencyEdge)(nil),                  // 35: state.v1.DependencyEdge
+	(*OutputKey)(nil),                       // 36: state.v1.OutputKey
+	(*ListStateOutputsRequest)(nil),         // 37: state.v1.ListStateOutputsRequest
+	(*ListStateOutputsResponse)(nil),        // 38: state.v1.ListStateOutputsResponse
+	(*GetStateInfoRequest)(nil),             // 39: state.v1.GetStateInfoRequest
+	(*GetStateInfoResponse)(nil),            // 40: state.v1.GetStateInfoResponse
+	(*ListAllEdgesRequest)(nil),             // 41: state.v1.ListAllEdgesRequest
+	(*ListAllEdgesResponse)(nil),            // 42: state.v1.ListAllEdgesResponse
+	(*LabelValue)(nil),                      // 43: state.v1.LabelValue
+	(*UpdateStateLabelsRequest)(nil),        // 44: state.v1.UpdateStateLabelsRequest
+	(*UpdateStateLabelsResponse)(nil),       // 45: state.v1.UpdateStateLabelsResponse
+	(*GetLabelPolicyRequest)(nil),           // 46: state.v1.GetLabelPolicyRequest
+	(*GetLabelPolicyResponse)(nil),          // 47: state.v1.GetLabelPolicyResponse
+	(*SetLabelPolicyRequest)(nil),           // 48: state.v1.SetLabelPolicyRequest
+	(*SetLabelPolicyResponse)(nil),          // 49: state.v1.SetLabelPolicyResponse
+	(*CreateServiceAccountRequest)(nil),     // 50: state.v1.CreateServiceAccountRequest
+	(*CreateServiceAccountResponse)(nil),    // 51: state.v1.CreateServiceAccountResponse
+	(*ListServiceAccountsRequest)(nil),      // 52: state.v1.ListServiceAccountsRequest
+	(*ServiceAccountInfo)(nil),              // 53: state.v1.ServiceAccountInfo
+	(*ListServiceAccountsResponse)(nil),     // 54: state.v1.ListServiceAccountsResponse
+	(*RevokeServiceAccountRequest)(nil),     // 55: state.v1.RevokeServiceAccountRequest
+	(*RevokeServiceAccountResponse)(nil),    // 56: state.v1.RevokeServiceAccountResponse
+	(*RotateServiceAccountRequest)(nil),     // 57: state.v1.RotateServiceAccountRequest
+	(*RotateServiceAccountResponse)(nil),    // 58: state.v1.RotateServiceAccountResponse
+	(*CreateRoleRequest)(nil),               // 59: state.v1.CreateRoleRequest
+	(*CreateConstraints)(nil),               // 60: state.v1.CreateConstraints
+	(*CreateConstraint)(nil),                // 61: state.v1.CreateConstraint
+	(*RoleInfo)(nil),                        // 62: state.v1.RoleInfo
+	(*CreateRoleResponse)(nil),              // 63: state.v1.CreateRoleResponse
+	(*ListRolesRequest)(nil),                // 64: state.v1.ListRolesRequest
+	(*ListRolesResponse)(nil),               // 65: state.v1.ListRolesResponse
+	(*UpdateRoleRequest)(nil),               // 66: state.v1.UpdateRoleRequest
+	(*UpdateRoleResponse)(nil),              // 67: state.v1.UpdateRoleResponse
+	(*DeleteRoleRequest)(nil),               // 68: state.v1.DeleteRoleRequest
+	(*DeleteRoleResponse)(nil),              // 69: state.v1.DeleteRoleResponse
+	(*AssignRoleRequest)(nil),               // 70: state.v1.AssignRoleRequest
+	(*AssignRoleResponse)(nil),              // 71: state.v1.AssignRoleResponse
+	(*RemoveRoleRequest)(nil),               // 72: state.v1.RemoveRoleRequest
+	(*RemoveRoleResponse)(nil),              // 73: state.v1.RemoveRoleResponse
+	(*ListUserRolesRequest)(nil),            // 74: state.v1.ListUserRolesRequest
+	(*RoleAssignmentInfo)(nil),              // 75: state.v1.RoleAssignmentInfo
+	(*ListUserRolesResponse)(nil),           // 76: state.v1.ListUserRolesResponse
+	(*AssignGroupRoleRequest)(nil),          // 77: state.v1.AssignGroupRoleRequest
+	(*AssignGroupRoleResponse)(nil),         // 78: state.v1.AssignGroupRoleResponse
+	(*RemoveGroupRoleRequest)(nil),          // 79: state.v1.RemoveGroupRoleRequest
+	(*RemoveGroupRoleResponse)(nil),         // 80: state.v1.RemoveGroupRoleResponse
+	(*ListGroupRolesRequest)(nil),           // 81: state.v1.ListGroupRolesRequest
+	(*GroupRoleAssignmentInfo)(nil),         // 82: state.v1.GroupRoleAssignmentInfo
+	(*ListGroupRolesResponse)(nil),          // 83: state.v1.ListGroupRolesResponse
+	(*GetEffectivePermissionsRequest)(nil),  // 84: state.v1.GetEffectivePermissionsRequest
+	(*EffectivePermissions)(nil),            // 85: state.v1.EffectivePermissions
+	(*GetEffectivePermissionsResponse)(nil), // 86: state.v1.GetEffectivePermissionsResponse
+	(*ListSessionsRequest)(nil),             // 87: state.v1.ListSessionsRequest
+	(*SessionInfo)(nil),                     // 88: state.v1.SessionInfo
+	(*ListSessionsResponse)(nil),            // 89: state.v1.ListSessionsResponse
+	(*RevokeSessionRequest)(nil),            // 90: state.v1.RevokeSessionRequest
+	(*RevokeSessionResponse)(nil),           // 91: state.v1.RevokeSessionResponse
+	nil,                                     // 92: state.v1.StateInfo.LabelsEntry
+	nil,                                     // 93: state.v1.GetStateInfoResponse.LabelsEntry
+	nil,                                     // 94: state.v1.UpdateStateLabelsRequest.AddsEntry
+	nil,                                     // 95: state.v1.UpdateStateLabelsResponse.LabelsEntry
+	nil,                                     // 96: state.v1.CreateConstraints.ConstraintsEntry
+	(*timestamppb.Timestamp)(nil),           // 97: google.protobuf.Timestamp
 }
 var file_state_v1_state_proto_depIdxs = []int32{
-	5,  // 0: state.v1.CreateStateResponse.backend_config:type_name -> state.v1.BackendConfig
-	4,  // 1: state.v1.ListStatesResponse.states:type_name -> state.v1.StateInfo
-	54, // 2: state.v1.StateInfo.created_at:type_name -> google.protobuf.Timestamp
-	54, // 3: state.v1.StateInfo.updated_at:type_name -> google.protobuf.Timestamp
-	50, // 4: state.v1.StateInfo.labels:type_name -> state.v1.StateInfo.LabelsEntry
-	5,  // 5: state.v1.GetStateConfigResponse.backend_config:type_name -> state.v1.BackendConfig
-	54, // 6: state.v1.LockInfo.created:type_name -> google.protobuf.Timestamp
-	9,  // 7: state.v1.StateLock.info:type_name -> state.v1.LockInfo
-	10, // 8: state.v1.GetStateLockResponse.lock:type_name -> state.v1.StateLock
-	10, // 9: state.v1.UnlockStateResponse.lock:type_name -> state.v1.StateLock
-	35, // 10: state.v1.AddDependencyResponse.edge:type_name -> state.v1.DependencyEdge
-	35, // 11: state.v1.ListDependenciesResponse.edges:type_name -> state.v1.DependencyEdge
-	35, // 12: state.v1.ListDependentsResponse.edges:type_name -> state.v1.DependencyEdge
-	35, // 13: state.v1.SearchByOutputResponse.edges:type_name -> state.v1.DependencyEdge
-	26, // 14: state.v1.GetTopologicalOrderResponse.layers:type_name -> state.v1.Layer
-	27, // 15: state.v1.Layer.states:type_name -> state.v1.StateRef
-	30, // 16: state.v1.GetStateStatusResponse.incoming:type_name -> state.v1.IncomingEdgeView
-	31, // 17: state.v1.GetStateStatusResponse.summary:type_name -> state.v1.StatusSummary
-	54, // 18: state.v1.IncomingEdgeView.last_in_at:type_name -> google.protobuf.Timestamp
-	54, // 19: state.v1.IncomingEdgeView.last_out_at:type_name -> google.protobuf.Timestamp
-	34, // 20: state.v1.GetDependencyGraphResponse.producers:type_name -> state.v1.ProducerState
-	35, // 21: state.v1.GetDependencyGraphResponse.edges:type_name -> state.v1.DependencyEdge
-	5,  // 22: state.v1.ProducerState.backend_config:type_name -> state.v1.BackendConfig
-	54, // 23: state.v1.DependencyEdge.last_in_at:type_name -> google.protobuf.Timestamp
-	54, // 24: state.v1.DependencyEdge.last_out_at:type_name -> google.protobuf.Timestamp
-	54, // 25: state.v1.DependencyEdge.created_at:type_name -> google.protobuf.Timestamp
-	54, // 26: state.v1.DependencyEdge.updated_at:type_name -> google.protobuf.Timestamp
-	36, // 27: state.v1.ListStateOutputsResponse.outputs:type_name -> state.v1.OutputKey
-	5,  // 28: state.v1.GetStateInfoResponse.backend_config:type_name -> state.v1.BackendConfig
-	35, // 29: state.v1.GetStateInfoResponse.dependencies:type_name -> state.v1.DependencyEdge
-	35, // 30: state.v1.GetStateInfoResponse.dependents:type_name -> state.v1.DependencyEdge
-	36, // 31: state.v1.GetStateInfoResponse.outputs:type_name -> state.v1.OutputKey
-	54, // 32: state.v1.GetStateInfoResponse.created_at:type_name -> google.protobuf.Timestamp
-	54, // 33: state.v1.GetStateInfoResponse.updated_at:type_name -> google.protobuf.Timestamp
-	51, // 34: state.v1.GetStateInfoResponse.labels:type_name -> state.v1.GetStateInfoResponse.LabelsEntry
-	35, // 35: state.v1.ListAllEdgesResponse.edges:type_name -> state.v1.DependencyEdge
-	52, // 36: state.v1.UpdateStateLabelsRequest.adds:type_name -> state.v1.UpdateStateLabelsRequest.AddsEntry
-	53, // 37: state.v1.UpdateStateLabelsResponse.labels:type_name -> state.v1.UpdateStateLabelsResponse.LabelsEntry
-	54, // 38: state.v1.UpdateStateLabelsResponse.updated_at:type_name -> google.protobuf.Timestamp
-	54, // 39: state.v1.GetLabelPolicyResponse.created_at:type_name -> google.protobuf.Timestamp
-	54, // 40: state.v1.GetLabelPolicyResponse.updated_at:type_name -> google.protobuf.Timestamp
-	54, // 41: state.v1.SetLabelPolicyResponse.updated_at:type_name -> google.protobuf.Timestamp
-	43, // 42: state.v1.StateInfo.LabelsEntry.value:type_name -> state.v1.LabelValue
-	43, // 43: state.v1.GetStateInfoResponse.LabelsEntry.value:type_name -> state.v1.LabelValue
-	43, // 44: state.v1.UpdateStateLabelsRequest.AddsEntry.value:type_name -> state.v1.LabelValue
-	43, // 45: state.v1.UpdateStateLabelsResponse.LabelsEntry.value:type_name -> state.v1.LabelValue
-	0,  // 46: state.v1.StateService.CreateState:input_type -> state.v1.CreateStateRequest
-	2,  // 47: state.v1.StateService.ListStates:input_type -> state.v1.ListStatesRequest
-	6,  // 48: state.v1.StateService.GetStateConfig:input_type -> state.v1.GetStateConfigRequest
-	8,  // 49: state.v1.StateService.GetStateLock:input_type -> state.v1.GetStateLockRequest
-	12, // 50: state.v1.StateService.UnlockState:input_type -> state.v1.UnlockStateRequest
-	14, // 51: state.v1.StateService.AddDependency:input_type -> state.v1.AddDependencyRequest
-	16, // 52: state.v1.StateService.RemoveDependency:input_type -> state.v1.RemoveDependencyRequest
-	18, // 53: state.v1.StateService.ListDependencies:input_type -> state.v1.ListDependenciesRequest
-	20, // 54: state.v1.StateService.ListDependents:input_type -> state.v1.ListDependentsRequest
-	22, // 55: state.v1.StateService.SearchByOutput:input_type -> state.v1.SearchByOutputRequest
-	24, // 56: state.v1.StateService.GetTopologicalOrder:input_type -> state.v1.GetTopologicalOrderRequest
-	28, // 57: state.v1.StateService.GetStateStatus:input_type -> state.v1.GetStateStatusRequest
-	32, // 58: state.v1.StateService.GetDependencyGraph:input_type -> state.v1.GetDependencyGraphRequest
-	37, // 59: state.v1.StateService.ListStateOutputs:input_type -> state.v1.ListStateOutputsRequest
-	39, // 60: state.v1.StateService.GetStateInfo:input_type -> state.v1.GetStateInfoRequest
-	41, // 61: state.v1.StateService.ListAllEdges:input_type -> state.v1.ListAllEdgesRequest
-	44, // 62: state.v1.StateService.UpdateStateLabels:input_type -> state.v1.UpdateStateLabelsRequest
-	46, // 63: state.v1.StateService.GetLabelPolicy:input_type -> state.v1.GetLabelPolicyRequest
-	48, // 64: state.v1.StateService.SetLabelPolicy:input_type -> state.v1.SetLabelPolicyRequest
-	1,  // 65: state.v1.StateService.CreateState:output_type -> state.v1.CreateStateResponse
-	3,  // 66: state.v1.StateService.ListStates:output_type -> state.v1.ListStatesResponse
-	7,  // 67: state.v1.StateService.GetStateConfig:output_type -> state.v1.GetStateConfigResponse
-	11, // 68: state.v1.StateService.GetStateLock:output_type -> state.v1.GetStateLockResponse
-	13, // 69: state.v1.StateService.UnlockState:output_type -> state.v1.UnlockStateResponse
-	15, // 70: state.v1.StateService.AddDependency:output_type -> state.v1.AddDependencyResponse
-	17, // 71: state.v1.StateService.RemoveDependency:output_type -> state.v1.RemoveDependencyResponse
-	19, // 72: state.v1.StateService.ListDependencies:output_type -> state.v1.ListDependenciesResponse
-	21, // 73: state.v1.StateService.ListDependents:output_type -> state.v1.ListDependentsResponse
-	23, // 74: state.v1.StateService.SearchByOutput:output_type -> state.v1.SearchByOutputResponse
-	25, // 75: state.v1.StateService.GetTopologicalOrder:output_type -> state.v1.GetTopologicalOrderResponse
-	29, // 76: state.v1.StateService.GetStateStatus:output_type -> state.v1.GetStateStatusResponse
-	33, // 77: state.v1.StateService.GetDependencyGraph:output_type -> state.v1.GetDependencyGraphResponse
-	38, // 78: state.v1.StateService.ListStateOutputs:output_type -> state.v1.ListStateOutputsResponse
-	40, // 79: state.v1.StateService.GetStateInfo:output_type -> state.v1.GetStateInfoResponse
-	42, // 80: state.v1.StateService.ListAllEdges:output_type -> state.v1.ListAllEdgesResponse
-	45, // 81: state.v1.StateService.UpdateStateLabels:output_type -> state.v1.UpdateStateLabelsResponse
-	47, // 82: state.v1.StateService.GetLabelPolicy:output_type -> state.v1.GetLabelPolicyResponse
-	49, // 83: state.v1.StateService.SetLabelPolicy:output_type -> state.v1.SetLabelPolicyResponse
-	65, // [65:84] is the sub-list for method output_type
-	46, // [46:65] is the sub-list for method input_type
-	46, // [46:46] is the sub-list for extension type_name
-	46, // [46:46] is the sub-list for extension extendee
-	0,  // [0:46] is the sub-list for field type_name
+	5,   // 0: state.v1.CreateStateResponse.backend_config:type_name -> state.v1.BackendConfig
+	4,   // 1: state.v1.ListStatesResponse.states:type_name -> state.v1.StateInfo
+	97,  // 2: state.v1.StateInfo.created_at:type_name -> google.protobuf.Timestamp
+	97,  // 3: state.v1.StateInfo.updated_at:type_name -> google.protobuf.Timestamp
+	92,  // 4: state.v1.StateInfo.labels:type_name -> state.v1.StateInfo.LabelsEntry
+	5,   // 5: state.v1.GetStateConfigResponse.backend_config:type_name -> state.v1.BackendConfig
+	97,  // 6: state.v1.LockInfo.created:type_name -> google.protobuf.Timestamp
+	9,   // 7: state.v1.StateLock.info:type_name -> state.v1.LockInfo
+	10,  // 8: state.v1.GetStateLockResponse.lock:type_name -> state.v1.StateLock
+	10,  // 9: state.v1.UnlockStateResponse.lock:type_name -> state.v1.StateLock
+	35,  // 10: state.v1.AddDependencyResponse.edge:type_name -> state.v1.DependencyEdge
+	35,  // 11: state.v1.ListDependenciesResponse.edges:type_name -> state.v1.DependencyEdge
+	35,  // 12: state.v1.ListDependentsResponse.edges:type_name -> state.v1.DependencyEdge
+	35,  // 13: state.v1.SearchByOutputResponse.edges:type_name -> state.v1.DependencyEdge
+	26,  // 14: state.v1.GetTopologicalOrderResponse.layers:type_name -> state.v1.Layer
+	27,  // 15: state.v1.Layer.states:type_name -> state.v1.StateRef
+	30,  // 16: state.v1.GetStateStatusResponse.incoming:type_name -> state.v1.IncomingEdgeView
+	31,  // 17: state.v1.GetStateStatusResponse.summary:type_name -> state.v1.StatusSummary
+	97,  // 18: state.v1.IncomingEdgeView.last_in_at:type_name -> google.protobuf.Timestamp
+	97,  // 19: state.v1.IncomingEdgeView.last_out_at:type_name -> google.protobuf.Timestamp
+	34,  // 20: state.v1.GetDependencyGraphResponse.producers:type_name -> state.v1.ProducerState
+	35,  // 21: state.v1.GetDependencyGraphResponse.edges:type_name -> state.v1.DependencyEdge
+	5,   // 22: state.v1.ProducerState.backend_config:type_name -> state.v1.BackendConfig
+	97,  // 23: state.v1.DependencyEdge.last_in_at:type_name -> google.protobuf.Timestamp
+	97,  // 24: state.v1.DependencyEdge.last_out_at:type_name -> google.protobuf.Timestamp
+	97,  // 25: state.v1.DependencyEdge.created_at:type_name -> google.protobuf.Timestamp
+	97,  // 26: state.v1.DependencyEdge.updated_at:type_name -> google.protobuf.Timestamp
+	36,  // 27: state.v1.ListStateOutputsResponse.outputs:type_name -> state.v1.OutputKey
+	5,   // 28: state.v1.GetStateInfoResponse.backend_config:type_name -> state.v1.BackendConfig
+	35,  // 29: state.v1.GetStateInfoResponse.dependencies:type_name -> state.v1.DependencyEdge
+	35,  // 30: state.v1.GetStateInfoResponse.dependents:type_name -> state.v1.DependencyEdge
+	36,  // 31: state.v1.GetStateInfoResponse.outputs:type_name -> state.v1.OutputKey
+	97,  // 32: state.v1.GetStateInfoResponse.created_at:type_name -> google.protobuf.Timestamp
+	97,  // 33: state.v1.GetStateInfoResponse.updated_at:type_name -> google.protobuf.Timestamp
+	93,  // 34: state.v1.GetStateInfoResponse.labels:type_name -> state.v1.GetStateInfoResponse.LabelsEntry
+	35,  // 35: state.v1.ListAllEdgesResponse.edges:type_name -> state.v1.DependencyEdge
+	94,  // 36: state.v1.UpdateStateLabelsRequest.adds:type_name -> state.v1.UpdateStateLabelsRequest.AddsEntry
+	95,  // 37: state.v1.UpdateStateLabelsResponse.labels:type_name -> state.v1.UpdateStateLabelsResponse.LabelsEntry
+	97,  // 38: state.v1.UpdateStateLabelsResponse.updated_at:type_name -> google.protobuf.Timestamp
+	97,  // 39: state.v1.GetLabelPolicyResponse.created_at:type_name -> google.protobuf.Timestamp
+	97,  // 40: state.v1.GetLabelPolicyResponse.updated_at:type_name -> google.protobuf.Timestamp
+	97,  // 41: state.v1.SetLabelPolicyResponse.updated_at:type_name -> google.protobuf.Timestamp
+	97,  // 42: state.v1.CreateServiceAccountResponse.created_at:type_name -> google.protobuf.Timestamp
+	97,  // 43: state.v1.ServiceAccountInfo.created_at:type_name -> google.protobuf.Timestamp
+	97,  // 44: state.v1.ServiceAccountInfo.last_used_at:type_name -> google.protobuf.Timestamp
+	53,  // 45: state.v1.ListServiceAccountsResponse.service_accounts:type_name -> state.v1.ServiceAccountInfo
+	97,  // 46: state.v1.RotateServiceAccountResponse.rotated_at:type_name -> google.protobuf.Timestamp
+	60,  // 47: state.v1.CreateRoleRequest.create_constraints:type_name -> state.v1.CreateConstraints
+	96,  // 48: state.v1.CreateConstraints.constraints:type_name -> state.v1.CreateConstraints.ConstraintsEntry
+	60,  // 49: state.v1.RoleInfo.create_constraints:type_name -> state.v1.CreateConstraints
+	97,  // 50: state.v1.RoleInfo.created_at:type_name -> google.protobuf.Timestamp
+	97,  // 51: state.v1.RoleInfo.updated_at:type_name -> google.protobuf.Timestamp
+	62,  // 52: state.v1.CreateRoleResponse.role:type_name -> state.v1.RoleInfo
+	62,  // 53: state.v1.ListRolesResponse.roles:type_name -> state.v1.RoleInfo
+	60,  // 54: state.v1.UpdateRoleRequest.create_constraints:type_name -> state.v1.CreateConstraints
+	62,  // 55: state.v1.UpdateRoleResponse.role:type_name -> state.v1.RoleInfo
+	97,  // 56: state.v1.AssignRoleResponse.assigned_at:type_name -> google.protobuf.Timestamp
+	97,  // 57: state.v1.RoleAssignmentInfo.assigned_at:type_name -> google.protobuf.Timestamp
+	75,  // 58: state.v1.ListUserRolesResponse.roles:type_name -> state.v1.RoleAssignmentInfo
+	97,  // 59: state.v1.AssignGroupRoleResponse.assigned_at:type_name -> google.protobuf.Timestamp
+	97,  // 60: state.v1.GroupRoleAssignmentInfo.assigned_at:type_name -> google.protobuf.Timestamp
+	82,  // 61: state.v1.ListGroupRolesResponse.assignments:type_name -> state.v1.GroupRoleAssignmentInfo
+	60,  // 62: state.v1.EffectivePermissions.effective_create_constraints:type_name -> state.v1.CreateConstraints
+	85,  // 63: state.v1.GetEffectivePermissionsResponse.permissions:type_name -> state.v1.EffectivePermissions
+	97,  // 64: state.v1.SessionInfo.created_at:type_name -> google.protobuf.Timestamp
+	97,  // 65: state.v1.SessionInfo.last_used_at:type_name -> google.protobuf.Timestamp
+	97,  // 66: state.v1.SessionInfo.expires_at:type_name -> google.protobuf.Timestamp
+	88,  // 67: state.v1.ListSessionsResponse.sessions:type_name -> state.v1.SessionInfo
+	43,  // 68: state.v1.StateInfo.LabelsEntry.value:type_name -> state.v1.LabelValue
+	43,  // 69: state.v1.GetStateInfoResponse.LabelsEntry.value:type_name -> state.v1.LabelValue
+	43,  // 70: state.v1.UpdateStateLabelsRequest.AddsEntry.value:type_name -> state.v1.LabelValue
+	43,  // 71: state.v1.UpdateStateLabelsResponse.LabelsEntry.value:type_name -> state.v1.LabelValue
+	61,  // 72: state.v1.CreateConstraints.ConstraintsEntry.value:type_name -> state.v1.CreateConstraint
+	0,   // 73: state.v1.StateService.CreateState:input_type -> state.v1.CreateStateRequest
+	2,   // 74: state.v1.StateService.ListStates:input_type -> state.v1.ListStatesRequest
+	6,   // 75: state.v1.StateService.GetStateConfig:input_type -> state.v1.GetStateConfigRequest
+	8,   // 76: state.v1.StateService.GetStateLock:input_type -> state.v1.GetStateLockRequest
+	12,  // 77: state.v1.StateService.UnlockState:input_type -> state.v1.UnlockStateRequest
+	14,  // 78: state.v1.StateService.AddDependency:input_type -> state.v1.AddDependencyRequest
+	16,  // 79: state.v1.StateService.RemoveDependency:input_type -> state.v1.RemoveDependencyRequest
+	18,  // 80: state.v1.StateService.ListDependencies:input_type -> state.v1.ListDependenciesRequest
+	20,  // 81: state.v1.StateService.ListDependents:input_type -> state.v1.ListDependentsRequest
+	22,  // 82: state.v1.StateService.SearchByOutput:input_type -> state.v1.SearchByOutputRequest
+	24,  // 83: state.v1.StateService.GetTopologicalOrder:input_type -> state.v1.GetTopologicalOrderRequest
+	28,  // 84: state.v1.StateService.GetStateStatus:input_type -> state.v1.GetStateStatusRequest
+	32,  // 85: state.v1.StateService.GetDependencyGraph:input_type -> state.v1.GetDependencyGraphRequest
+	37,  // 86: state.v1.StateService.ListStateOutputs:input_type -> state.v1.ListStateOutputsRequest
+	39,  // 87: state.v1.StateService.GetStateInfo:input_type -> state.v1.GetStateInfoRequest
+	41,  // 88: state.v1.StateService.ListAllEdges:input_type -> state.v1.ListAllEdgesRequest
+	44,  // 89: state.v1.StateService.UpdateStateLabels:input_type -> state.v1.UpdateStateLabelsRequest
+	46,  // 90: state.v1.StateService.GetLabelPolicy:input_type -> state.v1.GetLabelPolicyRequest
+	48,  // 91: state.v1.StateService.SetLabelPolicy:input_type -> state.v1.SetLabelPolicyRequest
+	50,  // 92: state.v1.StateService.CreateServiceAccount:input_type -> state.v1.CreateServiceAccountRequest
+	52,  // 93: state.v1.StateService.ListServiceAccounts:input_type -> state.v1.ListServiceAccountsRequest
+	55,  // 94: state.v1.StateService.RevokeServiceAccount:input_type -> state.v1.RevokeServiceAccountRequest
+	57,  // 95: state.v1.StateService.RotateServiceAccount:input_type -> state.v1.RotateServiceAccountRequest
+	59,  // 96: state.v1.StateService.CreateRole:input_type -> state.v1.CreateRoleRequest
+	64,  // 97: state.v1.StateService.ListRoles:input_type -> state.v1.ListRolesRequest
+	66,  // 98: state.v1.StateService.UpdateRole:input_type -> state.v1.UpdateRoleRequest
+	68,  // 99: state.v1.StateService.DeleteRole:input_type -> state.v1.DeleteRoleRequest
+	70,  // 100: state.v1.StateService.AssignRole:input_type -> state.v1.AssignRoleRequest
+	72,  // 101: state.v1.StateService.RemoveRole:input_type -> state.v1.RemoveRoleRequest
+	74,  // 102: state.v1.StateService.ListUserRoles:input_type -> state.v1.ListUserRolesRequest
+	77,  // 103: state.v1.StateService.AssignGroupRole:input_type -> state.v1.AssignGroupRoleRequest
+	79,  // 104: state.v1.StateService.RemoveGroupRole:input_type -> state.v1.RemoveGroupRoleRequest
+	81,  // 105: state.v1.StateService.ListGroupRoles:input_type -> state.v1.ListGroupRolesRequest
+	84,  // 106: state.v1.StateService.GetEffectivePermissions:input_type -> state.v1.GetEffectivePermissionsRequest
+	87,  // 107: state.v1.StateService.ListSessions:input_type -> state.v1.ListSessionsRequest
+	90,  // 108: state.v1.StateService.RevokeSession:input_type -> state.v1.RevokeSessionRequest
+	1,   // 109: state.v1.StateService.CreateState:output_type -> state.v1.CreateStateResponse
+	3,   // 110: state.v1.StateService.ListStates:output_type -> state.v1.ListStatesResponse
+	7,   // 111: state.v1.StateService.GetStateConfig:output_type -> state.v1.GetStateConfigResponse
+	11,  // 112: state.v1.StateService.GetStateLock:output_type -> state.v1.GetStateLockResponse
+	13,  // 113: state.v1.StateService.UnlockState:output_type -> state.v1.UnlockStateResponse
+	15,  // 114: state.v1.StateService.AddDependency:output_type -> state.v1.AddDependencyResponse
+	17,  // 115: state.v1.StateService.RemoveDependency:output_type -> state.v1.RemoveDependencyResponse
+	19,  // 116: state.v1.StateService.ListDependencies:output_type -> state.v1.ListDependenciesResponse
+	21,  // 117: state.v1.StateService.ListDependents:output_type -> state.v1.ListDependentsResponse
+	23,  // 118: state.v1.StateService.SearchByOutput:output_type -> state.v1.SearchByOutputResponse
+	25,  // 119: state.v1.StateService.GetTopologicalOrder:output_type -> state.v1.GetTopologicalOrderResponse
+	29,  // 120: state.v1.StateService.GetStateStatus:output_type -> state.v1.GetStateStatusResponse
+	33,  // 121: state.v1.StateService.GetDependencyGraph:output_type -> state.v1.GetDependencyGraphResponse
+	38,  // 122: state.v1.StateService.ListStateOutputs:output_type -> state.v1.ListStateOutputsResponse
+	40,  // 123: state.v1.StateService.GetStateInfo:output_type -> state.v1.GetStateInfoResponse
+	42,  // 124: state.v1.StateService.ListAllEdges:output_type -> state.v1.ListAllEdgesResponse
+	45,  // 125: state.v1.StateService.UpdateStateLabels:output_type -> state.v1.UpdateStateLabelsResponse
+	47,  // 126: state.v1.StateService.GetLabelPolicy:output_type -> state.v1.GetLabelPolicyResponse
+	49,  // 127: state.v1.StateService.SetLabelPolicy:output_type -> state.v1.SetLabelPolicyResponse
+	51,  // 128: state.v1.StateService.CreateServiceAccount:output_type -> state.v1.CreateServiceAccountResponse
+	54,  // 129: state.v1.StateService.ListServiceAccounts:output_type -> state.v1.ListServiceAccountsResponse
+	56,  // 130: state.v1.StateService.RevokeServiceAccount:output_type -> state.v1.RevokeServiceAccountResponse
+	58,  // 131: state.v1.StateService.RotateServiceAccount:output_type -> state.v1.RotateServiceAccountResponse
+	63,  // 132: state.v1.StateService.CreateRole:output_type -> state.v1.CreateRoleResponse
+	65,  // 133: state.v1.StateService.ListRoles:output_type -> state.v1.ListRolesResponse
+	67,  // 134: state.v1.StateService.UpdateRole:output_type -> state.v1.UpdateRoleResponse
+	69,  // 135: state.v1.StateService.DeleteRole:output_type -> state.v1.DeleteRoleResponse
+	71,  // 136: state.v1.StateService.AssignRole:output_type -> state.v1.AssignRoleResponse
+	73,  // 137: state.v1.StateService.RemoveRole:output_type -> state.v1.RemoveRoleResponse
+	76,  // 138: state.v1.StateService.ListUserRoles:output_type -> state.v1.ListUserRolesResponse
+	78,  // 139: state.v1.StateService.AssignGroupRole:output_type -> state.v1.AssignGroupRoleResponse
+	80,  // 140: state.v1.StateService.RemoveGroupRole:output_type -> state.v1.RemoveGroupRoleResponse
+	83,  // 141: state.v1.StateService.ListGroupRoles:output_type -> state.v1.ListGroupRolesResponse
+	86,  // 142: state.v1.StateService.GetEffectivePermissions:output_type -> state.v1.GetEffectivePermissionsResponse
+	89,  // 143: state.v1.StateService.ListSessions:output_type -> state.v1.ListSessionsResponse
+	91,  // 144: state.v1.StateService.RevokeSession:output_type -> state.v1.RevokeSessionResponse
+	109, // [109:145] is the sub-list for method output_type
+	73,  // [73:109] is the sub-list for method input_type
+	73,  // [73:73] is the sub-list for extension type_name
+	73,  // [73:73] is the sub-list for extension extendee
+	0,   // [0:73] is the sub-list for field type_name
 }
 
 func init() { file_state_v1_state_proto_init() }
@@ -3926,13 +6528,21 @@ func file_state_v1_state_proto_init() {
 		(*LabelValue_BoolValue)(nil),
 	}
 	file_state_v1_state_proto_msgTypes[44].OneofWrappers = []any{}
+	file_state_v1_state_proto_msgTypes[50].OneofWrappers = []any{}
+	file_state_v1_state_proto_msgTypes[53].OneofWrappers = []any{}
+	file_state_v1_state_proto_msgTypes[59].OneofWrappers = []any{}
+	file_state_v1_state_proto_msgTypes[62].OneofWrappers = []any{}
+	file_state_v1_state_proto_msgTypes[66].OneofWrappers = []any{}
+	file_state_v1_state_proto_msgTypes[81].OneofWrappers = []any{}
+	file_state_v1_state_proto_msgTypes[85].OneofWrappers = []any{}
+	file_state_v1_state_proto_msgTypes[88].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_state_v1_state_proto_rawDesc), len(file_state_v1_state_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   54,
+			NumMessages:   97,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

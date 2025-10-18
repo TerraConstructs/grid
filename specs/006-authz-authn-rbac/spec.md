@@ -42,8 +42,6 @@
 - Q: Should different roles be able to have different session/token durations? → A: No - all roles use the same default (12 hours)
 - Q: What format should label scope filters use? → A: go-bexpr expression strings (e.g., `env == "dev"` or `env == "dev" and team == "platform"`), evaluated against resource labels at enforcement time
 - Q: Should multiple roles use AND or OR semantics for access? → A: OR (union) semantics - Casbin's default behavior where any role granting access is sufficient
-- Q: What format should label scope filters use? → A: Similar to existing label filtering implementation - Boolean expression strings (e.g., `env == "dev"` or `env == "dev" and team == "platform"`), evaluated against resource labels at enforcement time by the authorization expression language.
-- Q: Should multiple roles use AND or OR semantics for access? → A: OR (union) semantics—any role that grants access is sufficient.
 
 ---
 
@@ -321,12 +319,14 @@ As a developer using the CLI tool, I need to authenticate from my terminal using
 - **FR-002**: System MUST support a web-based authentication flow where users are redirected to their identity provider and returned with a Grid session token.
 
 - **FR-003**: System MUST support a device-code/browser authentication flow for CLI users, allowing authentication from headless or terminal-only environments.
+- **FR-003a**: Device authorization MUST rely on a maintained OIDC library that implements RFC 8628 (e.g., `zitadel/oidc`) instead of custom protocol handling, with Grid supplying only deployment-specific configuration and session persistence.
 
 - **FR-004**: System MUST support service account authentication using client credentials (client ID and secret) for non-interactive scenarios.
 
 - **FR-005**: System MUST issue session tokens or bearer tokens upon successful authentication that can be presented in subsequent requests.
 
 - **FR-006**: System MUST validate tokens on every protected request to ensure they are valid, not expired, and not revoked.
+- **FR-006a**: Resource servers MUST delegate bearer token parsing and validation to vetted middleware (e.g., `go-oidc-middleware`) that sources discovery metadata and JWKS automatically, layering Grid-specific revocation and Casbin role resolution on top.
 
 - **FR-007**: System MUST allow administrators to revoke user sessions or service account credentials, immediately invalidating associated tokens.
 
@@ -338,9 +338,9 @@ As a developer using the CLI tool, I need to authenticate from my terminal using
 
 ### Functional Requirements - Authorization (AuthZ) & RBAC
 
-- **FR-011**: System MUST evaluate every Control Plane RPC request against the caller's assigned roles and permissions before executing the operation.
+- **FR-011**: System MUST evaluate every Control Plane RPC request against the caller's assigned roles and permissions before executing the operation. See FR-037 for detailed enforcement requirements.
 
-- **FR-012**: System MUST evaluate every Data Plane HTTP request to `/tfstate/*` endpoints against the caller's assigned roles and permissions.
+- **FR-012**: System MUST evaluate every Data Plane HTTP request to `/tfstate/*` endpoints against the caller's assigned roles and permissions. See FR-037 for detailed enforcement requirements.
 
 - **FR-013**: System MUST support role definitions that specify allowed actions (e.g., `state:create`, `tfstate:read`, `policy:write`).
 
@@ -598,13 +598,7 @@ As a developer using the CLI tool, I need to authenticate from my terminal using
 
 #### Authorization-Aware UI
 
-- **FR-083**: Web application MUST hide or disable UI actions that the user is not authorized to perform based on their effective permissions (e.g., hide "Create State" button if user lacks `state:create` permission).
-
-- **FR-084**: Web application MUST prevent users from attempting to modify immutable label keys by disabling edit controls for those keys in the UI.
-
 - **FR-085**: Web application MUST display clear, user-friendly error messages when an action is denied due to authorization, explaining the specific permission or constraint violation (e.g., "You cannot create states with env=prod. Your role only allows env=dev.").
-
-- **FR-086**: Web application MUST display visual indicators (icons, badges) distinguishing between states the user can read-only versus states they can modify.
 
 #### Error Handling & Resilience
 
@@ -614,11 +608,11 @@ As a developer using the CLI tool, I need to authenticate from my terminal using
 
 - **FR-089**: Web application MUST log authentication and authorization errors to the browser console for debugging purposes, while displaying sanitized error messages to the user.
 
-**Note on Webapp Scope**: The current dashboard (webapp/) is **READ ONLY** - it displays states, dependencies, and labels but does not implement write operations (create state, update labels, delete state). Requirements FR-083, FR-084, and FR-086 that reference "edit controls," "modify," and "Create State button" are specified to prepare the authorization infrastructure for future write operations, but are not implemented in the current feature scope. The auth system protects existing read operations based on label scope (e.g., product-engineer sees only env=dev states). See research.md §13 "Dashboard READ ONLY Scope" for implementation details. CLI wrapper support (FR-097a–FR-097l) exists to streamline authenticated Terraform/Tofu runs against the same backend while the dashboard remains read-only.
+**Note on Webapp Scope**: The current dashboard (webapp/) is **READ ONLY** - it displays states, dependencies, and labels but does not implement write operations (create state, update labels, delete state). The auth system protects existing read operations based on label scope (e.g., product-engineer sees only env=dev states). See research.md §13 "Dashboard READ ONLY Scope" for implementation details. CLI wrapper support (FR-097a–FR-097l) exists to streamline authenticated Terraform/Tofu runs against the same backend while the dashboard remains read-only. Requirements for write operations UI (FR-083, FR-084, FR-086) are moved to Future Work section.
 
 ### Functional Requirements - CLI
 
-- **FR-090**: CLI MUST provide a `gridctl login` command that authenticates the user and stores credentials locally.
+- **FR-090**: (See FR-008 for `gridctl login` command specification) CLI authentication via device-code flow is specified in FR-008.
 
 - **FR-091**: CLI MUST automatically include bearer tokens from stored credentials in all subsequent command requests.
 
@@ -663,13 +657,21 @@ As a developer using the CLI tool, I need to authenticate from my terminal using
 
 * **FR-097l**: The wrapper MUST print a short hint on first use if it detects that the project is not initialized with the Grid backend (e.g., suggests `gridctl state init`), but MUST NOT block execution.
 
+### Functional Requirements - Developer Experience & Local Development
+
+- **FR-110**: System MUST provide automated tooling for generating OIDC signing keys (ed25519 and RSA) for local development environments, with clear documentation for key management in development vs production.
+
+- **FR-111**: System MUST provide developer convenience scripts (Make targets or shell scripts) for managing the Keycloak development environment, including starting, stopping, viewing logs, and resetting to clean state.
+
+- **FR-112**: System MUST document manual Keycloak setup steps (realm creation, client configuration, user provisioning) for local development, with clear URLs and credentials.
+
 ### Functional Requirements - Security & Compliance
 
 - **FR-098**: System MUST log all authentication attempts (success and failure) with timestamp, user identity, and source IP.
 
 - **FR-099**: System MUST log all authorization decisions (allow and deny) with timestamp, user identity, action, resource, and decision reason.
 
-- **FR-100**: System MUST support secure transmission of credentials (HTTPS/TLS required for web and API endpoints).
+- **FR-100**: System MUST support secure transmission of credentials (HTTPS/TLS required for web and API endpoints). **Local Development Exception**: Plain HTTP is permitted for local development environments (localhost, docker-compose) to simplify setup. Production deployments MUST use HTTPS/TLS.
 
 - **FR-101**: System MUST NOT log or expose bearer tokens, client secrets, or other sensitive credentials in plain text. `gridctl tf` MUST ensure tokens are never written to user files or Terraform diagnostics; any temporary files used for header injection MUST be deleted after completion.
 
@@ -791,6 +793,23 @@ As a developer using the CLI tool, I need to authenticate from my terminal using
   - Role names unique, overwrite with --force flag (line 271)
   - Import is idempotent, no validation of referenced keys (lines 273-275), referenced label keys may be missing (FR-045)
   - Admin revocations rely on server-side revocation state (FR-102a)
+
+---
+
+## Future Work
+
+The following functional requirements are deferred to future iterations when webapp write operations are implemented:
+
+- **FR-083**: Web application MUST hide or disable UI actions that the user is not authorized to perform based on their effective permissions (e.g., hide "Create State" button if user lacks `state:create` permission).
+  - **Rationale**: Dashboard is currently READ ONLY. This requirement applies when write operations (create state, update labels, delete state) are added to the webapp.
+
+- **FR-084**: Web application MUST prevent users from attempting to modify immutable label keys by disabling edit controls for those keys in the UI.
+  - **Rationale**: Dashboard is currently READ ONLY. This requirement applies when label editing UI is added to the webapp.
+
+- **FR-086**: Web application MUST display visual indicators (icons, badges) distinguishing between states the user can read-only versus states they can modify.
+  - **Rationale**: Dashboard is currently READ ONLY. This requirement applies when write operations are added and differential access becomes relevant in the UI.
+
+**Current Scope**: The auth system protects existing read operations based on label scope. CLI provides full write capabilities with auth protection. Webapp auth infrastructure (AuthContext, permissions hooks, AuthGuard) is implemented to support future write operations without requiring re-architecture.
 
 ---
 
