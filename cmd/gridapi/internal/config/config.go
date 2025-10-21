@@ -53,7 +53,7 @@ type OIDCConfig struct {
 	// It represents the Grid API itself.
 	ClientID string
 
-	// SigningKeyPath is the path where the OIDC provider's signing key is stored (Mode 2 only)
+	// SigningKeyPath is the path where the OIDC provider's signing key and kid is stored (Mode 2 only)
 	// If empty, defaults to a system temp directory
 	// Key is persisted to disk to ensure tokens remain valid across server restarts
 	SigningKeyPath string

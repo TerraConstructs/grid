@@ -29,6 +29,15 @@ Grid supports **two mutually exclusive authentication modes**. Choose ONE mode f
 
 **This quickstart uses Mode 1 (External IdP)** with Keycloak for demonstration. For Mode 2 instructions, see the note at the end of each scenario.
 
+### Token TTL Setup and Guidance (Important)
+- Internal IdP (Mode 2): Access tokens default to 120 minutes to avoid Terraform mid-run expiry. No extra setup required for local dev.
+- External IdP (Mode 1): Configure your IdP to issue access tokens for the Grid API audience with a lifetime of 120–180 minutes.
+  - Auth0: increase Access Token Lifetime for the custom API used by Grid.
+  - Okta: set an Access Policy that grants 2–3 hour access tokens for the Grid API.
+  - Microsoft Entra (Azure AD): access tokens are typically 60–90 minutes; if you cannot extend them, prefer Grid-issued SA tokens for Terraform.
+
+Note: Future work will add a scoped run-token exchange so general tokens can return to shorter lifetimes while Terraform uses a narrowly scoped long-lived token.
+
 ---
 
 ## Configuration Setup: Mode 1 (External IdP Only)
@@ -1014,17 +1023,17 @@ EOF
    # Test --tf-bin flag
    ./bin/gridctl tf --tf-bin=tofu -- version
 
-   # Test TF_BIN environment variable
-   export TF_BIN=tofu
+   # Test TERRAFORM_BINARY_NAME environment variable
+   export TERRAFORM_BINARY_NAME=tofu
    ./bin/gridctl tf -- version
 
    # Test auto-detect (should find terraform or tofu)
-   unset TF_BIN
+   unset TERRAFORM_BINARY_NAME
    ./bin/gridctl tf -- version
    ```
    **Expect**: ✅ Correct binary selected each time
 
-5. Test 401 retry logic (FR-097e):
+5. Test 401 detection and guidance (FR-097e v1):
    ```bash
    # Expire token in database to simulate mid-run expiry
    psql -d grid -c "UPDATE sessions SET expires_at = NOW() - INTERVAL '1 minute' WHERE token_hash = '<hash>';"
@@ -1032,7 +1041,7 @@ EOF
    # Run terraform command - should auto-retry once
    ./bin/gridctl tf -- plan
    ```
-   **Expect**: ✅ Either succeeds (token refreshed) or fails with clear auth message after 1 retry
+   **Expect**: ✅ Wrapper detects 401 and exits non-zero with a concise message advising `gridctl auth login` (no automatic retry in v1)
 
 6. Test CI mode detection (FR-097j):
    ```bash
@@ -1081,7 +1090,7 @@ EOF
 - ✅ Token automatically injected via TF_HTTP_PASSWORD (FR-097c)
 - ✅ Terraform commands work without manual auth
 - ✅ Tokens never logged or persisted to disk (FR-097g, FR-097k)
-- ✅ Binary selection follows precedence (--tf-bin → TF_BIN → auto-detect) (FR-097b)
+- ✅ Binary selection follows precedence (--tf-bin → TERRAFORM_BINARY_NAME → auto-detect) (FR-097b)
 - ✅ STDIO pass-through preserves exact output (FR-097f)
 - ✅ Exit codes preserved from subprocess (FR-097h)
 - ✅ 401 retry logic works (single retry, then fail) (FR-097e)
@@ -1234,7 +1243,7 @@ After completing all scenarios, verify:
 ### Terraform Wrapper (NEW)
 - [ ] gridctl tf injects tokens automatically - Scenario 11
 - [ ] Tokens never leaked in logs or files - Scenario 11
-- [ ] Binary selection (--tf-bin, TF_BIN, auto-detect) - Scenario 11
+- [ ] Binary selection (--tf-bin, TERRAFORM_BINARY_NAME, auto-detect) - Scenario 11
 - [ ] 401 retry logic works - Scenario 11
 - [ ] CI mode detection works - Scenario 11
 - [ ] Exit codes preserved - Scenario 11

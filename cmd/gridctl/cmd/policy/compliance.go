@@ -15,11 +15,14 @@ var complianceCmd = &cobra.Command{
 	Use:   "compliance",
 	Short: "Revalidate all states against the current label policy",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		client := sdk.NewClient(serverURL)
-		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		gridClient, err := sdkClient(cmd.Context())
+		if err != nil {
+			return err
+		}
+		ctx, cancel := context.WithTimeout(cmd.Context(), 30*time.Second)
 		defer cancel()
 
-		policyResp, err := client.GetLabelPolicy(ctx)
+		policyResp, err := gridClient.GetLabelPolicy(ctx)
 		if err != nil {
 			if connect.CodeOf(err) == connect.CodeNotFound {
 				pterm.Info.Println("No label policy configured; all states are treated as compliant.")
@@ -35,7 +38,7 @@ var complianceCmd = &cobra.Command{
 
 		validator := sdk.NewLabelValidator(definition)
 		include := true
-		states, err := client.ListStatesWithOptions(ctx, sdk.ListStatesOptions{IncludeLabels: &include})
+		states, err := gridClient.ListStatesWithOptions(ctx, sdk.ListStatesOptions{IncludeLabels: &include})
 		if err != nil {
 			return fmt.Errorf("failed to list states: %w", err)
 		}

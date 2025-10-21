@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/spf13/cobra"
-	internalclient "github.com/terraconstructs/grid/cmd/gridctl/internal/client"
 	"github.com/terraconstructs/grid/pkg/sdk"
 )
 
@@ -21,12 +20,10 @@ var listGroupsCmd = &cobra.Command{
 			group = args[0]
 		}
 
-		httpClient, err := internalclient.NewAuthenticatedClient(ServerURL)
+		gridClient, err := sdkClient(cmd.Context())
 		if err != nil {
 			return err
 		}
-
-		gridClient := sdk.NewClient(ServerURL, sdk.WithHTTPClient(httpClient))
 
 		result, err := gridClient.ListGroupRoles(cmd.Context(), sdk.ListGroupRolesInput{
 			GroupName: group,

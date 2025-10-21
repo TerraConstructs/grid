@@ -38,8 +38,8 @@
 
 ### Session 2025-10-11
 
-- Q: What should be the default session/token expiration duration? → A: 12 hours
-- Q: Should different roles be able to have different session/token durations? → A: No - all roles use the same default (12 hours)
+- Q: What should be the default access-token expiration? → A: Internal IdP access tokens default to 120 minutes (2 hours). External IdP deployments should configure their API audience access-token TTL to 120–180 minutes.
+- Q: Should different roles have different token durations? → A: No. For the initial release, a single access-token TTL is used (uniform across roles). Scoped run-tokens are deferred to future work.
 - Q: What format should label scope filters use? → A: go-bexpr expression strings (e.g., `env == "dev"` or `env == "dev" and team == "platform"`), evaluated against resource labels at enforcement time
 - Q: Should multiple roles use AND or OR semantics for access? → A: OR (union) semantics - Casbin's default behavior where any role granting access is sufficient
 
@@ -70,7 +70,7 @@ As a developer using the CLI tool, I need to authenticate from my terminal using
 
 1. **Given** a user with a company SSO account, **When** they navigate to the Grid web application, **Then** they are redirected to their organization's identity provider, authenticate there, and are returned to Grid with an active session.
 
-2. **Given** a CLI user running `gridctl login`, **When** the command initiates a device-code flow, **Then** the user receives a URL and code, can authenticate in their browser, and the CLI obtains a valid token automatically.
+2. **Given** a CLI user running `gridctl auth login`, **When** the command initiates a device-code flow, **Then** the user receives a URL and code, can authenticate in their browser, and the CLI obtains a valid token automatically.
 
 3. **Given** an administrator creating a service account, **When** the service account credentials are generated, **Then** the system provides a client ID and secret that can be used for non-interactive authentication.
 
@@ -82,7 +82,7 @@ As a developer using the CLI tool, I need to authenticate from my terminal using
    Given a valid context and token, when the user runs `gridctl tf plan`, then terraform/ tofu runs normally, logs stream to console, and the wrapper exits with the same code as terraform/tofu.
 
 2. **Binary selection**
-   Given `TF_BIN=tofu`, when the user runs `gridctl tf apply`, the wrapper uses `tofu` and not `terraform`.
+   Given `TERRAFORM_BINARY_NAME=tofu`, when the user runs `gridctl tf apply`, the wrapper uses `tofu` and not `terraform`.
 
 3. **Auth injection**
    Given an expired token, when the user runs `gridctl tf plan`, the wrapper refreshes the token, injects it, and the plan succeeds without prompting (if refresh is possible).
@@ -165,6 +165,8 @@ As a developer using the CLI tool, I need to authenticate from my terminal using
 - **What happens when authentication token expires mid-operation (e.g., during a long Terraform apply)?**
   - The Terraform operation should fail with a 401 Unauthorized error.
   - The operation fails with a 401 Unauthorized. The CLI must detect that and ask the user to reauthenticate (or fetch a fresh token).
+
+  Interim mitigation (v1): Internal IdP access tokens default to 120 minutes to reduce mid-run expiry risk. External IdP deployments should set the Grid API audience token lifetime to 120–180 minutes.
 
 - **What happens when a user attempts to authenticate from multiple devices simultaneously?**
   - All sessions should be allowed (multiple concurrent sessions per user).
@@ -330,11 +332,13 @@ As a developer using the CLI tool, I need to authenticate from my terminal using
 
 - **FR-007**: System MUST allow administrators to revoke user sessions or service account credentials, immediately invalidating associated tokens.
 
-- **FR-008**: CLI MUST provide a `gridctl login` command that initiates the device-code flow and stores the obtained token for subsequent commands.
+- **FR-008**: CLI MUST provide a `gridctl auth login` command that initiates the device-code flow and stores the obtained token for subsequent commands.
 
-- **FR-009**: CLI MUST provide a `gridctl logout` command that clears stored credentials and optionally revokes the session token.
+- **FR-009**: CLI MUST provide a `gridctl auth logout` command that clears stored credentials and optionally revokes the session token.
 
 - **FR-010**: System MUST support multiple concurrent sessions for a single user (e.g., web browser + multiple CLI sessions).
+
+- **FR-010a (Interim)**: In Internal IdP mode, the default access-token TTL MUST be 120 minutes (configurable). In External IdP mode, documentation MUST advise administrators to configure their IdP’s access-token lifetime for the Grid API audience to 120–180 minutes.
 
 ### Functional Requirements - Authorization (AuthZ) & RBAC
 
@@ -612,7 +616,7 @@ As a developer using the CLI tool, I need to authenticate from my terminal using
 
 ### Functional Requirements - CLI
 
-- **FR-090**: (See FR-008 for `gridctl login` command specification) CLI authentication via device-code flow is specified in FR-008.
+- **FR-090**: (See FR-008 for `gridctl auth login` command specification) CLI authentication via device-code flow is specified in FR-008.
 
 - **FR-091**: CLI MUST automatically include bearer tokens from stored credentials in all subsequent command requests.
 
@@ -630,18 +634,13 @@ As a developer using the CLI tool, I need to authenticate from my terminal using
 
 * **FR-097a**: CLI MUST provide a pass-through wrapper command `gridctl tf` that executes a Terraform/Tofu subcommand (e.g., `plan`, `apply`, `init`, `state`, `lock`, `unlock`, etc.) and propagates STDIN/STDOUT/STDERR and exit codes unchanged.
 
-* **FR-097b**: `gridctl tf` MUST support selecting the terraform binary via, in order of precedence: `--tf-bin` flag, `TF_BIN` environment variable, then defaulting to `terraform` if present, otherwise `tofu`.
+* **FR-097b**: `gridctl tf` MUST support selecting the terraform binary via, in order of precedence: `--tf-bin` flag, `TERRAFORM_BINARY_NAME` environment variable, then defaulting to `terraform` if present, otherwise `tofu`.
 
 * **FR-097c**: Before invoking the selected binary, `gridctl tf` MUST inject a valid bearer token for the Grid HTTP backend so that all `/tfstate/*` requests sent by the terraform/tofu process include authorization. The injection MUST use the backend’s supported mechanisms (e.g., runtime headers and/or generated backend config). The token MUST NOT be printed to console or logs.
 
-* **FR-097d**: If no valid local credentials exist or the token is expired, `gridctl tf` MUST attempt to obtain/refresh credentials using the same auth flow as `gridctl login` (non-interactive when service account credentials are configured). If refresh/auth fails, the wrapper MUST exit with the same non-zero exit code as the underlying command would have produced for an auth failure and print a concise error explaining that authentication is required.
+* **FR-097d**: If no valid local credentials exist or the token is expired, `gridctl tf` MUST attempt to obtain/refresh credentials using the same auth flow as `gridctl auth login` (non-interactive when service account credentials are configured). If refresh/auth fails, the wrapper MUST exit with the same non-zero exit code as the underlying command would have produced for an auth failure and print a concise error explaining that authentication is required.
 
-* **FR-097e**: If the terraform/tofu process returns `401 Unauthorized` from the backend during execution, `gridctl tf` MUST:
-
-  1. attempt a single token refresh (if refresh is configured),
-  2. re-try the exact same subcommand once,
-  3. if it still fails, exit with the underlying process exit code and a brief message indicating auth failure.
-     The wrapper MUST NOT loop indefinitely.
+* **FR-097e (v1)**: If the terraform/tofu process returns `401 Unauthorized` from the backend during execution, `gridctl tf` MUST detect the 401, exit non-zero, and print a concise message advising the user to re-authenticate (e.g., `gridctl auth login`). The wrapper MUST NOT attempt automatic retries in v1.
 
 * **FR-097f**: `gridctl tf` MUST pass through any additional arguments verbatim after `--` (e.g., `gridctl tf -- plan -var-file=dev.tfvars`).
 
@@ -797,6 +796,11 @@ As a developer using the CLI tool, I need to authenticate from my terminal using
 ---
 
 ## Future Work
+
+### Scoped Run Tokens (Exchange Flow)
+- Implement a run-token exchange endpoint that mints a narrowly scoped, long-lived token for a specific state (`/tfstate/{guid}/run-token`).
+- Enforce `state` and `scope` claims in data-plane middleware prior to Casbin evaluation.
+- Revert the general access-token TTL to a shorter default once run-tokens are available, limiting blast radius for control-plane calls.
 
 The following functional requirements are deferred to future iterations when webapp write operations are implemented:
 

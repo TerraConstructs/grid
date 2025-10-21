@@ -72,14 +72,16 @@ If logic-id is not provided, the .grid context will be used (if available).`,
 		// Generate UUIDv7 for the state
 		guid := uuid.Must(uuid.NewV7()).String()
 
-		// Create SDK client
-		client := sdk.NewClient(ServerURL)
+		gridClient, err := sdkClient(cobraCmd.Context())
+		if err != nil {
+			return err
+		}
 
 		// Call CreateState
-		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		ctx, cancel := context.WithTimeout(cobraCmd.Context(), 10*time.Second)
 		defer cancel()
 
-		state, err := client.CreateState(ctx, sdk.CreateStateInput{
+		state, err := gridClient.CreateState(ctx, sdk.CreateStateInput{
 			GUID:    guid,
 			LogicID: logicID,
 		})
@@ -88,7 +90,7 @@ If logic-id is not provided, the .grid context will be used (if available).`,
 		}
 
 		if len(labels) > 0 {
-			if _, err := client.UpdateStateLabels(ctx, sdk.UpdateStateLabelsInput{
+			if _, err := gridClient.UpdateStateLabels(ctx, sdk.UpdateStateLabelsInput{
 				StateID: state.GUID,
 				Adds:    labels,
 			}); err != nil {

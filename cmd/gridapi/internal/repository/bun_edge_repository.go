@@ -17,7 +17,7 @@ type BunEdgeRepository struct {
 }
 
 // NewBunEdgeRepository constructs a repository backed by Bun.
-func NewBunEdgeRepository(db *bun.DB) *BunEdgeRepository {
+func NewBunEdgeRepository(db *bun.DB) EdgeRepository {
 	return &BunEdgeRepository{db: db}
 }
 

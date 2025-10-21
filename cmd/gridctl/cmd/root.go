@@ -10,11 +10,14 @@ import (
 	"github.com/terraconstructs/grid/cmd/gridctl/cmd/policy"
 	"github.com/terraconstructs/grid/cmd/gridctl/cmd/role"
 	"github.com/terraconstructs/grid/cmd/gridctl/cmd/state"
+	"github.com/terraconstructs/grid/cmd/gridctl/cmd/tf"
+	internalclient "github.com/terraconstructs/grid/cmd/gridctl/internal/client"
 )
 
 var (
 	serverURL      string
 	nonInteractive bool
+	clientProvider *internalclient.Provider
 )
 
 var rootCmd = &cobra.Command{
@@ -28,17 +31,27 @@ system for Terraform and OpenTofu. Use it to create, list, and initialize states
 			nonInteractive = true
 		}
 
+		clientProvider = internalclient.NewProvider(serverURL)
+
 		// Propagate flags to subcommands
 		state.SetServerURL(serverURL)
 		state.SetNonInteractive(nonInteractive)
+		state.SetClientProvider(clientProvider)
 		deps.SetServerURL(serverURL)
 		deps.SetNonInteractive(nonInteractive)
+		deps.SetClientProvider(clientProvider)
 		policy.SetServerURL(serverURL)
 		policy.SetNonInteractive(nonInteractive)
+		policy.SetClientProvider(clientProvider)
 		auth.SetServerURL(serverURL)
 		auth.SetNonInteractive(nonInteractive)
+		auth.SetClientProvider(clientProvider)
 		role.SetServerURL(serverURL)
 		role.SetNonInteractive(nonInteractive)
+		role.SetClientProvider(clientProvider)
+		tf.SetServerURL(serverURL)
+		tf.SetNonInteractive(nonInteractive)
+		tf.SetClientProvider(clientProvider)
 	},
 }
 
@@ -58,4 +71,5 @@ func init() {
 	rootCmd.AddCommand(policy.PolicyCmd)
 	rootCmd.AddCommand(auth.AuthCmd)
 	rootCmd.AddCommand(role.RoleCmd)
+	rootCmd.AddCommand(tf.TfCmd)
 }

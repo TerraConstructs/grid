@@ -33,9 +33,11 @@ var (
 )
 
 const (
-	defaultAccessTokenTTL  = 15 * time.Minute
-	defaultRefreshTokenTTL = 24 * time.Hour
-	defaultIDTokenTTL      = 15 * time.Minute
+    // Shortest path: increase access token TTL so Terraform runs won't expire mid-apply.
+    // Future work will scope long-lived run tokens separately.
+    defaultAccessTokenTTL  = 120 * time.Minute
+    defaultRefreshTokenTTL = 24 * time.Hour
+    defaultIDTokenTTL      = 15 * time.Minute
 )
 
 // ProviderDependencies holds the repositories required by the OIDC storage adapter.

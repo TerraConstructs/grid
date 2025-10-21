@@ -16,7 +16,7 @@ type BunSessionRepository struct {
 }
 
 // NewBunSessionRepository creates a new Bun-based session repository
-func NewBunSessionRepository(db *bun.DB) *BunSessionRepository {
+func NewBunSessionRepository(db *bun.DB) SessionRepository {
 	return &BunSessionRepository{db: db}
 }
 

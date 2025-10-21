@@ -70,6 +70,7 @@ type UserRepository interface {
 type ServiceAccountRepository interface {
 	Create(ctx context.Context, sa *models.ServiceAccount) error
 	GetByID(ctx context.Context, id string) (*models.ServiceAccount, error)
+	GetByName(ctx context.Context, name string) (*models.ServiceAccount, error)
 	GetByClientID(ctx context.Context, clientID string) (*models.ServiceAccount, error)
 	Update(ctx context.Context, sa *models.ServiceAccount) error
 	UpdateLastUsed(ctx context.Context, id string) error
@@ -94,7 +95,9 @@ type UserRoleRepository interface {
 	Create(ctx context.Context, ur *models.UserRole) error
 	GetByID(ctx context.Context, id string) (*models.UserRole, error)
 	GetByUserID(ctx context.Context, userID string) ([]models.UserRole, error)
+	GetByUserAndRoleID(ctx context.Context, userID string, roleID string) (*models.UserRole, error)
 	GetByServiceAccountID(ctx context.Context, serviceAccountID string) ([]models.UserRole, error)
+	GetByServiceAccountAndRoleID(ctx context.Context, serviceAccountID string, roleID string) (*models.UserRole, error)
 	GetByRoleID(ctx context.Context, roleID string) ([]models.UserRole, error)
 	Delete(ctx context.Context, id string) error
 	DeleteByUserAndRole(ctx context.Context, userID string, roleID string) error

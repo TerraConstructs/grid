@@ -11,10 +11,6 @@ type Credentials struct {
 	PrincipalID  string    `json:"principal_id,omitempty"` // Casbin principal ID (e.g., "sa:{clientID}" or "user:{subject}")
 }
 
-// CredentialStore is an interface for storing and retrieving credentials.
-type CredentialStore interface {
-	SaveCredentials(credentials *Credentials) error
-	LoadCredentials() (*Credentials, error)
-	DeleteCredentials() error
-	IsValid() (bool, error)
+func (c *Credentials) IsExpired() bool {
+	return time.Now().After(c.ExpiresAt)
 }

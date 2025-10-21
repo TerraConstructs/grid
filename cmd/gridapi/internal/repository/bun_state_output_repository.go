@@ -15,7 +15,7 @@ type BunStateOutputRepository struct {
 }
 
 // NewBunStateOutputRepository constructs a repository backed by Bun.
-func NewBunStateOutputRepository(db *bun.DB) *BunStateOutputRepository {
+func NewBunStateOutputRepository(db *bun.DB) StateOutputRepository {
 	return &BunStateOutputRepository{db: db}
 }
 

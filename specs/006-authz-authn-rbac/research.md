@@ -1231,4 +1231,297 @@ export const gridTransport = createGridTransport(getApiBaseUrl(), {
 
 ---
 
+## 15. Terraform/OpenTofu Wrapper Implementation
+
+### Decision
+Implement custom Terraform wrapper in `pkg/sdk/terraform` instead of using external libraries.
+
+### Rationale
+
+**Pass-through semantics requirement:**
+- Grid needs transparent STDIN/STDOUT/STDERR piping for all Terraform commands
+- Must preserve exact exit codes from Terraform subprocess
+- Need to support arbitrary Terraform commands without mapping to structured API
+
+**terraform-exec limitations:**
+- Provides structured API (Init(), Plan(), Apply(), etc.) instead of pass-through
+- Not all Terraform commands have corresponding methods
+- Opinionated command structure doesn't fit CLI wrapper use case
+- Heavy dependency footprint (tfexec, tfinstall, hc-install)
+
+**Simplicity and control:**
+- Our implementation: ~500 LOC with comprehensive test coverage
+- Pure Go stdlib + context (no external dependencies beyond Grid's existing deps)
+- Full control over process execution, error handling, and I/O piping
+- Tailored to Grid's authentication injection requirements
+
+**Maintenance:**
+- Simple code is easier to maintain than external library integration
+- No risk of upstream API changes or library abandonment
+- Can reference terraform-exec patterns without dependency lock-in
+
+### Libraries Evaluated
+
+#### 1. hashicorp/terraform-exec
+**Repository**: https://github.com/hashicorp/terraform-exec
+**License**: MPL-2.0
+**Status**: Official HashiCorp library, actively maintained
+
+**Features:**
+- Binary discovery via `tfinstall` package (ExactPath, ExactVersion, LookPath)
+- Structured command API: `tf.Init()`, `tf.Plan()`, `tf.Apply()`, etc.
+- Environment variable injection via `SetEnv(map[string]string)`
+- Output capture (stdout/stderr) with structured parsing
+- Context support for cancellation/timeouts
+- Works with hc-install library for version management
+
+**Pros:**
+- ✅ Official HashiCorp library with long-term support
+- ✅ Battle-tested in production (Terraform Cloud, Atlantis, etc.)
+- ✅ Clean API with proper abstractions
+- ✅ Supports authentication via TF_HTTP_* env vars
+
+**Cons:**
+- ❌ Opinionated command structure (methods per command, not pass-through)
+- ❌ Not all Terraform commands have equivalent methods
+- ❌ Doesn't support transparent STDIN piping for interactive commands
+- ❌ Heavy dependencies (tfexec + tfinstall + hc-install)
+- ❌ Overengineered for simple CLI wrapper needs
+
+**Use case:** Structured automation, programmatic Terraform execution, CI/CD pipelines
+
+#### 2. opentofu/tofu-exec
+**Repository**: https://github.com/opentofu/tofu-exec
+**Status**: OpenTofu fork of terraform-exec, **proposed for archival**
+
+**Features:**
+- Same API as terraform-exec but for OpenTofu
+- Binary download via tofudl library
+
+**Pros:**
+- ✅ Native OpenTofu support
+
+**Cons:**
+- ❌ May be deprecated soon (archival proposed in issue #2455)
+- ❌ Maintainers suggest using tofudl + JSON output directly
+- ❌ Same limitations as terraform-exec (structured API, no pass-through)
+
+**Decision:** Not suitable for Grid's needs
+
+#### 3. gruntwork-io/terratest
+**Repository**: https://github.com/gruntwork-io/terratest
+**Purpose**: Infrastructure testing library
+
+**Features:**
+- Simple `RunTerraformCommand()` with shell execution
+- Built-in retry logic and error handling
+- Helpers for asserting infrastructure state
+
+**Pros:**
+- ✅ Simple shell command wrapper
+- ✅ Good reference implementation for process execution patterns
+- ✅ Supports both Terraform and OpenTofu
+
+**Cons:**
+- ❌ **Explicitly NOT intended for production use** (Gruntwork team statement)
+- ❌ Tight coupling with `testing.T` interface
+- ❌ Optimized for test scenarios, not CLI wrappers
+- ❌ Reference in issue #327: "nervous about supporting the modules for anything other than test use cases"
+
+**Decision:** Useful reference but not suitable as dependency
+
+### Comparison Matrix
+
+| Feature | terraform-exec | tofu-exec | terratest | Our Implementation |
+|---------|---------------|-----------|-----------|-------------------|
+| **Binary Discovery** | ✅ Via tfinstall | ✅ Via tofudl | ⚠️ Manual | ✅ pkg/sdk/terraform/binary.go |
+| **TF + Tofu Support** | ✅ Terraform | ✅ Tofu only | ✅ Both | ✅ Both |
+| **Env Var Injection** | ✅ SetEnv() | ✅ SetEnv() | ✅ Via Options | ✅ pkg/sdk/terraform/auth.go |
+| **Pass-through Wrapper** | ❌ Structured API | ❌ Structured API | ✅ Shell commands | ✅ Full pass-through |
+| **STDIN/STDOUT Piping** | ⚠️ Limited | ⚠️ Limited | ✅ Yes | ✅ Transparent |
+| **Exit Code Preservation** | ✅ Yes | ✅ Yes | ✅ Yes | ✅ Yes |
+| **Production Ready** | ✅ Yes | ⚠️ May deprecate | ❌ No (test only) | ✅ Yes |
+| **Dependencies** | 🔴 Heavy | 🔴 Heavy | 🟡 Medium | 🟢 Light (stdlib) |
+| **Maintenance Burden** | 🟢 HashiCorp | 🔴 May deprecate | 🟢 Gruntwork | 🟡 Grid team |
+| **Lines of Code** | ~5000+ | ~5000+ | ~2000+ | ~500 |
+
+### Our Implementation
+
+**Location**: `pkg/sdk/terraform/`
+
+**Components:**
+1. **binary.go** - Binary discovery with precedence handling
+   - Priority: `--tf-bin` flag → `TERRAFORM_BINARY_NAME` env var → auto-detect
+   - Auto-detect searches for "terraform" then "tofu" in PATH
+   - Validates binary exists and is executable
+   - Clear error messages if neither found
+
+2. **wrapper.go** - Process spawner with I/O piping
+   - `Run(ctx, binary, args, credStore)` executes terraform subprocess
+   - Transparent STDIN/STDOUT/STDERR piping
+   - Exact exit code preservation
+   - Context support for cancellation/timeouts
+
+3. **auth.go** - Token injection and CI detection
+   - `InjectAuthEnv(credStore, interactive)` prepares TF_HTTP_* env vars
+   - `IsCI()` detects CI/CD environments (checks TTY + CI env vars)
+   - Mode-aware error messages (interactive vs CI)
+   - 1-minute expiry buffer to prevent mid-run token expiration
+
+4. **output.go** - 401 detection and secret redaction
+   - `Detect401Error(stderr)` scans for authentication failures
+   - `PrintAuthGuidance()` shows helpful re-authentication message
+   - `RedactSecrets(text, secrets)` masks bearer tokens
+   - `VerboseCommandLine()` formats debug output with `[REDACTED]` for secrets
+
+**Test coverage:** ~50 unit tests across all components
+
+### Integration with Grid Backend Configuration
+
+**Backend configuration flow:**
+1. **`gridctl state init`** generates `backend.tf` with HTTP backend URLs (no credentials)
+2. **`gridctl tf`** injects credentials at runtime via environment variables
+3. **Terraform** uses TF_HTTP_USERNAME and TF_HTTP_PASSWORD for authentication
+
+**Security model:**
+- ✅ Credentials never written to backend.tf (disk)
+- ✅ Tokens only passed via environment variables to subprocess
+- ✅ Each developer/CI run uses their own credentials
+- ✅ Credentials loaded from `~/.grid/credentials.json` (mode 0600)
+
+**Example backend.tf** (generated by `gridctl state init`):
+```hcl
+terraform {
+  backend "http" {
+    address        = "http://localhost:8080/tfstate/{guid}"
+    lock_address   = "http://localhost:8080/tfstate/{guid}/lock"
+    unlock_address = "http://localhost:8080/tfstate/{guid}/unlock"
+    # NO username/password here - injected at runtime by gridctl tf
+  }
+}
+```
+
+### Implementation Reference
+
+**Binary discovery pattern** (inspired by terraform-exec's tfinstall):
+```go
+// pkg/sdk/terraform/binary.go
+func FindTerraformBinary(override string) (string, error) {
+    // 1. Check override parameter (--tf-bin flag)
+    if override != "" {
+        return validateBinary(override)
+    }
+
+    // 2. Check TERRAFORM_BINARY_NAME env var
+    if envBinary := os.Getenv("TERRAFORM_BINARY_NAME"); envBinary != "" {
+        return validateBinary(envBinary)
+    }
+
+    // 3. Auto-detect: terraform first, then tofu
+    if path, err := exec.LookPath("terraform"); err == nil {
+        return path, nil
+    }
+    if path, err := exec.LookPath("tofu"); err == nil {
+        return path, nil
+    }
+
+    return "", fmt.Errorf("neither terraform nor tofu found in PATH")
+}
+```
+
+**Authentication injection** (following Terraform HTTP backend protocol):
+```go
+// pkg/sdk/terraform/auth.go
+func InjectAuthEnv(credStore sdk.CredentialStore, interactive bool) (*AuthEnvResult, error) {
+    creds, err := credStore.LoadCredentials()
+    if err != nil {
+        return nil, modeAwareError(err, interactive)
+    }
+
+    // Terraform HTTP backend uses Basic Auth header format
+    // Password field contains the bearer token
+    env := []string{
+        "TF_HTTP_USERNAME=gridapi",
+        fmt.Sprintf("TF_HTTP_PASSWORD=%s", creds.AccessToken),
+    }
+
+    return &AuthEnvResult{
+        Env:         env,
+        ExpiresAt:   creds.ExpiresAt,
+        PrincipalID: creds.PrincipalID,
+    }, nil
+}
+```
+
+### Future Enhancements (If Needed)
+
+**Option 1: Hybrid approach**
+- Use terraform-exec's tfinstall for binary discovery only
+- Keep our pass-through wrapper for execution
+- Benefits: Leverage battle-tested binary management
+- Tradeoff: External dependency for marginal benefit
+
+**Option 2: Version management**
+- Add Terraform version detection and switching
+- Similar to tfenv/tenv tools
+- Defer until user demand emerges (YAGNI)
+
+**Option 3: Structured command API**
+- Add optional structured methods (Plan(), Apply()) alongside pass-through
+- Use terraform-exec as optional backend if structured API needed
+- Maintain pass-through as primary interface
+
+### Alternatives Considered and Rejected
+
+**Why not use terraform-exec?**
+- Doesn't provide pass-through semantics we need
+- Heavy dependency footprint (only use ~10% of features)
+- Opinionated API doesn't match CLI wrapper use case
+- Simple process execution doesn't require complex library
+
+**Why not fork terraform-exec?**
+- Maintenance burden of keeping fork up-to-date
+- Our needs are simpler than terraform-exec's feature set
+- Custom implementation is more maintainable for our specific use case
+
+**Why not use exec.Command directly in CLI?**
+- Duplicates logic across commands (binary discovery, auth injection)
+- Harder to test without SDK abstraction
+- Violates separation of concerns (CLI vs SDK)
+- SDK layer enables future reuse (e.g., API-driven Terraform execution)
+
+### Performance Considerations
+
+**Token validation overhead:**
+- Credential loading: ~1-5ms (file I/O)
+- Token expiry check: ~1ms (time comparison)
+- Environment variable injection: <1ms (memory operation)
+- Total overhead: ~2-6ms per `gridctl tf` invocation
+
+**Binary discovery caching:**
+- First call: ~5-10ms (PATH search)
+- Subsequent calls: Use cached result (not implemented yet, acceptable for CLI)
+
+**Process spawning:**
+- exec.CommandContext: ~1-2ms (Go stdlib)
+- I/O piping setup: <1ms (file descriptor inheritance)
+- Total: ~2-3ms overhead per Terraform command
+
+**Overall impact:**
+- `gridctl tf` wrapper adds ~10ms to Terraform command startup
+- Negligible compared to Terraform's own initialization (~100-500ms)
+- No impact on Terraform execution time (transparent pass-through)
+
+### References
+
+- [Terraform HTTP Backend Protocol](https://developer.hashicorp.com/terraform/language/backend/http)
+- [terraform-exec Repository](https://github.com/hashicorp/terraform-exec)
+- [terraform-exec Go Package Docs](https://pkg.go.dev/github.com/hashicorp/terraform-exec/tfexec)
+- [tofu-exec Repository](https://github.com/opentofu/tofu-exec)
+- [tofu-exec Archival Discussion](https://github.com/opentofu/opentofu/issues/2455)
+- [terratest Repository](https://github.com/gruntwork-io/terratest)
+- [terratest Production Use Discussion](https://github.com/gruntwork-io/terratest/issues/327)
+
+---
+
 **Status**: All research complete. Ready for Phase 1 (Design & Contracts).

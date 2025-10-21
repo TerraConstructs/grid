@@ -10,7 +10,6 @@ import (
 	"github.com/pterm/pterm"
 	"github.com/spf13/cobra"
 	"github.com/terraconstructs/grid/cmd/gridctl/internal/auth"
-	"github.com/terraconstructs/grid/cmd/gridctl/internal/client"
 	"github.com/terraconstructs/grid/pkg/sdk"
 )
 
@@ -38,12 +37,10 @@ var statusCmd = &cobra.Command{
 
 		pterm.Info.Printf("Principal ID: %s\n", creds.PrincipalID)
 
-		httpClient, err := client.NewAuthenticatedClient(ServerURL)
+		gridClient, err := sdkClient(cmd.Context())
 		if err != nil {
 			return err
 		}
-
-		gridClient := sdk.NewClient(ServerURL, sdk.WithHTTPClient(httpClient))
 
 		result, err := gridClient.GetEffectivePermissions(cmd.Context(), sdk.GetEffectivePermissionsInput{
 			PrincipalID: creds.PrincipalID,

@@ -440,29 +440,22 @@ func (r *CasbinRule) String() string {
 	)
 
 	sb.WriteString(r.Ptype)
-	if len(r.V0) > 0 {
-		sb.WriteString(prefixLine)
-		sb.WriteString(r.V0)
+
+	// Build the values array to determine the last non-empty field
+	values := []string{r.V0, r.V1, r.V2, r.V3, r.V4, r.V5}
+	lastNonEmpty := -1
+	for i := len(values) - 1; i >= 0; i-- {
+		if values[i] != "" {
+			lastNonEmpty = i
+			break
+		}
 	}
-	if len(r.V1) > 0 {
+
+	// Write all fields up to and including the last non-empty one
+	// This preserves empty fields in the middle
+	for i := 0; i <= lastNonEmpty; i++ {
 		sb.WriteString(prefixLine)
-		sb.WriteString(r.V1)
-	}
-	if len(r.V2) > 0 {
-		sb.WriteString(prefixLine)
-		sb.WriteString(r.V2)
-	}
-	if len(r.V3) > 0 {
-		sb.WriteString(prefixLine)
-		sb.WriteString(r.V3)
-	}
-	if len(r.V4) > 0 {
-		sb.WriteString(prefixLine)
-		sb.WriteString(r.V4)
-	}
-	if len(r.V5) > 0 {
-		sb.WriteString(prefixLine)
-		sb.WriteString(r.V5)
+		sb.WriteString(values[i])
 	}
 
 	return sb.String()
@@ -496,28 +489,27 @@ func (r *CasbinRule) QueryWhereGroup(q bun.QueryBuilder) bun.QueryBuilder {
 }
 
 func (r *CasbinRule) toStringPolicy() []string {
-	policy := make([]string, 0, 7)
+	// Build the values array to determine the last non-empty field
+	values := []string{r.V0, r.V1, r.V2, r.V3, r.V4, r.V5}
+	lastNonEmpty := -1
+	for i := len(values) - 1; i >= 0; i-- {
+		if values[i] != "" {
+			lastNonEmpty = i
+			break
+		}
+	}
+
+	// Build policy slice with ptype + all fields up to the last non-empty one
+	// This preserves empty fields in the middle
+	policy := make([]string, 0, lastNonEmpty+2) // +2 for ptype and 0-indexed to count conversion
 
 	if r.Ptype != "" {
 		policy = append(policy, r.Ptype)
 	}
-	if r.V0 != "" {
-		policy = append(policy, r.V0)
-	}
-	if r.V1 != "" {
-		policy = append(policy, r.V1)
-	}
-	if r.V2 != "" {
-		policy = append(policy, r.V2)
-	}
-	if r.V3 != "" {
-		policy = append(policy, r.V3)
-	}
-	if r.V4 != "" {
-		policy = append(policy, r.V4)
-	}
-	if r.V5 != "" {
-		policy = append(policy, r.V5)
+
+	// Add all fields up to and including the last non-empty one
+	for i := 0; i <= lastNonEmpty; i++ {
+		policy = append(policy, values[i])
 	}
 
 	return policy

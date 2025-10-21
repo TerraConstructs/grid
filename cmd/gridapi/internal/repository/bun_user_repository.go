@@ -16,7 +16,7 @@ type BunUserRepository struct {
 }
 
 // NewBunUserRepository creates a new Bun-based user repository
-func NewBunUserRepository(db *bun.DB) *BunUserRepository {
+func NewBunUserRepository(db *bun.DB) UserRepository {
 	return &BunUserRepository{db: db}
 }
 

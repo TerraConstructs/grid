@@ -56,20 +56,23 @@ support key=value for upserts and -key for removals. Defaults to the .grid conte
 			return err
 		}
 
-		client := sdk.NewClient(ServerURL)
-		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		gridClient, err := sdkClient(cmd.Context())
+		if err != nil {
+			return err
+		}
+		ctx, cancel := context.WithTimeout(cmd.Context(), 10*time.Second)
 		defer cancel()
 
 		stateID := resolved.GUID
 		if stateID == "" {
-			state, err := client.GetState(ctx, sdk.StateReference{LogicID: resolved.LogicID})
+			state, err := gridClient.GetState(ctx, sdk.StateReference{LogicID: resolved.LogicID})
 			if err != nil {
 				return fmt.Errorf("failed to resolve state GUID for %s: %w", resolved.LogicID, err)
 			}
 			stateID = state.GUID
 		}
 
-		result, err := client.UpdateStateLabels(ctx, sdk.UpdateStateLabelsInput{
+		result, err := gridClient.UpdateStateLabels(ctx, sdk.UpdateStateLabelsInput{
 			StateID:  stateID,
 			Adds:     adds,
 			Removals: cloneStringSlice(removals),

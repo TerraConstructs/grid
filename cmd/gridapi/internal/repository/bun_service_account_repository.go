@@ -16,7 +16,7 @@ type BunServiceAccountRepository struct {
 }
 
 // NewBunServiceAccountRepository creates a new Bun-based service account repository
-func NewBunServiceAccountRepository(db *bun.DB) *BunServiceAccountRepository {
+func NewBunServiceAccountRepository(db *bun.DB) ServiceAccountRepository {
 	return &BunServiceAccountRepository{db: db}
 }
 
@@ -59,6 +59,22 @@ func (r *BunServiceAccountRepository) GetByClientID(ctx context.Context, clientI
 			return nil, fmt.Errorf("service account not found with client_id: %s", clientID)
 		}
 		return nil, fmt.Errorf("get service account by client_id: %w", err)
+	}
+	return sa, nil
+}
+
+// GetByName retrieves a service account by name
+func (r *BunServiceAccountRepository) GetByName(ctx context.Context, name string) (*models.ServiceAccount, error) {
+	sa := new(models.ServiceAccount)
+	err := r.db.NewSelect().
+		Model(sa).
+		Where("name = ?", name).
+		Scan(ctx)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, fmt.Errorf("service account not found with name: %s", name)
+		}
+		return nil, fmt.Errorf("get service account by name: %w", err)
 	}
 	return sa, nil
 }

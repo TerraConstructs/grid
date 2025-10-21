@@ -55,13 +55,15 @@ dependents, and outputs. Uses .grid context if no identifier is provided.`,
 			return err
 		}
 
-		// Create SDK client
-		client := sdk.NewClient(ServerURL)
-		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		gridClient, err := sdkClient(cobraCmd.Context())
+		if err != nil {
+			return err
+		}
+		ctx, cancel := context.WithTimeout(cobraCmd.Context(), 10*time.Second)
 		defer cancel()
 
 		// Call GetStateInfo for enhanced display
-		info, err := client.GetStateInfo(ctx, sdk.StateReference{
+		info, err := gridClient.GetStateInfo(ctx, sdk.StateReference{
 			LogicID: stateRef.LogicID,
 			GUID:    stateRef.GUID,
 		})

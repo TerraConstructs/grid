@@ -20,7 +20,7 @@ type BunRoleRepository struct {
 }
 
 // NewBunRoleRepository creates a new Bun-based role repository
-func NewBunRoleRepository(db *bun.DB) *BunRoleRepository {
+func NewBunRoleRepository(db *bun.DB) RoleRepository {
 	return &BunRoleRepository{db: db}
 }
 
@@ -136,7 +136,7 @@ type BunUserRoleRepository struct {
 }
 
 // NewBunUserRoleRepository creates a new Bun-based user role repository
-func NewBunUserRoleRepository(db *bun.DB) *BunUserRoleRepository {
+func NewBunUserRoleRepository(db *bun.DB) UserRoleRepository {
 	return &BunUserRoleRepository{db: db}
 }
 
@@ -180,6 +180,22 @@ func (r *BunUserRoleRepository) GetByUserID(ctx context.Context, userID string) 
 	return userRoles, nil
 }
 
+// GetByUserAndRoleID retrieves all role assignments for a user and role
+func (r *BunUserRoleRepository) GetByUserAndRoleID(ctx context.Context, userID, roleID string) (*models.UserRole, error) {
+	userRole := new(models.UserRole)
+	err := r.db.NewSelect().
+		Model(userRole).
+		Where("user_id = ? and role_id = ?", userID, roleID).
+		Scan(ctx)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, fmt.Errorf("user role assignment not found: user_id=%s, role_id=%s", userID, roleID)
+		}
+		return nil, fmt.Errorf("get user roles: %w", err)
+	}
+	return userRole, nil
+}
+
 // GetByServiceAccountID retrieves all role assignments for a service account
 func (r *BunUserRoleRepository) GetByServiceAccountID(ctx context.Context, serviceAccountID string) ([]models.UserRole, error) {
 	var userRoles []models.UserRole
@@ -191,6 +207,22 @@ func (r *BunUserRoleRepository) GetByServiceAccountID(ctx context.Context, servi
 		return nil, fmt.Errorf("get service account roles: %w", err)
 	}
 	return userRoles, nil
+}
+
+// GetByServiceAccountAndRoleID retrieves all role assignments for a service account
+func (r *BunUserRoleRepository) GetByServiceAccountAndRoleID(ctx context.Context, serviceAccountID string, roleID string) (*models.UserRole, error) {
+	userRole := new(models.UserRole)
+	err := r.db.NewSelect().
+		Model(userRole).
+		Where("service_account_id = ? AND role_id = ?", serviceAccountID, roleID).
+		Scan(ctx)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, fmt.Errorf("service account role assignment not found: service_account_id=%s, role_id=%s", serviceAccountID, roleID)
+		}
+		return nil, fmt.Errorf("get service account role: %w", err)
+	}
+	return userRole, nil
 }
 
 // GetByRoleID retrieves all assignments for a specific role
@@ -275,7 +307,7 @@ type BunGroupRoleRepository struct {
 }
 
 // NewBunGroupRoleRepository creates a new Bun-based group role repository
-func NewBunGroupRoleRepository(db *bun.DB) *BunGroupRoleRepository {
+func NewBunGroupRoleRepository(db *bun.DB) GroupRoleRepository {
 	return &BunGroupRoleRepository{db: db}
 }
 

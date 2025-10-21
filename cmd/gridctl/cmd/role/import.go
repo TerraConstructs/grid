@@ -5,7 +5,6 @@ import (
 	"os"
 
 	"github.com/spf13/cobra"
-	"github.com/terraconstructs/grid/cmd/gridctl/internal/client"
 	"github.com/terraconstructs/grid/pkg/sdk"
 )
 
@@ -21,12 +20,10 @@ var importCmd = &cobra.Command{
 			return fmt.Errorf("failed to read input file: %w", err)
 		}
 
-		httpClient, err := client.NewAuthenticatedClient(ServerURL)
+		gridClient, err := sdkClient(cmd.Context())
 		if err != nil {
 			return err
 		}
-
-		gridClient := sdk.NewClient(ServerURL, sdk.WithHTTPClient(httpClient))
 
 		result, err := gridClient.ImportRoles(cmd.Context(), sdk.ImportRolesInput{
 			RolesJSON: string(data),

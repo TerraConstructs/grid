@@ -33,9 +33,13 @@ Two methods are supported:
 		// If client ID and secret are provided, use service account flow
 		if clientID != "" && clientSecret != "" {
 			fmt.Println("Authenticating as service account...")
-			err := sdk.LoginWithServiceAccount(cmd.Context(), issuer, clientID, clientSecret, store)
+			creds, err := sdk.LoginWithServiceAccount(cmd.Context(), issuer, clientID, clientSecret)
 			if err != nil {
 				return err
+			}
+			err = store.SaveCredentials(creds)
+			if err != nil {
+				return fmt.Errorf("failed to save credentials: %w", err)
 			}
 			fmt.Println("------------------------------------------------------------")
 			fmt.Printf("✅ Service account login successful!\n")
@@ -46,9 +50,13 @@ Two methods are supported:
 		// Otherwise, use the interactive device flow
 		// The default public client ID for the device flow is "gridctl"
 		publicClientID := "gridctl"
-		meta, err := sdk.LoginWithDeviceCode(cmd.Context(), issuer, publicClientID, store)
+		meta, envCreds, err := sdk.LoginWithDeviceCode(cmd.Context(), issuer, publicClientID)
 		if err != nil {
 			return err
+		}
+		err = store.SaveCredentials(envCreds)
+		if err != nil {
+			return fmt.Errorf("failed to save credentials: %w", err)
 		}
 
 		fmt.Println("------------------------------------------------------------")
@@ -62,4 +70,11 @@ Two methods are supported:
 func init() {
 	loginCmd.Flags().StringVar(&clientID, "client-id", "", "Client ID for service account authentication")
 	loginCmd.Flags().StringVar(&clientSecret, "client-secret", "", "Client secret for service account authentication")
+	if clientID == "" && clientSecret == "" {
+		if ok, env := sdk.CheckEnvCreds(); ok {
+			fmt.Println("Using service account credentials from environment variables.")
+			clientID = env.ClientID
+			clientSecret = env.ClientSecret
+		}
+	}
 }

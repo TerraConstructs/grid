@@ -51,7 +51,6 @@ func NewAuthnMiddleware(cfg *config.Config, deps AuthnDependencies, verifierOpts
 			claims, hasClaims := auth.ClaimsFromContext(ctx)
 			if !hasClaims {
 				// No claims = public route (skipped by verifier)
-				log.Printf("no claims found in context for %s %s, treating as public route", r.Method, r.URL.Path)
 				next.ServeHTTP(w, r)
 				return
 			}
@@ -64,7 +63,6 @@ func NewAuthnMiddleware(cfg *config.Config, deps AuthnDependencies, verifierOpts
 				http.Error(w, "invalid token: missing jti", http.StatusUnauthorized)
 				return
 			}
-			log.Printf("extracted jti from token for %s %s, testing for revocation", r.Method, r.URL.Path)
 
 			// STEP 3: Check JTI revocation via repository
 			isRevoked, err := deps.RevokedJTIs.IsRevoked(ctx, jti)
@@ -78,7 +76,6 @@ func NewAuthnMiddleware(cfg *config.Config, deps AuthnDependencies, verifierOpts
 				http.Error(w, "token has been revoked", http.StatusUnauthorized)
 				return
 			}
-			log.Printf("jti is valid for %s %s", r.Method, r.URL.Path)
 
 			// STEP 4: Extract subject and check identity disabled
 			subject, _ := claims["sub"].(string)
@@ -88,7 +85,6 @@ func NewAuthnMiddleware(cfg *config.Config, deps AuthnDependencies, verifierOpts
 			}
 
 			// Check if identity is disabled
-			log.Printf("resolving principal for subject %s for %s %s", subject, r.Method, r.URL.Path)
 			principal, identityDisabled, err := resolvePrincipal(ctx, deps, subject)
 			if err != nil {
 				log.Printf("error resolving principal for subject %s for %s %s: %v", subject, r.Method, r.URL.Path, err)

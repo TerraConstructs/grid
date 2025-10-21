@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"path/filepath"
 	"time"
 
 	"github.com/google/uuid"
@@ -124,8 +123,6 @@ func WriteGridContextWithValidation(ctx *DirectoryContext, force bool) error {
 	return WriteGridContext(ctx)
 }
 
-// TODO: Clean up - not used?
-
 // StateRef represents a state identifier (either logic_id or guid)
 type StateRef struct {
 	LogicID string
@@ -167,13 +164,25 @@ func ResolveStateRef(explicitRef, contextRef StateRef) (StateRef, error) {
 	return StateRef{}, fmt.Errorf("state identifier required: specify --logic-id/--guid or run in a directory with .grid context")
 }
 
-// TODO: Clean up - not used?
+// GetGUID returns the state GUID from the directory context
+func (dc *DirectoryContext) GetGUID() string {
+	return dc.StateGUID
+}
 
-// GetGridFilePath returns the absolute path to the .grid file in the current directory
-func GetGridFilePath() (string, error) {
-	cwd, err := os.Getwd()
-	if err != nil {
-		return "", fmt.Errorf("failed to get current directory: %w", err)
-	}
-	return filepath.Join(cwd, GridFileName), nil
+// GetBackendURL returns the full HTTP backend address for Terraform
+// Format: {server_url}/tfstate/{guid}
+func (dc *DirectoryContext) GetBackendURL() string {
+	return fmt.Sprintf("%s/tfstate/%s", dc.ServerURL, dc.StateGUID)
+}
+
+// GetLockURL returns the lock endpoint URL for Terraform
+// Format: {server_url}/tfstate/{guid}/lock
+func (dc *DirectoryContext) GetLockURL() string {
+	return fmt.Sprintf("%s/tfstate/%s/lock", dc.ServerURL, dc.StateGUID)
+}
+
+// GetUnlockURL returns the unlock endpoint URL for Terraform
+// Format: {server_url}/tfstate/{guid}/unlock
+func (dc *DirectoryContext) GetUnlockURL() string {
+	return fmt.Sprintf("%s/tfstate/%s/unlock", dc.ServerURL, dc.StateGUID)
 }

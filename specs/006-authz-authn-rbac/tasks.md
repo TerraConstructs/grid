@@ -25,6 +25,23 @@ This task list implements comprehensive authentication (AuthN), authorization (A
 - Label-scoped access via go-bexpr expressions evaluated at enforcement time
 - Three default roles seeded: service-account, platform-engineer, product-engineer
 
+## Short-Path Landing Adjustments (v1)
+
+To ship the initial AuthN/AuthZ feature quickly and keep Terraform stable:
+
+- [x] **T009C** Increase Internal IdP access-token TTL default to 120 minutes
+  - Change `defaultAccessTokenTTL` in `cmd/gridapi/internal/auth/oidc.go` to `120 * time.Minute`.
+  - Keep refresh tokens at 24h; ID tokens remain at 15m.
+
+- [x] **T099** Documentation: External IdP TTL guidance
+  - Update `specs/006-authz-authn-rbac/spec.md` with FR-010a (Interim) and edge-case note.
+  - Update `specs/006-authz-authn-rbac/plan.md` with a Short-Path Landing section and plan adjustments.
+  - Update `specs/006-authz-authn-rbac/quickstart.md` with a Token TTL Setup and Guidance section including Auth0/Okta/Entra notes.
+
+- [→] **T003** Add TerraformTokenTTL (Defer to run-token branch)
+  - Defer endpoint + signer wiring to `006-authz-authn-rbac-run-tokens` feature branch.
+  - Future tasks: exchange endpoint, dual-issuer verifier for dataplane, scope enforcement in middleware, CLI wrapper to request run-token.
+
 ## Format: `[ID] [P?] Description`
 - **[P]**: Can run in parallel (different files, no dependencies)
 - Include exact file paths in descriptions
@@ -63,7 +80,7 @@ This task list implements comprehensive authentication (AuthN), authorization (A
   - **DEFERRED Cleanup job**: periodic deletion of rows where `exp < NOW() - interval '1 hour'`
   - Reference: implementation-adjustments.md §57-64 (revocation model), §486-490 (revoked_jti table structure)
 
-- [ ] **T001B** Create users table migration in `cmd/gridapi/internal/migrations/` (Internal IdP Mode)
+- [x] **T001B** Create users table migration in `cmd/gridapi/internal/migrations/` (Internal IdP Mode)
   - Table: users (id UUID PRIMARY KEY, email TEXT UNIQUE NOT NULL, password_hash TEXT, created_at TIMESTAMP, disabled_at TIMESTAMP)
   - Used for local username/password authentication in Mode 2 (Internal IdP)
   - Password stored as bcrypt hash with cost 10
@@ -76,8 +93,8 @@ This task list implements comprehensive authentication (AuthN), authorization (A
   - Add claim extraction config: GroupsClaimField (default: "groups"), GroupsClaimPath (optional, for nested)
   - Add UserIDClaimField (default: "sub"), EmailClaimField (default: "email")
   - Add CasbinModelPath string field (path to model.conf)
-  - **UPDATE:** Add TerraformTokenTTL field (default: 120 minutes) for long-lived Terraform tokens
-  - Reference: research.md §2 (lines 622-635), CLARIFICATIONS.md §1 (JWT claim config), implementation-adjustments.md §786 (TFSTATE_TOKEN_TTL)
+  - DEFERRED (vNext): Do NOT add `TerraformTokenTTL` in v1. The run-token exchange and its TTL knob move to a dedicated branch (`006-authz-authn-rbac-run-tokens`).
+  - Reference: research.md §2 (lines 622-635), CLARIFICATIONS.md §1 (JWT claim config)
 
 - [x] **T003A** Document and automate OIDC signing key setup (FR-110)
   - Add `make oidc-dev-keys` (or similar) to generate ed25519 and RSA key pairs for local development (`cmd/gridapi/internal/auth/keys/`)
@@ -352,8 +369,8 @@ Implementation divergence:
   - **Note**: Session persistence deferred to T017 middleware (first request after callback)
 
 - [ ] **T021** [P] Verify Grid provider endpoints work (integration test)
-  - Verify `/device_authorization` initiates device flow for CLI (auto-mounted by zitadel/oidc)
-  - Verify `/oauth/token` endpoint handles device_code grant (CLI polling)
+  - **NOT NEEDED** Verify `/device_authorization` initiates device flow for CLI (auto-mounted by zitadel/oidc) - N/A SA only for internal IdP
+  - **NOT NEEDED** Verify `/oauth/token` endpoint handles device_code grant (CLI polling) - N/A SA only for internal IdP
   - Verify `/oauth/token` endpoint handles client_credentials grant (service accounts)
   - Verify `/.well-known/openid-configuration` returns Grid's discovery document
   - Verify `/keys` returns Grid's JWKS
@@ -652,13 +669,15 @@ Implementation divergence:
 
 ## Phase 3.9: SDK Terraform Wrapper (Token Injection & Process Management)
 
-- [ ] **T054** [P] Create binary discovery in `pkg/sdk/terraform/binary.go`
-  - Precedence: --tf-bin flag → TF_BIN env var → auto-detect (terraform, then tofu)
+pass-through wrapper command `gridctl tf` that executes a Terraform/Tofu subcommand (e.g., `plan`, `apply`, `init`, `state`, `lock`, `unlock`, etc.) and propagates STDIN/STDOUT/STDERR and exit codes unchanged. `gridctl tf` MUST inject a valid bearer token for the Grid HTTP backend so that all `/tfstate/*` requests sent by the terraform/tofu process include authorization
+
+- [x] **T054** [P] Create binary discovery in `pkg/sdk/terraform/binary.go`
+  - Precedence: --tf-bin flag → TERRAFORM_BINARY_NAME env var → auto-detect (terraform, then tofu)
   - Check binary exists and is executable
   - Return clear error if neither terraform nor tofu found
   - Reference: plan.md §743-747, FR-097b, FR-097h
 
-- [ ] **T055** [P] Create process spawner in `pkg/sdk/terraform/wrapper.go`
+- [x] **T055** [P] Create process spawner in `pkg/sdk/terraform/wrapper.go`
   - Function: Run(ctx, binary, args, credStore CredentialStore) (exitCode int, err error)
   - Pipe STDIN/STDOUT/STDERR to/from subprocess unchanged
   - Preserve exact exit code from subprocess
@@ -666,20 +685,20 @@ Implementation divergence:
   - Run in current working directory (no --cwd flag)
   - Reference: plan.md §748-752, FR-097f, FR-097h
 
-- [ ] **T056** [P] Create token injection in `pkg/sdk/terraform/auth.go`
+- [x] **T056** [P] Create token injection in `pkg/sdk/terraform/wrapper.go`
   - Accept CredentialStore interface parameter (dependency injection)
-  - Set TF_HTTP_USERNAME="" and TF_HTTP_PASSWORD=<bearer_token> environment variables
+  - Define GridContext interface in pkg/sdk for cmd/gridctl to inject its concrete implementation (providing state info such as backend endpoints, etc. as required to wrap TF runs)
+  - Set TF_HTTP_USERNAME="gridapi" (can't be blank, gridapi ignores it...) and TF_HTTP_PASSWORD=<bearer_token> environment variables
   - Load credentials from CredentialStore.LoadCredentials()
   - Fail fast if no credentials available in non-interactive mode
   - Never persist token to disk, only pass via env vars
   - Reference: plan.md §753-757, FR-097c, FR-097j, FR-097k
 
-- [ ] **T057** [P] Create 401 detection and retry in `pkg/sdk/terraform/output.go`
+- [ ] **T057** [P] Create 401 detection and guidance in `pkg/sdk/terraform/output.go`
   - Parse stderr for "401" or "Unauthorized" strings
-  - On 401: attempt to refresh via pkg/sdk auth helpers (if available), re-run exact same command once, then fail
-  - Maximum 1 retry attempt (no infinite loops)
-  - Clear auth failure message if retry fails
-  - Reference: plan.md §758-762, FR-097e
+  - On 401: print concise guidance to re-authenticate (e.g., `gridctl auth login`), then exit non-zero. Do not retry automatically in v1.
+  - Refresh-token path is not required by v1 integration tests; unit coverage may be added later if implemented.
+  - Reference: plan.md §758-762, FR-097e (v1)
 
 - [ ] **T058** [P] Create secret redaction in `pkg/sdk/terraform/output.go`
   - Mask bearer tokens in all console output, logs, crash reports
@@ -689,13 +708,13 @@ Implementation divergence:
 
 - [ ] **T059** [P] Create CI vs interactive detection in `pkg/sdk/terraform/auth.go`
   - Check for TTY, CI env vars (CI=true, GITHUB_ACTIONS, GITLAB_CI, etc.)
-  - Non-interactive mode: use service account credentials from CredentialStore, fail fast if missing
-  - Interactive mode: allow existing credentials from CredentialStore
+  - Non-interactive mode: obtain a token using service account credentials provided via environment variables or a configured CredentialStore; fail fast with a clear message if unavailable
+  - Interactive mode: use existing access token from CredentialStore (no client-secret persisted by default)
   - Reference: plan.md §767-770, FR-097j
 
-- [ ] **T060** Create gridctl tf command in `cmd/gridctl/cmd/tf.go`
+- [x] **T060** Create gridctl tf command in `cmd/gridctl/cmd/tf/tf.go`
   - Cobra command: `gridctl tf [flags] -- <terraform args>`
-  - Flags: --tf-bin (binary override), --verbose (debug output)
+  - Flags: --tf-bin (fall back to binary override "TERRAFORM_BINARY_NAME" env var like cdktf), --verbose (debug output)
   - Read .grid file via cmd/gridctl/internal/context (DirCtx) for backend endpoint
   - Pass CLI credential store to pkg/sdk/terraform wrapper
   - Delegate to pkg/sdk/terraform wrapper with credentials and context
@@ -712,11 +731,11 @@ Implementation divergence:
 
 ### Bootstrap Pattern (gridapi sa) - Direct Database Access
 
-- [ ] **T091** Create gridapi sa create command in `cmd/gridapi/cmd/sa/create.go`
-  - **Bootstrap pattern**: Direct database write, NO authentication required
+- [x] **T091** Create gridapi sa create command in `cmd/gridapi/cmd/sa/create.go`
+  - **Bootstrap pattern**: Direct database write using Repository pattern, NO authentication required
   - **Purpose**: Initial setup when no authentication exists yet (similar to `gridapi db init`)
   - **Security**: Assumes local server access (not exposed via HTTP)
-  - Cobra command: `gridapi sa create --name <name> [--description <desc>]`
+  - Cobra command: `gridapi sa create <name> --role <role>`
   - Generate client_id (UUIDv7) and client_secret (32-byte crypto/rand hex)
   - Bcrypt hash client_secret with cost 10
   - Insert into service_accounts table: (id, client_id, secret_hash, name, description, created_at, created_by=system_user_id)
@@ -1003,7 +1022,7 @@ Implementation divergence:
 ### Terraform Wrapper Tests
 
 - [ ] **T086** Create Terraform wrapper unit tests in `pkg/sdk/terraform/wrapper_test.go`
-  - Binary discovery: test precedence (--tf-bin → TF_BIN → auto-detect)
+  - Binary discovery: test precedence (--tf-bin → TERRAFORM_BINARY_NAME → auto-detect)
   - STDIO pass-through: verify output streaming, exit codes preserved
   - Token injection: verify TF_HTTP_PASSWORD set correctly, never logged
   - 401 retry: test single retry on 401, then fail
@@ -1175,7 +1194,7 @@ After completing all tasks, verify:
 
 **Breakdown**:
 - Foundation: 10 (T001-T008 ✅, T001A ❌, T001B ❌) - Added revoked_jti and users tables
-- Config: 3 (T003 ✅ updated with TerraformTokenTTL, T003A ✅, T003B ✅)
+- Config: 3 (T003 ✅ without TerraformTokenTTL; deferred to run-token branch, T003A ✅, T003B ✅)
 - Auth Core: 7 (T009 ⛔, T009A ❌ CRITICAL, T009B ✅, T010 ⛔, T010A ❌ CRITICAL, T011 ✅, T012 ✅)
 - Repositories: 4 (T013-T016) ✅ COMPLETE
 - Middleware: 4 (T017 ⛔, T017A ❌ CRITICAL, T018 ✅, T018B ✅, T019 ✅)
@@ -1232,10 +1251,9 @@ After completing all tasks, verify:
 
 ### 🔧 **Configuration Updates**
 
-7. **T003 - Add TerraformTokenTTL**
-   - Config field for long-lived Terraform tokens (default 120 min)
-   - Prevents mid-run token expiry
-   - Reference: implementation-adjustments.md §786
+7. **T003 - TerraformTokenTTL (Deferred)**
+   - Do NOT add in v1. Will be introduced with the run-token exchange implementation.
+   - Interim: Internal IdP access-token TTL defaults to 120 minutes (code-level default) and External IdP guidance recommends 120–180 minutes.
 
 ### 🛠️ **Bootstrap Pattern** (NEW)
 

@@ -101,7 +101,9 @@ var serveCmd = &cobra.Command{
 			}
 		}
 
-		if cfg.OIDC.ExternalIdP != nil || cfg.OIDC.Issuer != "" {
+		oidcEnabled := cfg.OIDC.ExternalIdP != nil || cfg.OIDC.Issuer != ""
+
+		if oidcEnabled {
 			enforcer, err := auth.InitEnforcer(db, cfg.CasbinModelPath)
 			if err != nil {
 				return fmt.Errorf("configure casbin enforcer: %w", err)
@@ -133,6 +135,12 @@ var serveCmd = &cobra.Command{
 			connectInterceptors = append(connectInterceptors, authzInterceptor)
 		}
 
+		healthHandler := func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+			fmt.Fprintf(w, `{"status":"ok","oidc_enabled":%t}`, oidcEnabled)
+		}
+
 		// Assemble the shared router with the production-specific middleware.
 		routerOpts := server.RouterOptions{
 			Service:             svc,
@@ -146,6 +154,7 @@ var serveCmd = &cobra.Command{
 			Cfg:                 cfg,
 			Middleware:          chiMiddleware,
 			ConnectInterceptors: connectInterceptors,
+			HealthHandler:       healthHandler,
 		}
 		r := server.NewRouter(routerOpts)
 

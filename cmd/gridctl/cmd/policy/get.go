@@ -8,18 +8,20 @@ import (
 	"connectrpc.com/connect"
 	"github.com/pterm/pterm"
 	"github.com/spf13/cobra"
-	"github.com/terraconstructs/grid/pkg/sdk"
 )
 
 var getCmd = &cobra.Command{
 	Use:   "get",
 	Short: "Show the current label validation policy",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		client := sdk.NewClient(serverURL)
-		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		gridClient, err := sdkClient(cmd.Context())
+		if err != nil {
+			return err
+		}
+		ctx, cancel := context.WithTimeout(cmd.Context(), 10*time.Second)
 		defer cancel()
 
-		policy, err := client.GetLabelPolicy(ctx)
+		policy, err := gridClient.GetLabelPolicy(ctx)
 		if err != nil {
 			if connect.CodeOf(err) == connect.CodeNotFound {
 				pterm.Info.Println("No label policy configured.")

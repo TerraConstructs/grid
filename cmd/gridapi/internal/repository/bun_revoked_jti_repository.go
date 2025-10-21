@@ -16,7 +16,7 @@ type BunRevokedJTIRepository struct {
 }
 
 // NewBunRevokedJTIRepository creates a new Bun-based revoked JTI repository
-func NewBunRevokedJTIRepository(db *bun.DB) *BunRevokedJTIRepository {
+func NewBunRevokedJTIRepository(db *bun.DB) RevokedJTIRepository {
 	return &BunRevokedJTIRepository{db: db}
 }
 

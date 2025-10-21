@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"os"
 	"time"
 
 	"github.com/zitadel/oidc/v3/pkg/client/rp"
@@ -40,8 +41,7 @@ func LoginWithDeviceCode(
 	ctx context.Context,
 	issuer string,
 	clientID string,
-	store CredentialStore,
-) (*LoginSuccessMetadata, error) {
+) (*LoginSuccessMetadata, *Credentials, error) {
 
 	scopes := []string{oidc.ScopeOpenID, oidc.ScopeProfile, oidc.ScopeEmail, oidc.ScopeOfflineAccess}
 
@@ -52,13 +52,13 @@ func LoginWithDeviceCode(
 		ctx,
 		issuer,
 		clientID,
-		"",    // clientSecret - empty for public client (device flow)
-		"",    // redirectURI - not used for device flow
+		"", // clientSecret - empty for public client (device flow)
+		"", // redirectURI - not used for device flow
 		scopes,
 		rp.WithHTTPClient(defaultHTTPClient()),
 	)
 	if err != nil {
-		return nil, fmt.Errorf("failed to discover OIDC provider at %s: %w", issuer, err)
+		return nil, nil, fmt.Errorf("failed to discover OIDC provider at %s: %w", issuer, err)
 	}
 
 	// 2. Start the Device Authorization Flow
@@ -66,7 +66,7 @@ func LoginWithDeviceCode(
 	// Returns: DeviceCode, UserCode, VerificationURI, VerificationURIComplete, Interval
 	authResponse, err := rp.DeviceAuthorization(ctx, scopes, relyingParty, nil)
 	if err != nil {
-		return nil, fmt.Errorf("failed to start device authorization flow: %w", err)
+		return nil, nil, fmt.Errorf("failed to start device authorization flow: %w", err)
 	}
 
 	// 3. Display User Instructions
@@ -89,7 +89,7 @@ func LoginWithDeviceCode(
 
 	token, err := rp.DeviceAccessToken(ctx, authResponse.DeviceCode, interval, relyingParty)
 	if err != nil {
-		return nil, fmt.Errorf("device authorization failed: %w\n\nThis usually means:\n  - User denied the request\n  - Authorization expired (timeout)\n  - Network connectivity issues", err)
+		return nil, nil, fmt.Errorf("device authorization failed: %w\n\nThis usually means:\n  - User denied the request\n  - Authorization expired (timeout)\n  - Network connectivity issues", err)
 	}
 
 	// 5. Extract ID Token Claims (if available)
@@ -120,10 +120,6 @@ func LoginWithDeviceCode(
 		creds.PrincipalID = "user:" + idTokenClaims.Subject
 	}
 
-	if err := store.SaveCredentials(creds); err != nil {
-		return nil, fmt.Errorf("failed to save credentials: %w", err)
-	}
-
 	// 7. Return Success Metadata
 	metadata := &LoginSuccessMetadata{
 		ExpiresAt: expiresAt,
@@ -133,7 +129,7 @@ func LoginWithDeviceCode(
 		metadata.Email = idTokenClaims.Email
 	}
 
-	return metadata, nil
+	return metadata, creds, nil
 }
 
 // LoginWithServiceAccount authenticates using the OAuth2 client credentials flow.
@@ -150,8 +146,7 @@ func LoginWithServiceAccount(
 	issuer string,
 	clientID string,
 	clientSecret string,
-	store CredentialStore,
-) error {
+) (*Credentials, error) {
 	// 1. Discover Provider Configuration
 	// We only need discovery to get the token endpoint URL
 	scopes := []string{oidc.ScopeOpenID, oidc.ScopeProfile, oidc.ScopeEmail}
@@ -160,11 +155,11 @@ func LoginWithServiceAccount(
 		issuer,
 		clientID,
 		clientSecret,
-		"",     // redirectURI - not used for client credentials flow
+		"", // redirectURI - not used for client credentials flow
 		scopes,
 	)
 	if err != nil {
-		return fmt.Errorf("failed to discover OIDC provider at %s: %w", issuer, err)
+		return nil, fmt.Errorf("failed to discover OIDC provider at %s: %w", issuer, err)
 	}
 
 	// 2. Configure Client Credentials Flow
@@ -180,7 +175,7 @@ func LoginWithServiceAccount(
 	// Calls POST /token with grant_type=client_credentials
 	token, err := ccConfig.Token(ctx)
 	if err != nil {
-		return fmt.Errorf("failed to exchange client credentials for token: %w", err)
+		return nil, fmt.Errorf("failed to exchange client credentials for token: %w", err)
 	}
 
 	// 4. Persist the Credentials
@@ -192,11 +187,7 @@ func LoginWithServiceAccount(
 		PrincipalID:  "sa:" + clientID,   // Service account principal ID
 	}
 
-	if err := store.SaveCredentials(creds); err != nil {
-		return fmt.Errorf("failed to save credentials: %w", err)
-	}
-
-	return nil
+	return creds, nil
 }
 
 // RefreshToken attempts to refresh an expired access token using a refresh token.
@@ -206,7 +197,6 @@ func RefreshToken(
 	issuer string,
 	clientID string,
 	refreshToken string,
-	store CredentialStore,
 ) (*Credentials, error) {
 	// Discover provider to get token endpoint
 	scopes := []string{oidc.ScopeOpenID, oidc.ScopeProfile, oidc.ScopeEmail, oidc.ScopeOfflineAccess}
@@ -241,10 +231,6 @@ func RefreshToken(
 		ExpiresAt:    newToken.Expiry,
 	}
 
-	if err := store.SaveCredentials(creds); err != nil {
-		return nil, fmt.Errorf("failed to save refreshed credentials: %w", err)
-	}
-
 	return creds, nil
 }
 
@@ -272,4 +258,19 @@ func printDeviceCodeInstructions(authResponse *oidc.DeviceAuthorizationResponse)
 	fmt.Println("============================================================")
 	fmt.Println("Waiting for authorization...")
 	fmt.Println("")
+}
+
+type EnvCreds struct {
+	ClientID     string
+	ClientSecret string
+}
+
+func CheckEnvCreds() (bool, EnvCreds) {
+	hasEnvCreds := os.Getenv("GRID_CLIENT_ID") != "" &&
+		os.Getenv("GRID_CLIENT_SECRET") != ""
+	creds := EnvCreds{
+		ClientID:     os.Getenv("GRID_CLIENT_ID"),
+		ClientSecret: os.Getenv("GRID_CLIENT_SECRET"),
+	}
+	return hasEnvCreds, creds
 }

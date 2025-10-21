@@ -4,7 +4,6 @@ import (
 	"fmt"
 
 	"github.com/spf13/cobra"
-	"github.com/terraconstructs/grid/cmd/gridctl/internal/client"
 	"github.com/terraconstructs/grid/pkg/sdk"
 )
 
@@ -15,12 +14,10 @@ var inspectCmd = &cobra.Command{
 	RunE: func(cmd *cobra.Command, args []string) error {
 		principalID := args[0]
 
-		httpClient, err := client.NewAuthenticatedClient(ServerURL)
+		gridClient, err := sdkClient(cmd.Context())
 		if err != nil {
 			return err
 		}
-
-		gridClient := sdk.NewClient(ServerURL, sdk.WithHTTPClient(httpClient))
 
 		result, err := gridClient.GetEffectivePermissions(cmd.Context(), sdk.GetEffectivePermissionsInput{
 			PrincipalID: principalID,

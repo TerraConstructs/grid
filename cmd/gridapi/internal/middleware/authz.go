@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log"
 	"net/http"
 	"strings"
 
@@ -44,6 +45,8 @@ func NewAuthzMiddleware(deps AuthzDependencies) (func(http.Handler) http.Handler
 				unauthenticated(w)
 				return
 			}
+
+			log.Printf("authorizing principal %s for procedure %s", principal.PrincipalID, tfstateAction)
 
 			// matched as tfstate request but the action is empty,
 			// it means the method was unsupported. Reject it.

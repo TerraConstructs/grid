@@ -32,6 +32,13 @@
 
 This feature adds comprehensive authentication (AuthN), authorization (AuthZ), and role-based access control (RBAC) to Grid's API server, protecting both the Connect RPC Control Plane (state/dependency/policy APIs) and the Terraform HTTP Backend Data Plane (/tfstate endpoints).
 
+### Short-Path Landing (v1)
+- Increase default Internal IdP access-token TTL to 120 minutes (configurable) to avoid Terraform mid-run expiry.
+- Publish guidance for External IdP deployments to set access-token TTL for the Grid API audience to 120–180 minutes.
+- Defer the scoped run-token exchange and claim enforcement to a follow-up branch.
+
+Impact: single token shape for now (broader TTL); minimal surface change; keeps momentum.
+
 ### Deployment Mode Architecture
 
 Grid supports **two mutually exclusive authentication modes**. A deployment chooses exactly ONE mode. Hybrid mode is NOT supported.
@@ -117,6 +124,14 @@ Key architectural decisions:
 12. Consistent prefix conventions: user:, group:, sa:, role: for all Casbin identifiers
 13. **Terraform HTTP Backend uses Basic Auth**: Server extracts bearer token from HTTP Basic Auth password field (username ignored, similar to [GitHub API pattern](https://docs2.lfe.io/guides/getting-started/#:~:text=The%20easiest%20way%20to%20authenticate,prompt%20you%20for%20the%20password.)). Client injects via TF_HTTP_PASSWORD. Lock-aware bypass: principals holding locks retain tfstate:write/unlock even if label scope changes.
 14. **gridctl tf wrapper** in pkg/sdk handles process spawning, token injection, 401 retry, and secret redaction. CLI provides .grid context and missing backend.tf hints.
+
+### Plan Adjustments (v1)
+- Config note: Internal IdP access tokens default to 120 minutes.
+- Quickstart: add External IdP TTL guidance with Auth0/Okta/Entra examples.
+- Future branch `006-authz-authn-rbac-run-tokens` will add:
+  - `POST /tfstate/{guid}/run-token` exchange endpoint.
+  - Dual-issuer verification (external IdP + Grid run-token signer) for dataplane.
+  - Middleware checks for `state` and `scope` claims prior to Casbin.
 
 ## Technical Context
 
@@ -311,7 +326,7 @@ pkg/sdk/
 ├── auth_test.go                 # NEW: Auth SDK contract tests
 └── terraform/                   # NEW: Terraform wrapper (exception: not using Connect RPC)
     ├── wrapper.go               # Process spawning, token injection, 401 retry
-    ├── binary.go                # Binary discovery (--tf-bin, TF_BIN, auto-detect)
+    ├── binary.go                # Binary discovery (--tf-bin, TERRAFORM_BINARY_NAME, auto-detect)
     ├── auth.go                  # Token injection via TF_HTTP_PASSWORD
     ├── output.go                # Secret redaction, 401 detection
     └── wrapper_test.go          # Wrapper unit tests
@@ -844,7 +859,7 @@ The /speckit.tasks command will generate tasks from Phase 1 artifacts in the fol
 
 **CLI Terraform Wrapper** (pkg/sdk + gridctl):
 44. Binary discovery and selection (pkg/sdk/terraform/binary.go) [P]
-    - **Precedence**: --tf-bin flag → TF_BIN env var → auto-detect (terraform, then tofu)
+    - **Precedence**: --tf-bin flag → TERRAFORM_BINARY_NAME env var → auto-detect (terraform, then tofu)
     - **Validation**: Check binary exists and is executable
     - **Error handling**: Clear message if neither terraform nor tofu found (FR-097b, FR-097h)
 45. Process spawner with I/O pass-through (pkg/sdk/terraform/wrapper.go) [P]
@@ -853,7 +868,7 @@ The /speckit.tasks command will generate tasks from Phase 1 artifacts in the fol
     - **Arguments**: Pass through all args after `--` verbatim (FR-097f)
     - **Working directory**: Run in current directory (no --cwd flag)
 46. Token injection via TF_HTTP_PASSWORD (pkg/sdk/terraform/auth.go) [P]
-    - **Pattern**: Set TF_HTTP_USERNAME="" and TF_HTTP_PASSWORD=<bearer_token> environment variables (FR-097c)
+    - **Pattern**: Set TF_HTTP_USERNAME="gridapi" and TF_HTTP_PASSWORD=<bearer_token> environment variables (FR-097c)
     - **Credential source**: Use stored credentials from pkg/sdk auth (task #35 credential store)
     - **Validation**: Fail fast if no credentials available in non-interactive mode (FR-097j)
     - **Security**: Never persist token to disk, only pass via env vars (FR-097k)
@@ -969,7 +984,7 @@ The /speckit.tasks command will generate tasks from Phase 1 artifacts in the fol
     - **Mock**: httptest.Server mocking /auth/login, /auth/callback endpoints
     - **Commands**: Test login, logout, status, role assign-group, list-groups
 73. Terraform wrapper unit tests (pkg/sdk/terraform)
-    - **Binary discovery**: Test precedence (--tf-bin → TF_BIN → auto-detect)
+    - **Binary discovery**: Test precedence (--tf-bin → TERRAFORM_BINARY_NAME → auto-detect)
     - **STDIO pass-through**: Verify output streaming, exit codes preserved
     - **Token injection**: Verify TF_HTTP_PASSWORD set correctly, never logged
     - **401 retry**: Test single retry on 401, then fail

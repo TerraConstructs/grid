@@ -4,7 +4,6 @@ import (
 	"fmt"
 
 	"github.com/spf13/cobra"
-	"github.com/terraconstructs/grid/cmd/gridctl/internal/client"
 	"github.com/terraconstructs/grid/pkg/sdk"
 )
 
@@ -16,12 +15,10 @@ var assignGroupCmd = &cobra.Command{
 		group := args[0]
 		role := args[1]
 
-		httpClient, err := client.NewAuthenticatedClient(ServerURL)
+		gridClient, err := sdkClient(cmd.Context())
 		if err != nil {
 			return err
 		}
-
-		gridClient := sdk.NewClient(ServerURL, sdk.WithHTTPClient(httpClient))
 
 		_, err = gridClient.AssignGroupRole(cmd.Context(), sdk.AssignGroupRoleInput{
 			GroupName: group,

@@ -35,9 +35,12 @@ func NewAuthzInterceptor(deps AuthzDependencies) connect.UnaryInterceptorFunc {
 			//nolint:gocritic
 			switch procedure {
 			// --- Static Permission Checks (no resource-specific data needed) ---
-			case statev1connect.StateServiceListStatesProcedure, statev1connect.StateServiceCreateStateProcedure:
+			case statev1connect.StateServiceListStatesProcedure, statev1connect.StateServiceGetStateInfoProcedure:
 				obj = auth.ObjectTypeState
-				action = auth.StateList // Create is a form of list for auth purposes
+				action = auth.StateList
+			case statev1connect.StateServiceCreateStateProcedure:
+				obj = auth.ObjectTypeState
+				action = auth.StateCreate
 			case statev1connect.StateServiceGetLabelPolicyProcedure:
 				obj = auth.ObjectTypePolicy
 				action = auth.PolicyRead
@@ -145,17 +148,6 @@ func NewAuthzInterceptor(deps AuthzDependencies) connect.UnaryInterceptorFunc {
 			if deps.Enforcer == nil {
 				return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("authorization enforcer not initialized"))
 			}
-			perms, err := deps.Enforcer.GetPermissionsForUser(principal.PrincipalID)
-			if err != nil {
-				return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("unable to load current permissions: %w", err))
-			}
-			log.Printf("Current enforcer permissions for %s:", principal.PrincipalID)
-			for _, perm := range perms {
-				log.Printf(" - %s", perm)
-			}
-
-			deps.Enforcer.GetRoleManager().PrintRoles()
-
 			allowed, err := deps.Enforcer.Enforce(principal.PrincipalID, obj, action, labels)
 			if err != nil {
 				return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("authorization enforcement error: %w", err))

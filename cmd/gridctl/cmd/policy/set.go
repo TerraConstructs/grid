@@ -8,7 +8,6 @@ import (
 
 	"github.com/pterm/pterm"
 	"github.com/spf13/cobra"
-	"github.com/terraconstructs/grid/pkg/sdk"
 )
 
 var (
@@ -28,11 +27,14 @@ var setCmd = &cobra.Command{
 			return fmt.Errorf("failed to read policy file: %w", err)
 		}
 
-		client := sdk.NewClient(serverURL)
-		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		gridClient, err := sdkClient(cmd.Context())
+		if err != nil {
+			return err
+		}
+		ctx, cancel := context.WithTimeout(cmd.Context(), 10*time.Second)
 		defer cancel()
 
-		policy, err := client.SetLabelPolicy(ctx, contents)
+		policy, err := gridClient.SetLabelPolicy(ctx, contents)
 		if err != nil {
 			return fmt.Errorf("failed to set label policy: %w", err)
 		}
