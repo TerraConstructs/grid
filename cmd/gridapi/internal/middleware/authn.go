@@ -99,13 +99,16 @@ func NewAuthnMiddleware(cfg *config.Config, deps AuthnDependencies, verifierOpts
 
 			// STEP 5: Extract groups and apply dynamic Casbin grouping
 			groups := extractGroupsFromClaims(claims, cfg)
+
 			groupRoleMap, err := buildGroupRoleMap(ctx, deps, groups)
 			if err != nil {
+				log.Printf("error building group→role map for subject %s: %v", subject, err)
 				http.Error(w, "authorization setup failed", http.StatusInternalServerError)
 				return
 			}
 
 			if err := auth.ApplyDynamicGroupings(deps.Enforcer, principal.PrincipalID, groups, groupRoleMap); err != nil {
+				log.Printf("error applying dynamic groupings for %s: %v", subject, err)
 				http.Error(w, "authorization setup failed", http.StatusInternalServerError)
 				return
 			}
@@ -114,6 +117,8 @@ func NewAuthnMiddleware(cfg *config.Config, deps AuthnDependencies, verifierOpts
 			if roles, err := auth.GetEffectiveRoles(deps.Enforcer, principal.PrincipalID); err == nil {
 				// Trim Casbin role prefix when presenting externally
 				principal.Roles = stripRolePrefix(roles)
+			} else {
+				log.Printf("error getting effective roles for %s: %v", principal.PrincipalID, err)
 			}
 
 			// STEP 6: Store principal and groups in context for authz middleware
@@ -236,7 +241,6 @@ func createUserFromExternalJWT(ctx context.Context, deps AuthnDependencies, clai
 			// First, try to find by subject (race condition - another request created the same user)
 			user, lookupErr := deps.Users.GetBySubject(ctx, subject)
 			if lookupErr == nil {
-				log.Printf("JIT provisioning race condition resolved: user %s already exists", subject)
 				return user, nil
 			}
 
@@ -250,7 +254,6 @@ func createUserFromExternalJWT(ctx context.Context, deps AuthnDependencies, clai
 					if updateErr := deps.Users.Update(ctx, user); updateErr != nil {
 						return nil, fmt.Errorf("link external subject to existing user: %w", updateErr)
 					}
-					log.Printf("JIT provisioning linked external IdP subject %s to existing user (email=%s)", subject, email)
 					return user, nil
 				} else if *user.Subject != subject {
 					// Subject exists but differs - policy decision: reject
@@ -272,8 +275,6 @@ func createUserFromExternalJWT(ctx context.Context, deps AuthnDependencies, clai
 	if err != nil {
 		return nil, fmt.Errorf("re-read created user: %w", err)
 	}
-
-	log.Printf("JIT provisioned user from external IdP: subject=%s email=%s name=%s id=%s", subject, email, name, user.ID)
 	return user, nil
 }
 

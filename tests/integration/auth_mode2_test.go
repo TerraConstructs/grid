@@ -414,10 +414,12 @@ func TestMode2_JWTRevocation(t *testing.T) {
 
 	t.Logf("Revoked JWT with jti=%s", jti)
 
-	// Now try to use the revoked token - should fail with 401
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, fmt.Sprintf("%s/health", serverURL), nil)
+	// Now try to use the revoked token on a PROTECTED endpoint - should fail with 401
+	// Use Connect RPC endpoint (requires authentication) instead of /health (public)
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, fmt.Sprintf("%s/state.v1.StateService/ListStates", serverURL), bytes.NewBufferString("{}"))
 	require.NoError(t, err)
 	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", accessToken))
+	req.Header.Set("Content-Type", "application/json")
 
 	resp, err := http.DefaultClient.Do(req)
 	require.NoError(t, err)

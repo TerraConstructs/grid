@@ -30,8 +30,6 @@ func NewAuthzInterceptor(deps AuthzDependencies) connect.UnaryInterceptorFunc {
 			action := ""
 			var labels map[string]any
 
-			log.Printf("verifying principal %s for procedure %s", principal.PrincipalID, procedure)
-
 			//nolint:gocritic
 			switch procedure {
 			// --- Static Permission Checks (no resource-specific data needed) ---
@@ -157,10 +155,13 @@ func NewAuthzInterceptor(deps AuthzDependencies) connect.UnaryInterceptorFunc {
 			if deps.Enforcer == nil {
 				return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("authorization enforcer not initialized"))
 			}
+
 			allowed, err := deps.Enforcer.Enforce(principal.PrincipalID, obj, action, labels)
 			if err != nil {
+				log.Printf("error enforce query for %s: %v", principal.PrincipalID, err)
 				return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("authorization enforcement error: %w", err))
 			}
+
 			if !allowed {
 				return nil, connect.NewError(connect.CodePermissionDenied, fmt.Errorf("permission denied for action '%s' on object '%s'", action, obj))
 			}

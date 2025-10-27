@@ -102,12 +102,12 @@ test-contract: ## Run contract tests (requires server) - WIP: Tests are placehol
 	@# ./scripts/wait-for-health.sh
 	@# go test -v -race ./tests/contract/...
 
-test-integration: ## Run integration tests (automated setup via TestMain)
+test-integration: ## Run integration tests (no OIDC - automated setup via TestMain) - excludes Mode 1/Mode 2
 	@echo "Running integration tests with automated setup..."
 	@echo "Ensuring database is running..."
 	@docker compose up -d postgres
 	@sleep 2
-	@cd tests/integration && go test -v -race -timeout 5m
+	@cd tests/integration && go test -v -race -timeout 5m -skip "TestMode1|TestMode2"
 
 test-integration-mode1: build ## Run Mode 1 (External IdP) integration tests with Keycloak
 	@echo "Running Mode 1 (External IdP) integration tests..."

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"maps"
 	"net/http"
 	"strings"
 
@@ -145,9 +146,7 @@ func loadStateLabels(ctx context.Context, service *statepkg.Service, guid string
 	}
 
 	labels := make(map[string]any, len(state.Labels))
-	for k, v := range state.Labels {
-		labels[k] = v
-	}
+	maps.Copy(labels, state.Labels)
 
 	return labels, state.LockInfo, nil
 }

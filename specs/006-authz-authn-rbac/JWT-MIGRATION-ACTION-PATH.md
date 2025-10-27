@@ -509,14 +509,13 @@ func applyDynamicGroupings(ctx context.Context, enforcer casbin.IEnforcer, group
 
 #### Migration
 
+> we kept the hash column and added the revoked_jti table!
+
 ```sql
 -- Option 1: Keep token_hash column but store JTI hash
 -- No schema change needed, just update oidc.go line 805:
 --   tokenHash := auth.HashBearerToken(accessToken)  // OLD
 --   tokenHash := accessToken  // NEW (already stores JTI per line 237, 278)
-
--- Option 2: Rename column for clarity
-ALTER TABLE sessions RENAME COLUMN token_hash TO jti;
 ```
 
 #### Code Update

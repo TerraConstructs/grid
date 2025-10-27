@@ -34,11 +34,11 @@ var (
 )
 
 const (
-    // Shortest path: increase access token TTL so Terraform runs won't expire mid-apply.
-    // Future work will scope long-lived run tokens separately.
-    defaultAccessTokenTTL  = 120 * time.Minute
-    defaultRefreshTokenTTL = 24 * time.Hour
-    defaultIDTokenTTL      = 15 * time.Minute
+	// Shortest path: increase access token TTL so Terraform runs won't expire mid-apply.
+	// Future work will scope long-lived run tokens separately.
+	defaultAccessTokenTTL  = 120 * time.Minute
+	defaultRefreshTokenTTL = 24 * time.Hour
+	defaultIDTokenTTL      = 15 * time.Minute
 )
 
 // ProviderDependencies holds the repositories required by the OIDC storage adapter.
@@ -464,7 +464,7 @@ func (s *providerStorage) SetUserinfoFromScopes(context.Context, *oidc.UserInfo,
 }
 
 func (s *providerStorage) SetUserinfoFromRequest(ctx context.Context, userInfo *oidc.UserInfo, token op.IDTokenRequest, scopes []string) error {
-	return s.populateUserInfo(ctx, userInfo, token.GetSubject(), token.GetClientID(), scopes)
+	return s.populateUserInfo(ctx, userInfo, token.GetSubject(), scopes)
 }
 
 func (s *providerStorage) SetUserinfoFromToken(ctx context.Context, userInfo *oidc.UserInfo, tokenID, subject, clientID string) error {
@@ -475,7 +475,7 @@ func (s *providerStorage) SetUserinfoFromToken(ctx context.Context, userInfo *oi
 	if session.Revoked {
 		return errors.New("session is revoked")
 	}
-	return s.populateUserInfo(ctx, userInfo, subject, clientID, nil) // Scopes not available here
+	return s.populateUserInfo(ctx, userInfo, subject, nil) // Scopes not available here
 }
 
 func (s *providerStorage) SetIntrospectionFromToken(ctx context.Context, resp *oidc.IntrospectionResponse, tokenID, subject, clientID string) error {
@@ -600,12 +600,11 @@ func (r *clientCredentialsTokenRequest) GetScopes() []string {
 
 type authRequest struct {
 	*oidc.AuthRequest
-	id           string
-	userID       string
-	createdAt    time.Time
-	authTime     time.Time
-	sessionState string
-	done         bool
+	id        string
+	userID    string
+	createdAt time.Time
+	authTime  time.Time
+	done      bool
 }
 
 func authRequestFromOIDC(req *oidc.AuthRequest, userID string) *authRequest {
@@ -705,7 +704,7 @@ type deviceAuthorizationEntry struct {
 	state      *op.DeviceAuthorizationState
 }
 
-func (s *providerStorage) populateUserInfo(ctx context.Context, info *oidc.UserInfo, userID, clientID string, scopes []string) error {
+func (s *providerStorage) populateUserInfo(ctx context.Context, info *oidc.UserInfo, userID string, scopes []string) error {
 	user, err := s.users.GetBySubject(ctx, userID)
 	if err != nil {
 		return err

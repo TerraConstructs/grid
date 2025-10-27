@@ -9,6 +9,10 @@ import (
 // ApplyDynamicGroupings mutates the enforcer with the transitive user→group→role chain
 // derived from JWT groups and repository-backed group role mappings.
 // Dynamic groupings are idempotent and cleared/re-applied on every authentication event.
+//
+// Note: Casbin's g() function correctly traverses the user→group→role hierarchy.
+// We add user→group groupings and group→role groupings, and Casbin resolves the transitive
+// permissions through its matcher evaluation.
 func ApplyDynamicGroupings(
 	enforcer casbin.IEnforcer,
 	userPrincipal string,
@@ -19,6 +23,7 @@ func ApplyDynamicGroupings(
 		return fmt.Errorf("clear user groupings: %w", err)
 	}
 
+	// Add user→group groupings (for group membership tracking)
 	for _, groupName := range groups {
 		groupPrincipal := GroupID(groupName)
 		if _, err := enforcer.AddGroupingPolicy(userPrincipal, groupPrincipal); err != nil {
@@ -26,12 +31,13 @@ func ApplyDynamicGroupings(
 		}
 	}
 
+	// Add group→role groupings (for permission resolution)
 	for groupName, roles := range groupRoles {
 		groupPrincipal := GroupID(groupName)
 		for _, roleName := range roles {
 			rolePrincipal := RoleID(roleName)
 			if _, err := enforcer.AddGroupingPolicy(groupPrincipal, rolePrincipal); err != nil {
-			return fmt.Errorf("add group-role grouping: %w", err)
+				return fmt.Errorf("add group-role grouping: %w", err)
 			}
 		}
 	}
@@ -48,7 +54,7 @@ func clearUserGroupings(enforcer casbin.IEnforcer, userPrincipal string) error {
 	for _, role := range roles {
 		if GetPrincipalType(role) == "group" {
 			if _, err := enforcer.DeleteRoleForUser(userPrincipal, role); err != nil {
-				return fmt.Errorf("delete user-group grouping: %w", err)
+				return fmt.Errorf("delete user grouping for %s: %w", role, err)
 			}
 		}
 	}

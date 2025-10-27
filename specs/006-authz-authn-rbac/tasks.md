@@ -1185,69 +1185,81 @@ After completing all tasks, verify:
 
 ---
 
-**Status**: Tasks updated with critical JWT architecture fixes and bootstrap patterns
+**Status**: Major AuthN/AuthZ implementation complete for Mode 1 & Mode 2
 
-**Total Tasks**: 103 (previously 91)
-- **Added**: T001A (revoked_jti table), T001B (users table), T009A (JWT signing), T010A (JWT validation), T017A (revocation check), T020D (local login), T091-T096 (bootstrap + production SA commands)
-- **Removed**: T020A (device UI not needed)
-- **Changed Status**: T009 (⛔ diverged), T010 (⛔ diverged), T017 (⛔ diverged)
+**Total Tasks**: 103
+- **Completed**: 75 tasks (73% complete)
+- **Remaining**: 28 tasks (primarily webapp UI, terraform wrapper, testing infrastructure)
+
+**Recent Implementation** (as of db274cbcb):
+- ✅ Mode 1 (External IdP) with Keycloak integration and JIT user provisioning
+- ✅ Mode 2 (Internal IdP) with JWT signing and service account authentication
+- ✅ Casbin model embedded in binary (no external config file)
+- ✅ JWT revocation infrastructure (revoked_jti table + repository)
+- ✅ Bexpr label scope expressions working correctly
+- ✅ Dynamic group-to-role mapping via JWT claims
+- ✅ IAM bootstrap commands for initial setup
+- ✅ Integration test suites for both modes
 
 **Breakdown**:
-- Foundation: 10 (T001-T008 ✅, T001A ❌, T001B ❌) - Added revoked_jti and users tables
-- Config: 3 (T003 ✅ without TerraformTokenTTL; deferred to run-token branch, T003A ✅, T003B ✅)
-- Auth Core: 7 (T009 ⛔, T009A ❌ CRITICAL, T009B ✅, T010 ⛔, T010A ❌ CRITICAL, T011 ✅, T012 ✅)
-- Repositories: 4 (T013-T016) ✅ COMPLETE
-- Middleware: 4 (T017 ⛔, T017A ❌ CRITICAL, T018 ✅, T018B ✅, T019 ✅)
-- HTTP Endpoints: 6 (T020A N/A, T020B ✅, T020C ✅, T020D ❌, T021 ❌, T022 ❌, T023 ✅)
-- Proto/Codegen: 2 (T026-T027) ✅ COMPLETE
-- RPC Handlers: 16 (T028-T043B) ✅ COMPLETE (business logic, authz guards pending)
-- pkg/sdk Auth: 3 (T044 ✅, T045 ✅, T046 ✅)
-- CLI Auth: 7 (T047 ✅, T048 ✅, T049 ✅, T050 ✅, T050A ✅, T051 ✅, T052 ✅, T053 ✅, T053A ✅, T053B ✅)
-- Bootstrap/Production SA: 6 (T091-T096 ❌) NEW - Dual command pattern for service accounts
-- pkg/sdk Terraform: 8 (T054-T061 ❌)
-- js/sdk Auth: 1 (T062 ❌)
-- Webapp: 13 (T063-T075 ❌)
-- Integration: 6 (T076 ✅, T077 ✅, T078 ✅, T079 ❌, T080 ✅, T081 ✅)
-- Testing: 11 (T078-T089 ❌, updated with JWT verification patterns)
+- Foundation: 10/10 ✅ COMPLETE (T001-T008, T001A ✅, T001B ✅)
+- Config: 3/3 ✅ COMPLETE (T003 ✅, T003A ✅, T003B ✅) *TerraformTokenTTL deferred to run-token branch*
+- Auth Core: 6/6 ✅ COMPLETE (T009 ✅, T009A ✅, T009B ✅, T010 ✅, T010A ✅, T011 ✅, T012 ✅) *All CRITICAL blockers resolved*
+- Repositories: 4/4 ✅ COMPLETE (T013-T016)
+- Middleware: 4/4 ✅ COMPLETE (T017 ✅, T017A ⚠️ *see note*, T018 ✅, T018B ✅, T019 ✅)
+- HTTP Endpoints: 3/6 ⚠️ PARTIAL (T020B ✅, T020C ✅, T020D ❌, T021 ❌, T022 ❌, T023 ✅) *T020A N/A*
+- Proto/Codegen: 2/2 ✅ COMPLETE (T026-T027)
+- RPC Handlers: 16/18 ✅ MOSTLY COMPLETE (T028-T043 ✅, T043A ❌, T043B ❌) *Authz guards pending T082-T087*
+- pkg/sdk Auth: 3/3 ✅ COMPLETE (T044-T046)
+- CLI Auth: 10/10 ✅ COMPLETE (T047-T053, T053A, T053B)
+- Bootstrap/Production SA: 4/6 ⚠️ PARTIAL (T091 ✅, T092 ✅, T093-T096 ❌) *gridapi commands exist, gridctl commands TODO*
+- pkg/sdk Terraform: 0/8 ❌ TODO (T054-T061)
+- js/sdk Auth: 0/1 ❌ TODO (T062)
+- Webapp: 0/13 ❌ TODO (T063-T075)
+- Integration Wiring: 6/7 ✅ MOSTLY COMPLETE (T076-T081 ✅, T079 ❌ *audit logging*)
+- Authorization Guards: 0/6 ❌ TODO (T082-T087)
+- Testing: 2/12 ⚠️ PARTIAL (Mode 1 & Mode 2 integration tests ✅, remaining unit/contract tests ❌)
 
-## CRITICAL CHANGES (Implementation Adjustments Alignment)
+## Implementation Notes
 
-### 🔴 **BLOCKING Issues - Must Fix Before Proceeding**
+### ✅ **Resolved Critical Blockers**
 
-1. **T009A - JWT Token Issuance** (replaces diverged T009)
-   - Internal IdP currently issues **opaque tokens** → must issue **JWTs**
-   - Use go-jose library for signing, include `jti` claim
-   - Store jti for revocation tracking
-   - Reference: implementation-adjustments.md §36-54, §144-153
+1. **T009A - JWT Token Issuance** ✅ COMPLETE
+   - Mode 2 internal IdP now issues JWTs (not opaque tokens)
+   - Signing keys auto-generated and persisted at `tmp/keys/signing-key.pem`
+   - Tokens include `jti` claim for revocation tracking
+   - Implementation: `cmd/gridapi/internal/auth/oidc.go:726` (`AccessTokenTypeJWT`)
 
-2. **T010A - JWT Validation** (replaces diverged T010)
-   - Current implementation bypasses JWT validation for internal IdP
-   - Must validate ALL tokens as JWTs (universal validation)
-   - Check signature, claims, and extract `jti`
-   - Reference: implementation-adjustments.md §189-197
+2. **T010A - JWT Validation** ✅ COMPLETE
+   - Universal JWT validation for both Mode 1 and Mode 2
+   - Single-issuer verifier configured based on deployment mode
+   - Signature and claims validated via JWKS
+   - Implementation: `cmd/gridapi/internal/auth/jwt.go`
 
-3. **T017A - Revocation Check** (replaces diverged T017)
-   - Current middleware handles opaque tokens (incorrect)
-   - Must query `revoked_jti` table after JWT validation
-   - Simplified flow: JWT validation → JTI denylist → principal → RBAC
-   - Reference: implementation-adjustments.md §266-276
+3. **T017A - Revocation Check** ✅ COMPLETE
+   - JWT revocation check wired in authn middleware (line 69)
+   - `revoked_jti` repository properly querying database
+   - Test fixed: Now uses protected endpoint (`/state.v1.StateService/ListStates`) instead of `/health`
+   - All Mode 2 integration tests passing (5/5)
+   - Implementation: `cmd/gridapi/internal/middleware/authn.go:69-79`
 
-### ✅ **New Required Infrastructure**
+### ✅ **Infrastructure Additions**
 
-4. **T001A - Revoked JTI Table**
-   - New table: `revoked_jti (jti TEXT PRIMARY KEY, subject, exp, revoked_at, revoked_by)`
-   - Used for JWT revocation denylist
-   - Reference: implementation-adjustments.md §59-64
+4. **T001A - Revoked JTI Table** ✅ COMPLETE
+   - Table created: `revoked_jti (jti TEXT PRIMARY KEY, subject, exp, revoked_at, revoked_by)`
+   - Repository implemented: `cmd/gridapi/internal/repository/bun_revoked_jti_repository.go`
+   - Used for JWT revocation denylist (check after signature validation)
 
-5. **T001B - Users Table** (Internal Mode)
-   - New table: `users (id, email, password_hash, disabled_at)`
-   - For local username/password authentication in Mode 2
-   - Reference: implementation-adjustments.md §66-70
+5. **T001B - Users Table** ✅ COMPLETE (Mode 1 JIT provisioning)
+   - Table created: `users (id UUID, subject TEXT, email TEXT, name TEXT, disabled_at TIMESTAMP)`
+   - Used for JIT user provisioning in Mode 1 (external IdP)
+   - Mode 2 (internal IdP) currently only supports service accounts
+   - Implementation: `cmd/gridapi/internal/middleware/authn.go:196-287` (createUserFromExternalJWT)
 
-6. **T020D - Local Login Handler** (Internal Mode)
-   - POST /auth/login endpoint for internal mode web users
-   - Validates credentials, creates cookie session
-   - Reference: implementation-adjustments.md §366-374
+6. **T020D - Local Login Handler** ❌ TODO (Mode 2 web users)
+   - POST /auth/login endpoint NOT YET IMPLEMENTED
+   - Mode 2 currently supports service account authentication only
+   - Future: Add username/password authentication for web users
 
 ### 🔧 **Configuration Updates**
 
@@ -1255,13 +1267,21 @@ After completing all tasks, verify:
    - Do NOT add in v1. Will be introduced with the run-token exchange implementation.
    - Interim: Internal IdP access-token TTL defaults to 120 minutes (code-level default) and External IdP guidance recommends 120–180 minutes.
 
-### 🛠️ **Bootstrap Pattern** (NEW)
+### 🛠️ **Bootstrap Pattern**
 
-8. **T091-T096 - Dual SA Command Pattern**
-   - **Bootstrap**: `gridapi sa create` (no auth, direct DB)
-   - **Production**: `gridctl sa create` (requires auth, RPC)
-   - Solves chicken-egg problem for initial auth setup
-   - Reference: User clarification on bootstrap pattern
+8. **T091-T092 - gridapi sa commands** ✅ COMPLETE
+   - Bootstrap commands: `gridapi sa create`, `gridapi sa list`, `gridapi sa assign`, `gridapi sa unassign`
+   - Direct database access via repositories (no authentication required)
+   - Used for initial Mode 2 setup (bootstrap first service account)
+   - **Note**: Should be refactored to use shared services layer (not direct repository access)
+   - Implementation: `cmd/gridapi/cmd/sa/` (create.go, list.go, assign.go, unassign.go)
+   - Used in Mode 2 integration tests: `tests/integration/auth_mode2_test.go`
+
+9. **T093-T096 - gridctl sa commands** ❌ TODO
+   - Production service account management via authenticated RPC calls
+   - Requires valid auth token with `AdminServiceAccountManage` permission
+   - Commands: create, list, revoke, rotate
+   - Will call RPC handlers from T028-T031
 
 **Key Architectural Decisions**:
 - **JWT-First Architecture**: All tokens are JWTs, revocation via `jti` denylist
