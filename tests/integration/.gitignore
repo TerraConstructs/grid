@@ -1,1 +1,4 @@
 .grid
+
+# Generated keys
+tmp/keys/*

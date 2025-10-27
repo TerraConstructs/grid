@@ -43,8 +43,13 @@ func (h *StateServiceHandler) CreateState(
 	ctx context.Context,
 	req *connect.Request[statev1.CreateStateRequest],
 ) (*connect.Response[statev1.CreateStateResponse], error) {
-	// Labels can be added later via UpdateStateLabels
+	// Convert proto labels to models.LabelMap
 	labels := make(models.LabelMap)
+	if req.Msg.Labels != nil {
+		for k, v := range req.Msg.Labels {
+			labels[k] = v
+		}
+	}
 
 	summary, config, err := h.service.CreateState(ctx, req.Msg.Guid, req.Msg.LogicId, labels)
 	if err != nil {

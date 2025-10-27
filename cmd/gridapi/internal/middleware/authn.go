@@ -13,6 +13,7 @@ import (
 
 	"github.com/terraconstructs/grid/cmd/gridapi/internal/auth"
 	"github.com/terraconstructs/grid/cmd/gridapi/internal/config"
+	"github.com/terraconstructs/grid/cmd/gridapi/internal/db/models"
 	"github.com/terraconstructs/grid/cmd/gridapi/internal/repository"
 )
 
@@ -85,7 +86,7 @@ func NewAuthnMiddleware(cfg *config.Config, deps AuthnDependencies, verifierOpts
 			}
 
 			// Check if identity is disabled
-			principal, identityDisabled, err := resolvePrincipal(ctx, deps, subject)
+			principal, identityDisabled, err := resolvePrincipal(ctx, deps, cfg, claims, subject)
 			if err != nil {
 				log.Printf("error resolving principal for subject %s for %s %s: %v", subject, r.Method, r.URL.Path, err)
 				http.Error(w, "authentication error", http.StatusInternalServerError)
@@ -127,8 +128,9 @@ func NewAuthnMiddleware(cfg *config.Config, deps AuthnDependencies, verifierOpts
 }
 
 // resolvePrincipal resolves the authenticated principal from the subject claim.
+// In External IdP mode, automatically provisions users on first authentication (JIT provisioning).
 // Returns the principal, whether the identity is disabled, and any error.
-func resolvePrincipal(ctx context.Context, deps AuthnDependencies, subject string) (auth.AuthenticatedPrincipal, bool, error) {
+func resolvePrincipal(ctx context.Context, deps AuthnDependencies, cfg *config.Config, claims map[string]interface{}, subject string) (auth.AuthenticatedPrincipal, bool, error) {
 	// Check if service account (subject starts with "sa:")
 	if strings.HasPrefix(subject, "sa:") {
 		clientID := strings.TrimPrefix(subject, "sa:")
@@ -150,10 +152,24 @@ func resolvePrincipal(ctx context.Context, deps AuthnDependencies, subject strin
 	// Otherwise, treat as user
 	user, err := deps.Users.GetBySubject(ctx, subject)
 	if err != nil {
-		if err == sql.ErrNoRows {
-			return auth.AuthenticatedPrincipal{}, false, fmt.Errorf("user not found: %s", subject)
+		// Check if user not found and we're in External IdP mode (JIT provisioning)
+		if err == sql.ErrNoRows || strings.Contains(err.Error(), "user not found") {
+			// Only auto-provision in External IdP mode (Mode 1)
+			if cfg.OIDC.IsInternalIdPMode() {
+				// Internal IdP mode - users must be pre-created
+				return auth.AuthenticatedPrincipal{}, false, fmt.Errorf("user not found: %s", subject)
+			}
+			log.Printf("User %s not found, attempting JIT provisioning from external IdP", subject)
+			var jitErr error
+			user, jitErr = createUserFromExternalJWT(ctx, deps, claims, cfg)
+			if jitErr != nil {
+				return auth.AuthenticatedPrincipal{}, false, fmt.Errorf("JIT provision user: %w", jitErr)
+			}
+			// Successfully provisioned, continue with the newly created user
+		} else {
+			// Other database errors
+			return auth.AuthenticatedPrincipal{}, false, fmt.Errorf("get user: %w", err)
 		}
-		return auth.AuthenticatedPrincipal{}, false, fmt.Errorf("get user: %w", err)
 	}
 
 	subjectID := user.PrincipalSubject()
@@ -166,6 +182,99 @@ func resolvePrincipal(ctx context.Context, deps AuthnDependencies, subject strin
 		Type:        auth.PrincipalTypeUser,
 	}
 	return principal, user.DisabledAt != nil, nil
+}
+
+// createUserFromExternalJWT creates a new user record from external IdP JWT claims (JIT provisioning).
+// This is called when a user authenticates via external IdP but doesn't exist in Grid's database yet.
+// Returns the created user and any error encountered.
+func createUserFromExternalJWT(ctx context.Context, deps AuthnDependencies, claims map[string]interface{}, cfg *config.Config) (*models.User, error) {
+	// Extract required subject claim
+	subject, ok := claims["sub"].(string)
+	if !ok || subject == "" {
+		return nil, fmt.Errorf("missing or invalid sub claim")
+	}
+
+	// Extract email claim (configurable field)
+	// For service account tokens, email may not be present - generate synthetic email
+	emailClaimField := cfg.OIDC.EmailClaimField
+	if emailClaimField == "" {
+		emailClaimField = "email" // Default
+	}
+	email := ""
+	if emailRaw, ok := claims[emailClaimField]; ok {
+		if emailStr, ok := emailRaw.(string); ok && emailStr != "" {
+			email = emailStr
+		}
+	}
+
+	// If no email claim, generate synthetic email for service accounts
+	// This handles Keycloak service account tokens which don't have email by default
+	if email == "" {
+		email = fmt.Sprintf("%s@external-idp.local", subject)
+		log.Printf("No email claim found for subject %s, using synthetic email: %s", subject, email)
+	}
+
+	// Extract optional name claim
+	name := ""
+	if nameRaw, ok := claims["name"]; ok {
+		if nameStr, ok := nameRaw.(string); ok {
+			name = nameStr
+		}
+	}
+
+	// Create user model
+	newUser := &models.User{
+		Subject: &subject,
+		Email:   email,
+		Name:    name,
+	}
+
+	// Attempt to create user
+	if err := deps.Users.Create(ctx, newUser); err != nil {
+		// Handle unique constraint violations (race conditions or email conflicts)
+		if strings.Contains(err.Error(), "duplicate") || strings.Contains(err.Error(), "unique") {
+			// First, try to find by subject (race condition - another request created the same user)
+			user, lookupErr := deps.Users.GetBySubject(ctx, subject)
+			if lookupErr == nil {
+				log.Printf("JIT provisioning race condition resolved: user %s already exists", subject)
+				return user, nil
+			}
+
+			// Subject lookup failed, check if email conflict (pre-existing user with same email)
+			user, emailErr := deps.Users.GetByEmail(ctx, email)
+			if emailErr == nil {
+				// User with this email exists
+				if user.Subject == nil || *user.Subject == "" {
+					// Subject is empty - link this external IdP subject to existing user
+					user.Subject = &subject
+					if updateErr := deps.Users.Update(ctx, user); updateErr != nil {
+						return nil, fmt.Errorf("link external subject to existing user: %w", updateErr)
+					}
+					log.Printf("JIT provisioning linked external IdP subject %s to existing user (email=%s)", subject, email)
+					return user, nil
+				} else if *user.Subject != subject {
+					// Subject exists but differs - policy decision: reject
+					return nil, fmt.Errorf("email %s already registered with different IdP subject (cannot re-link)", email)
+				}
+				// Subject matches - should not reach here, but return user anyway
+				return user, nil
+			}
+
+			// Neither subject nor email found - return original error
+			return nil, fmt.Errorf("create user (unique constraint, but user not found): %w", err)
+		}
+		return nil, fmt.Errorf("create user: %w", err)
+	}
+
+	// Create succeeded, but ID is not populated by repository.Create()
+	// Re-read user by subject to get the generated ID
+	user, err := deps.Users.GetBySubject(ctx, subject)
+	if err != nil {
+		return nil, fmt.Errorf("re-read created user: %w", err)
+	}
+
+	log.Printf("JIT provisioned user from external IdP: subject=%s email=%s name=%s id=%s", subject, email, name, user.ID)
+	return user, nil
 }
 
 // extractGroupsFromClaims extracts groups from JWT claims using configured claim field/path.

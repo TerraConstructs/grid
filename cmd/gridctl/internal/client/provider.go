@@ -18,7 +18,8 @@ import (
 
 // Provider yields authenticated HTTP and SDK clients backed by the credential store.
 type Provider struct {
-	serverURL string
+	serverURL   string
+	bearerToken string // ephemeral token that bypasses credential store (for testing)
 
 	httpOnce sync.Once
 	httpCli  *http.Client
@@ -41,6 +42,11 @@ type Provider struct {
 // NewProvider constructs a new Provider bound to the given server URL.
 func NewProvider(serverURL string) *Provider {
 	return &Provider{serverURL: serverURL}
+}
+
+// SetBearerToken injects an ephemeral bearer token for testing (bypasses credential store).
+func (p *Provider) SetBearerToken(token string) {
+	p.bearerToken = token
 }
 
 func (p *Provider) IsOIDCEnabled(ctx context.Context) (bool, error) {
@@ -74,6 +80,18 @@ func (p *Provider) Credentials() (*sdk.Credentials, error) {
 // When OIDC is disabled, http.DefaultClient is returned alongside a warning.
 func (p *Provider) HTTPClient(ctx context.Context) (*http.Client, error) {
 	p.httpOnce.Do(func() {
+		// Priority 1: Ephemeral bearer token (for testing/CI)
+		if p.bearerToken != "" {
+			token := &oauth2.Token{
+				AccessToken: p.bearerToken,
+				TokenType:   "Bearer",
+			}
+			source := oauth2.StaticTokenSource(token)
+			p.httpCli = oauth2.NewClient(context.Background(), source)
+			return
+		}
+
+		// Priority 2: Existing credential store flow
 		ctx, cancel := ensureTimeout(ctx, 5*time.Second)
 		defer cancel()
 

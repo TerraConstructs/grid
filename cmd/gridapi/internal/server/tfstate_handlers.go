@@ -175,11 +175,13 @@ func (h *TerraformHandlers) LockState(w http.ResponseWriter, r *http.Request) {
 
 	// Augment lock info with server-verified principal ID
 	principal, ok := auth.GetUserFromContext(r.Context())
-	if !ok {
-		http.Error(w, "unauthenticated", http.StatusUnauthorized)
-		return
+	if ok {
+		// Auth enabled: augment lock with owner for lock-aware authorization
+		lockInfo.OwnerPrincipalID = principal.PrincipalID
+	} else {
+		// Auth disabled: track as anonymous
+		lockInfo.OwnerPrincipalID = "anonymous"
 	}
-	lockInfo.OwnerPrincipalID = principal.PrincipalID
 
 	// Attempt to acquire lock via service
 	err = h.service.LockState(r.Context(), guid, &lockInfo)

@@ -42,7 +42,7 @@ This document defines clear, strict layering rules for the Grid API server. The 
 
 - Location: `cmd/gridapi/internal/auth`
 - Purpose: OIDC/JWT verification, claims, casbin setup, identifiers, actions.
-- Recommendation: Add `iam` or `auth` service to encapsulate user/session/role/service-account workflows so handlers and CLI do not talk to repos directly.
+- Recommendation: Add `iam` service to encapsulate user/session/role/service-account workflows so handlers and CLI do not talk to repos directly.
 
 6) Middleware
 

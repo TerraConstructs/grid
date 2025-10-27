@@ -77,25 +77,17 @@ If logic-id is not provided, the .grid context will be used (if available).`,
 			return err
 		}
 
-		// Call CreateState
+		// Call CreateState with labels
 		ctx, cancel := context.WithTimeout(cobraCmd.Context(), 10*time.Second)
 		defer cancel()
 
 		state, err := gridClient.CreateState(ctx, sdk.CreateStateInput{
 			GUID:    guid,
 			LogicID: logicID,
+			Labels:  labels,
 		})
 		if err != nil {
 			return fmt.Errorf("failed to create state: %w", err)
-		}
-
-		if len(labels) > 0 {
-			if _, err := gridClient.UpdateStateLabels(ctx, sdk.UpdateStateLabelsInput{
-				StateID: state.GUID,
-				Adds:    labels,
-			}); err != nil {
-				return fmt.Errorf("state created but failed to apply labels: %w", err)
-			}
 		}
 
 		// Print success with GUID and backend config endpoints

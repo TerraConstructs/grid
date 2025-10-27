@@ -104,7 +104,7 @@ var serveCmd = &cobra.Command{
 		oidcEnabled := cfg.OIDC.ExternalIdP != nil || cfg.OIDC.Issuer != ""
 
 		if oidcEnabled {
-			enforcer, err := auth.InitEnforcer(db, cfg.CasbinModelPath)
+			enforcer, err := auth.InitEnforcer(db)
 			if err != nil {
 				return fmt.Errorf("configure casbin enforcer: %w", err)
 			}

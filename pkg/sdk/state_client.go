@@ -77,9 +77,18 @@ func (c *Client) CreateState(ctx context.Context, input CreateStateInput) (*Stat
 		guid = uuid.NewString()
 	}
 
+	// Convert LabelMap (map[string]any) to proto labels (map[string]string)
+	protoLabels := make(map[string]string)
+	for k, v := range input.Labels {
+		if strVal, ok := v.(string); ok {
+			protoLabels[k] = strVal
+		}
+	}
+
 	req := connect.NewRequest(&statev1.CreateStateRequest{
 		Guid:    guid,
 		LogicId: input.LogicID,
+		Labels:  protoLabels,
 	})
 
 	resp, err := c.rpc.CreateState(ctx, req)

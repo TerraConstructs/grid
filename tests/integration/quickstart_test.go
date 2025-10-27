@@ -16,7 +16,6 @@ import (
 )
 
 const (
-	serverURL   = "http://localhost:8080"
 	testTimeout = 60 * time.Second
 )
 

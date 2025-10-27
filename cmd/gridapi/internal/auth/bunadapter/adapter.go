@@ -3,9 +3,7 @@ package bunadapter
 import (
 	"context"
 	"fmt"
-	"math/rand"
 	"strings"
-	"time"
 
 	"github.com/casbin/casbin/v2/model"
 	"github.com/casbin/casbin/v2/persist"
@@ -15,12 +13,7 @@ import (
 // Forked from github.com/msales/casbin-bun-adapter at v1.0.7 and updated to drop the
 // hard-coded Postgres schema qualifier so the adapter works with schema-less
 // table names (e.g. SQLite and Postgres public schema).
-
-var rnd *rand.Rand
-
-func init() {
-	rnd = rand.New(rand.NewSource(time.Now().UnixNano()))
-}
+// removed ID and rnd
 
 // Filter represents adapter filter.
 type Filter struct {
@@ -49,7 +42,11 @@ func (a *Adapter) LoadPolicy(model model.Model) error {
 	}
 
 	for _, r := range rules {
-		persist.LoadPolicyLine(r.String(), model)
+		values, lastNonEmpty := r.toValueSlice()
+		if lastNonEmpty == -1 {
+			continue // skip empty rule
+		}
+		model.AddPolicy(r.Ptype, r.Ptype, values[:lastNonEmpty+1])
 	}
 
 	a.filtered = false
@@ -488,8 +485,7 @@ func (r *CasbinRule) QueryWhereGroup(q bun.QueryBuilder) bun.QueryBuilder {
 	return q
 }
 
-func (r *CasbinRule) toStringPolicy() []string {
-	// Build the values array to determine the last non-empty field
+func (r *CasbinRule) toValueSlice() ([]string, int) {
 	values := []string{r.V0, r.V1, r.V2, r.V3, r.V4, r.V5}
 	lastNonEmpty := -1
 	for i := len(values) - 1; i >= 0; i-- {
@@ -498,6 +494,12 @@ func (r *CasbinRule) toStringPolicy() []string {
 			break
 		}
 	}
+	return values, lastNonEmpty
+}
+
+func (r *CasbinRule) toStringPolicy() []string {
+	// Build the values array to determine the last non-empty field
+	values, lastNonEmpty := r.toValueSlice()
 
 	// Build policy slice with ptype + all fields up to the last non-empty one
 	// This preserves empty fields in the middle

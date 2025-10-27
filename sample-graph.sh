@@ -2,7 +2,7 @@
 
 make db-reset
 make build
-gridapi db init && gridapi db migrate
+make db-migrate
 gridctl policy set --file examples/terraform/label-policy.json
 
 # Create states with labels

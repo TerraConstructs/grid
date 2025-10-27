@@ -43,8 +43,10 @@ func NewRelyingParty(ctx context.Context, cfg *config.ExternalIdPConfig) (*Relyi
 		rp.WithPKCE(cookieHandler), // Use the same cookie handler for PKCE
 	}
 
+	// Use configured scopes (defaults to [openid, profile, email])
+	// Group memberships are obtained via JWT claim mapper, not via scope request
 	relyingParty, err := rp.NewRelyingPartyOIDC(ctx, cfg.Issuer, cfg.ClientID, cfg.ClientSecret, cfg.RedirectURI,
-		[]string{oidc.ScopeOpenID, "profile", "email", "groups"}, options...)
+		cfg.Scopes, options...)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create OIDC relying party: %w", err)
 	}

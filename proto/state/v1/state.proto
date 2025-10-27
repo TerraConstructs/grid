@@ -115,6 +115,7 @@ service StateService {
 message CreateStateRequest {
   string guid = 1;
   string logic_id = 2;
+  map<string, string> labels = 3;
 }
 
 // CreateStateResponse confirms creation and returns backend config.

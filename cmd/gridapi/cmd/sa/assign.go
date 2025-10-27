@@ -45,7 +45,7 @@ var assignCmd = &cobra.Command{
 		saRepo := repository.NewBunServiceAccountRepository(db)
 		roleRepo := repository.NewBunRoleRepository(db)
 		userRoleRepo := repository.NewBunUserRoleRepository(db)
-		enforcer, err := auth.InitEnforcer(db, cfg.CasbinModelPath)
+		enforcer, err := auth.InitEnforcer(db)
 		if err != nil {
 			return fmt.Errorf("failed to initialize casbin enforcer: %w", err)
 		}

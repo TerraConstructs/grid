@@ -33,10 +33,12 @@ services:
       KC_HTTP_ENABLED: "true"
     ports:
       - "8443:8080"
+    volumes:
+      - ./tests/fixtures/realm-export.json:/opt/keycloak/data/import/grid-realm.json:ro
     depends_on:
       postgres:
         condition: service_healthy
-    command: start-dev
+    command: start-dev --import-realm
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8080/health/ready"]
       interval: 10s

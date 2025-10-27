@@ -30,7 +30,7 @@ func NewAuthzInterceptor(deps AuthzDependencies) connect.UnaryInterceptorFunc {
 			action := ""
 			var labels map[string]any
 
-			log.Printf("authorizing principal %s for procedure %s", principal.PrincipalID, procedure)
+			log.Printf("verifying principal %s for procedure %s", principal.PrincipalID, procedure)
 
 			//nolint:gocritic
 			switch procedure {
@@ -38,9 +38,6 @@ func NewAuthzInterceptor(deps AuthzDependencies) connect.UnaryInterceptorFunc {
 			case statev1connect.StateServiceListStatesProcedure, statev1connect.StateServiceGetStateInfoProcedure:
 				obj = auth.ObjectTypeState
 				action = auth.StateList
-			case statev1connect.StateServiceCreateStateProcedure:
-				obj = auth.ObjectTypeState
-				action = auth.StateCreate
 			case statev1connect.StateServiceGetLabelPolicyProcedure:
 				obj = auth.ObjectTypePolicy
 				action = auth.PolicyRead
@@ -102,6 +99,18 @@ func NewAuthzInterceptor(deps AuthzDependencies) connect.UnaryInterceptorFunc {
 				action = auth.AdminSessionRevoke
 
 			// --- Dynamic Permission Checks (resource-specific data required) ---
+			case statev1connect.StateServiceCreateStateProcedure:
+				// Extract labels from CreateStateRequest for create constraint checking
+				r := req.Any().(*statev1.CreateStateRequest)
+				obj = auth.ObjectTypeState
+				action = auth.StateCreate
+				// Convert proto labels map to labels for enforcement
+				if r.Labels != nil {
+					labels = make(map[string]any, len(r.Labels))
+					for k, v := range r.Labels {
+						labels[k] = v
+					}
+				}
 			case statev1connect.StateServiceGetStateConfigProcedure, statev1connect.StateServiceGetStateLockProcedure, statev1connect.StateServiceUnlockStateProcedure, statev1connect.StateServiceUpdateStateLabelsProcedure:
 				obj = auth.ObjectTypeState
 				action = auth.StateRead // Default to read, specific handlers might override

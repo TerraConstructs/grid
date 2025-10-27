@@ -163,7 +163,7 @@ Original tasks only mentioned Bun Models for
 - user_roles
 - group_roles
 - sessions
-- casbin_rule 
+- casbin_rules
 
 Missing:
 - auth requests

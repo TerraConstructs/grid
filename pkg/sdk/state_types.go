@@ -139,6 +139,7 @@ type AddDependencyResult struct {
 type CreateStateInput struct {
 	GUID    string
 	LogicID string
+	Labels  LabelMap
 }
 
 // TopologyDirection indicates the traversal direction for topological ordering.

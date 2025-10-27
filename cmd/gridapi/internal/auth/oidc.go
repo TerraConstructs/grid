@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 	"sync"
 	"time"
@@ -103,6 +104,13 @@ func loadOrGenerateSigningKey(keyPath string) (*rsa.PrivateKey, string, error) {
 
 	// Generate a stable key ID
 	keyID := uuid.NewString()
+
+	// Create parent directory if it doesn't exist
+	if dir := filepath.Dir(keyPath); dir != "." && dir != "" {
+		if err := os.MkdirAll(dir, 0755); err != nil {
+			return nil, "", fmt.Errorf("create key directory: %w", err)
+		}
+	}
 
 	// Save key to disk
 	keyBytes := x509.MarshalPKCS1PrivateKey(privateKey)

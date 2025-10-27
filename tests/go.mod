@@ -7,7 +7,9 @@ toolchain go1.24.4
 require (
 	connectrpc.com/connect v1.19.0
 	github.com/google/uuid v1.6.0
+	github.com/lib/pq v1.10.9
 	github.com/stretchr/testify v1.10.0
+	gopkg.in/square/go-jose.v2 v2.6.0
 )
 
 require (

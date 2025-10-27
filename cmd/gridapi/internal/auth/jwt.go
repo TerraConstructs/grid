@@ -90,8 +90,11 @@ func NewVerifier(cfg *config.Config, opts ...VerifierOption) (func(http.Handler)
 	// Mode detection
 	if cfg.OIDC.ExternalIdP != nil {
 		// Mode 1: External IdP Only
+		// In Mode 1, Grid is a Resource Server validating tokens from an external IdP.
+		// Clients must request tokens with audience=ExternalIdP.ClientID (the resource server identifier).
+		// Grid validates that tokens include this audience in the aud claim.
 		issuer = cfg.OIDC.ExternalIdP.Issuer
-		clientID = cfg.OIDC.ExternalIdP.ClientID
+		clientID = cfg.OIDC.ExternalIdP.ClientID // This is the resource server identifier (e.g., "grid-api")
 		isInternalProvider = false
 	} else if cfg.OIDC.Issuer != "" {
 		// Mode 2: Internal IdP Only

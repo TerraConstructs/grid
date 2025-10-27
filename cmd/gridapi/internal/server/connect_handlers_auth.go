@@ -306,6 +306,12 @@ func (h *StateServiceHandler) AssignGroupRole(
 	// cmd/gridapi/internal/middleware/authz_interceptor.go
 	// authorization check (admin:group-assign)
 
+	// Get authenticated principal for audit trail
+	principal, ok := auth.GetUserFromContext(ctx)
+	if !ok {
+		return nil, connect.NewError(connect.CodeUnauthenticated, fmt.Errorf("no authenticated principal"))
+	}
+
 	// Get role by name to find its ID
 	role, err := h.authnDeps.Roles.GetByName(ctx, req.Msg.RoleName)
 	if err != nil {
@@ -313,8 +319,9 @@ func (h *StateServiceHandler) AssignGroupRole(
 	}
 
 	groupRole := &models.GroupRole{
-		GroupName: req.Msg.GroupName,
-		RoleID:    role.ID,
+		GroupName:  req.Msg.GroupName,
+		RoleID:     role.ID,
+		AssignedBy: principal.InternalID,
 	}
 
 	// Persist the assignment for audit/query purposes

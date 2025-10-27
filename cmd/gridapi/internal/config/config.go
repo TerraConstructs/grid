@@ -24,9 +24,6 @@ type Config struct {
 
 	// OIDC authentication configuration
 	OIDC OIDCConfig
-
-	// Casbin model file path
-	CasbinModelPath string
 }
 
 // OIDCConfig holds OIDC configuration for Grid's authentication.
@@ -98,7 +95,6 @@ func Load() (*Config, error) {
 		ServerURL:        getEnv("SERVER_URL", "http://localhost:8080"),
 		MaxDBConnections: getEnvInt("MAX_DB_CONNECTIONS", 25),
 		Debug:            getEnvBool("DEBUG", false),
-		CasbinModelPath:  getEnv("CASBIN_MODEL_PATH", "cmd/gridapi/casbin/model.conf"),
 		OIDC: OIDCConfig{
 			Issuer:           getEnv("OIDC_ISSUER", ""),
 			ClientID:         getEnv("OIDC_CLIENT_ID", ""),
