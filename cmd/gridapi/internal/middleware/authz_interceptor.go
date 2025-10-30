@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"maps"
 
 	"connectrpc.com/connect"
 	statev1 "github.com/terraconstructs/grid/api/state/v1"
@@ -33,7 +34,7 @@ func NewAuthzInterceptor(deps AuthzDependencies) connect.UnaryInterceptorFunc {
 			//nolint:gocritic
 			switch procedure {
 			// --- Static Permission Checks (no resource-specific data needed) ---
-			case statev1connect.StateServiceListStatesProcedure, statev1connect.StateServiceGetStateInfoProcedure:
+			case statev1connect.StateServiceListStatesProcedure:
 				obj = auth.ObjectTypeState
 				action = auth.StateList
 			case statev1connect.StateServiceGetLabelPolicyProcedure:
@@ -136,7 +137,241 @@ func NewAuthzInterceptor(deps AuthzDependencies) connect.UnaryInterceptorFunc {
 				if err != nil {
 					return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("state not found for authz: %w", err))
 				}
-				labels = state.Labels
+				labels = make(map[string]any, len(state.Labels))
+				maps.Copy(labels, state.Labels)
+			case statev1connect.StateServiceGetStateInfoProcedure:
+				obj = auth.ObjectTypeState
+				action = auth.StateRead
+				var stateID string
+				r := req.Any().(*statev1.GetStateInfoRequest)
+
+				// Handle oneof state (logic_id or guid)
+				switch state := r.State.(type) {
+				case *statev1.GetStateInfoRequest_LogicId:
+					// Resolve logic_id to GUID
+					guid, _, err := deps.StateService.GetStateConfig(ctx, state.LogicId)
+					if err != nil {
+						return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("state not found: %w", err))
+					}
+					stateID = guid
+				case *statev1.GetStateInfoRequest_Guid:
+					stateID = state.Guid
+				default:
+					return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("state reference required (logic_id or guid)"))
+				}
+
+				// Load state to get labels for authorization
+				state, err := deps.StateService.GetStateByGUID(ctx, stateID)
+				if err != nil {
+					return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("state not found for authz: %w", err))
+				}
+				labels = make(map[string]any, len(state.Labels))
+				maps.Copy(labels, state.Labels)
+			case statev1connect.StateServiceListStateOutputsProcedure:
+				obj = auth.ObjectTypeState
+				action = auth.StateOutputList
+				var stateID string
+				r := req.Any().(*statev1.ListStateOutputsRequest)
+
+				// Handle oneof state (logic_id or guid)
+				switch state := r.State.(type) {
+				case *statev1.ListStateOutputsRequest_LogicId:
+					// Resolve logic_id to GUID
+					guid, _, err := deps.StateService.GetStateConfig(ctx, state.LogicId)
+					if err != nil {
+						return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("state not found: %w", err))
+					}
+					stateID = guid
+				case *statev1.ListStateOutputsRequest_Guid:
+					stateID = state.Guid
+				default:
+					return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("state reference required (logic_id or guid)"))
+				}
+
+				// Load state to get labels for authorization
+				state, err := deps.StateService.GetStateByGUID(ctx, stateID)
+				if err != nil {
+					return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("state not found for authz: %w", err))
+				}
+				labels = make(map[string]any, len(state.Labels))
+				maps.Copy(labels, state.Labels)
+
+			// --- Dependency Authorization (two-check model) ---
+			case statev1connect.StateServiceAddDependencyProcedure:
+				// Two-check authorization: both FROM (read source) and TO (write destination) states must be accessible
+				// This case performs complete authorization and returns directly without falling through to the final check
+				r := req.Any().(*statev1.AddDependencyRequest)
+
+				// Extract FROM state (producer/source)
+				var fromStateID string
+				switch from := r.FromState.(type) {
+				case *statev1.AddDependencyRequest_FromLogicId:
+					guid, _, err := deps.StateService.GetStateConfig(ctx, from.FromLogicId)
+					if err != nil {
+						return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("from state not found: %w", err))
+					}
+					fromStateID = guid
+				case *statev1.AddDependencyRequest_FromGuid:
+					fromStateID = from.FromGuid
+				default:
+					return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("from state reference required"))
+				}
+
+				// Extract TO state (consumer/destination)
+				var toStateID string
+				switch to := r.ToState.(type) {
+				case *statev1.AddDependencyRequest_ToLogicId:
+					guid, _, err := deps.StateService.GetStateConfig(ctx, to.ToLogicId)
+					if err != nil {
+						return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("to state not found: %w", err))
+					}
+					toStateID = guid
+				case *statev1.AddDependencyRequest_ToGuid:
+					toStateID = to.ToGuid
+				default:
+					return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("to state reference required"))
+				}
+
+				// Check 1: User must have permission to read outputs from FROM state (producer)
+				fromState, err := deps.StateService.GetStateByGUID(ctx, fromStateID)
+				if err != nil {
+					return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("from state not found: %w", err))
+				}
+				// Convert LabelMap to map[string]any for Casbin (type assertion requirement)
+				fromLabels := make(map[string]any, len(fromState.Labels))
+				maps.Copy(fromLabels, fromState.Labels)
+				log.Printf("enforcing principal %s for action '%s' on object '%s' with labels %v", principal.PrincipalID, auth.StateOutputRead, auth.ObjectTypeState, fromLabels)
+				allowed, err := deps.Enforcer.Enforce(principal.PrincipalID, auth.ObjectTypeState, auth.StateOutputRead, fromLabels)
+				if err != nil {
+					log.Printf("error enforcing from state auth for %s: %v", principal.PrincipalID, err)
+					return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("authorization error: %w", err))
+				}
+				if !allowed {
+					return nil, connect.NewError(connect.CodePermissionDenied, fmt.Errorf("permission denied: cannot read outputs from source state"))
+				}
+
+				// Check 2: User must have permission to create dependency on TO state (consumer)
+				toState, err := deps.StateService.GetStateByGUID(ctx, toStateID)
+				if err != nil {
+					return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("to state not found: %w", err))
+				}
+				// Convert LabelMap to map[string]any for Casbin (type assertion requirement)
+				toLabels := make(map[string]any, len(toState.Labels))
+				maps.Copy(toLabels, toState.Labels)
+				log.Printf("enforcing principal %s for action '%s' on object '%s' with labels %v", principal.PrincipalID, auth.DependencyCreate, auth.ObjectTypeState, toLabels)
+				allowed, err = deps.Enforcer.Enforce(principal.PrincipalID, auth.ObjectTypeState, auth.DependencyCreate, toLabels)
+				if err != nil {
+					log.Printf("error enforcing to state auth for %s: %v", principal.PrincipalID, err)
+					return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("authorization error: %w", err))
+				}
+				if !allowed {
+					return nil, connect.NewError(connect.CodePermissionDenied, fmt.Errorf("permission denied: cannot create dependency on destination state"))
+				}
+
+				// Both checks passed. Authorization complete. Proceed directly to the RPC handler.
+				return next(ctx, req)
+
+			case statev1connect.StateServiceListDependenciesProcedure:
+				obj = auth.ObjectTypeState
+				action = auth.DependencyList
+				var stateID string
+				r := req.Any().(*statev1.ListDependenciesRequest)
+
+				// Handle oneof state (logic_id or guid)
+				switch state := r.State.(type) {
+				case *statev1.ListDependenciesRequest_LogicId:
+					guid, _, err := deps.StateService.GetStateConfig(ctx, state.LogicId)
+					if err != nil {
+						return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("state not found: %w", err))
+					}
+					stateID = guid
+				case *statev1.ListDependenciesRequest_Guid:
+					stateID = state.Guid
+				default:
+					return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("state reference required"))
+				}
+
+				state, err := deps.StateService.GetStateByGUID(ctx, stateID)
+				if err != nil {
+					return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("state not found for authz: %w", err))
+				}
+				labels = make(map[string]any, len(state.Labels))
+				maps.Copy(labels, state.Labels)
+
+			case statev1connect.StateServiceListDependentsProcedure:
+				obj = auth.ObjectTypeState
+				action = auth.DependencyList
+				var stateID string
+				r := req.Any().(*statev1.ListDependentsRequest)
+
+				// Handle oneof state (logic_id or guid)
+				switch state := r.State.(type) {
+				case *statev1.ListDependentsRequest_LogicId:
+					guid, _, err := deps.StateService.GetStateConfig(ctx, state.LogicId)
+					if err != nil {
+						return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("state not found: %w", err))
+					}
+					stateID = guid
+				case *statev1.ListDependentsRequest_Guid:
+					stateID = state.Guid
+				default:
+					return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("state reference required"))
+				}
+
+				state, err := deps.StateService.GetStateByGUID(ctx, stateID)
+				if err != nil {
+					return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("state not found for authz: %w", err))
+				}
+				labels = make(map[string]any, len(state.Labels))
+				maps.Copy(labels, state.Labels)
+
+			case statev1connect.StateServiceGetDependencyGraphProcedure:
+				obj = auth.ObjectTypeState
+				action = auth.DependencyList
+				var stateID string
+				r := req.Any().(*statev1.GetDependencyGraphRequest)
+
+				// Handle oneof state (logic_id or guid)
+				switch state := r.State.(type) {
+				case *statev1.GetDependencyGraphRequest_LogicId:
+					guid, _, err := deps.StateService.GetStateConfig(ctx, state.LogicId)
+					if err != nil {
+						return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("state not found: %w", err))
+					}
+					stateID = guid
+				case *statev1.GetDependencyGraphRequest_Guid:
+					stateID = state.Guid
+				default:
+					return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("state reference required"))
+				}
+
+				state, err := deps.StateService.GetStateByGUID(ctx, stateID)
+				if err != nil {
+					return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("state not found for authz: %w", err))
+				}
+				labels = make(map[string]any, len(state.Labels))
+				maps.Copy(labels, state.Labels)
+
+			case statev1connect.StateServiceRemoveDependencyProcedure:
+				obj = auth.ObjectTypeState
+				action = auth.DependencyDelete
+
+				r := req.Any().(*statev1.RemoveDependencyRequest)
+
+				// Load edge to get destination state GUID
+				edge, err := deps.StateService.GetEdgeByID(ctx, r.EdgeId)
+				if err != nil {
+					return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("edge not found: %w", err))
+				}
+
+				// Load destination state to get labels
+				state, err := deps.StateService.GetStateByGUID(ctx, edge.ToState)
+				if err != nil {
+					return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("destination state not found for authz: %w", err))
+				}
+				labels = make(map[string]any, len(state.Labels))
+				maps.Copy(labels, state.Labels)
+
 			default:
 				// Deny any RPC that is not explicitly listed.
 				return nil, connect.NewError(connect.CodePermissionDenied, fmt.Errorf("access to procedure %s is denied by default policy", procedure))

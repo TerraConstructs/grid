@@ -747,7 +747,7 @@ pass-through wrapper command `gridctl tf` that executes a Terraform/Tofu subcomm
     ```
   - Reference: Bootstrap pattern clarification, quickstart.md Scenario 3 Mode 2 (first SA creation)
 
-- [ ] **T092** Create gridapi sa list command in `cmd/gridapi/cmd/sa/list.go` (optional helper)
+- [x] **T092** Create gridapi sa list command in `cmd/gridapi/cmd/sa/list.go` (optional helper)
   - **Bootstrap pattern**: Direct database read, NO authentication required
   - List all service accounts with client_id, name, created_at (no secrets)
   - Tab-delimited output for scripting
@@ -755,7 +755,7 @@ pass-through wrapper command `gridctl tf` that executes a Terraform/Tofu subcomm
 
 ### Production Pattern (gridctl sa) - Authenticated RPC Calls
 
-- [ ] **T093** Create gridctl sa create command in `cmd/gridctl/cmd/sa/create.go`
+- [x] **T093** Create gridctl sa create command in `cmd/gridctl/cmd/sa/create.go`
   - **Production pattern**: Calls CreateServiceAccount RPC via authenticated connection
   - Requires valid auth token with `auth.AdminServiceAccountManage` permission
   - Cobra command: `gridctl sa create --name <name> [--description <desc>]`
@@ -990,7 +990,7 @@ pass-through wrapper command `gridctl tf` that executes a Terraform/Tofu subcomm
 
 ### Integration Tests
 
-- [ ] **T084** Create integration tests with Keycloak in `tests/integration/auth_test.go`
+- [ ] **T084** Create integration tests with Keycloak in `tests/integration/auth_mode1_*_test.go`
   - **UPDATED**: Follow verification patterns from quickstart.md Scenarios 1-12
   - Use Keycloak in docker-compose for Mode 1 (External IdP) tests
   - Test Mode 2 (Internal IdP) with Grid-issued JWTs

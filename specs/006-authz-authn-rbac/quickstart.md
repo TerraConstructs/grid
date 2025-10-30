@@ -183,7 +183,7 @@ In Mode 1, the CLI initiates device authorization flow with the external IdP (Ke
 ### Steps (Mode 1)
 1. Run CLI login command:
    ```bash
-   ./bin/gridctl login
+   ./bin/gridctl auth login
    ```
 2. Expect output similar to:
    ```

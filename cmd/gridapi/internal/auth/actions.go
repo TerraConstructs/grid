@@ -53,6 +53,15 @@ const (
 	DependencyDelete = "dependency:delete"
 )
 
+// State Output Actions
+const (
+	// StateOutputList allows listing available output keys from a state
+	StateOutputList = "state-output:list"
+
+	// StateOutputRead allows reading specific output values from a state
+	StateOutputRead = "state-output:read"
+)
+
 // Policy Actions (label validation)
 const (
 	// PolicyRead allows reading label policy
@@ -99,6 +108,9 @@ const (
 	// DependencyWildcard grants all dependency actions
 	DependencyWildcard = "dependency:*"
 
+	// StateOutputWildcard grants all state-output actions
+	StateOutputWildcard = "state-output:*"
+
 	// PolicyWildcard grants all policy actions
 	PolicyWildcard = "policy:*"
 
@@ -144,6 +156,9 @@ func ValidateAction(action string) bool {
 		DependencyRead:   true,
 		DependencyList:   true,
 		DependencyDelete: true,
+		// State Outputs
+		StateOutputList: true,
+		StateOutputRead: true,
 		// Policy
 		PolicyRead:  true,
 		PolicyWrite: true,
@@ -156,12 +171,13 @@ func ValidateAction(action string) bool {
 		// Ownership
 		ReadSelf: true,
 		// Wildcards
-		StateWildcard:      true,
-		TfstateWildcard:    true,
-		DependencyWildcard: true,
-		PolicyWildcard:     true,
-		AdminWildcard:      true,
-		AllWildcard:        true,
+		StateWildcard:       true,
+		TfstateWildcard:     true,
+		DependencyWildcard:  true,
+		StateOutputWildcard: true,
+		PolicyWildcard:      true,
+		AdminWildcard:       true,
+		AllWildcard:         true,
 	}
 
 	return validActions[action]
@@ -177,6 +193,8 @@ func ExpandWildcard(action string) []string {
 		return []string{TfstateRead, TfstateWrite, TfstateLock, TfstateUnlock}
 	case DependencyWildcard:
 		return []string{DependencyCreate, DependencyRead, DependencyList, DependencyDelete}
+	case StateOutputWildcard:
+		return []string{StateOutputList, StateOutputRead}
 	case PolicyWildcard:
 		return []string{PolicyRead, PolicyWrite}
 	case AdminWildcard:
@@ -187,6 +205,7 @@ func ExpandWildcard(action string) []string {
 		all = append(all, ExpandWildcard(StateWildcard)...)
 		all = append(all, ExpandWildcard(TfstateWildcard)...)
 		all = append(all, ExpandWildcard(DependencyWildcard)...)
+		all = append(all, ExpandWildcard(StateOutputWildcard)...)
 		all = append(all, ExpandWildcard(PolicyWildcard)...)
 		all = append(all, ExpandWildcard(AdminWildcard)...)
 		return all

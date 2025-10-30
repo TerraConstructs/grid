@@ -59,9 +59,9 @@ func isMode2Configured(t *testing.T) bool {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	// Check for OIDC discovery endpoint which is only available in Mode 2
-	discoveryURL := fmt.Sprintf("%s/.well-known/openid-configuration", serverURL)
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, discoveryURL, nil)
+	// Use /auth/config endpoint to determine mode
+	configURL := fmt.Sprintf("%s/auth/config", serverURL)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, configURL, nil)
 	if err != nil {
 		return false
 	}
@@ -72,7 +72,18 @@ func isMode2Configured(t *testing.T) bool {
 	}
 	defer resp.Body.Close()
 
-	return resp.StatusCode == http.StatusOK
+	if resp.StatusCode != http.StatusOK {
+		return false
+	}
+
+	var config struct {
+		Mode string `json:"mode"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&config); err != nil {
+		return false
+	}
+
+	return config.Mode == "internal-idp"
 }
 
 // setupMode2Environment configures environment variables for Mode 2 (Internal IdP)

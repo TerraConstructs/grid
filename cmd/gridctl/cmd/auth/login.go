@@ -16,29 +16,29 @@ var (
 var loginCmd = &cobra.Command{
 	Use:   "login",
 	Short: "Authenticate with Grid",
-	Long: `Authenticates with the Grid server.
+	Long: `Authenticates with the Grid server using device authorization flow.
+
+The CLI automatically discovers the authentication mode from the server
+and initiates the appropriate OIDC device flow (external IdP or Grid's internal IdP).
 
 Two methods are supported:
-1. Interactive Login (default): Initiates a device authorization flow for human users. This is typically used with an external IdP.
-2. Service Account Login: Uses a client ID and secret for non-interactive authentication. Use the --client-id and --client-secret flags.`,
+1. Interactive Login (default): Initiates a device authorization flow for human users.
+2. Service Account Login: Uses a client ID and secret for non-interactive authentication.
+   Use the --client-id and --client-secret flags.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		// TODO: Get issuer from a config file instead of hardcoding
-		issuer := ServerURL // Use the global server URL
-
 		store, err := auth.NewFileStore()
 		if err != nil {
 			return fmt.Errorf("failed to create credential store: %w", err)
 		}
 
-		// If client ID and secret are provided, use service account flow
+		// Service account flow (uses explicit client_id/secret, no discovery needed)
 		if clientID != "" && clientSecret != "" {
 			fmt.Println("Authenticating as service account...")
-			creds, err := sdk.LoginWithServiceAccount(cmd.Context(), issuer, clientID, clientSecret)
+			creds, err := sdk.LoginWithServiceAccount(cmd.Context(), ServerURL, clientID, clientSecret)
 			if err != nil {
 				return err
 			}
-			err = store.SaveCredentials(creds)
-			if err != nil {
+			if err := store.SaveCredentials(creds); err != nil {
 				return fmt.Errorf("failed to save credentials: %w", err)
 			}
 			fmt.Println("------------------------------------------------------------")
@@ -47,22 +47,15 @@ Two methods are supported:
 			return nil
 		}
 
-		// Otherwise, use the interactive device flow
-		// The default public client ID for the device flow is "gridctl"
-		publicClientID := "gridctl"
-		meta, envCreds, err := sdk.LoginWithDeviceCode(cmd.Context(), issuer, publicClientID)
+		// Interactive device flow (SDK handles discovery and authentication)
+		meta, err := sdk.LoginInteractive(cmd.Context(), ServerURL, store)
 		if err != nil {
 			return err
-		}
-		err = store.SaveCredentials(envCreds)
-		if err != nil {
-			return fmt.Errorf("failed to save credentials: %w", err)
 		}
 
 		fmt.Println("------------------------------------------------------------")
 		fmt.Printf("✅ Interactive login successful!\n")
 		fmt.Printf("Authenticated as: %s (%s)\n", meta.User, meta.Email)
-
 		return nil
 	},
 }

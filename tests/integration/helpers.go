@@ -115,3 +115,12 @@ func verifyAuthEnabled(t *testing.T, mode string) {
 
 	t.Logf("✓ Authentication verified: oidc_enabled=%t (mode=%s)", health.OIDCEnabled, mode)
 }
+
+// getTerraformAuthEnv returns environment variables for Terraform HTTP Backend authentication
+// The token is passed as both TF_HTTP_USERNAME and TF_HTTP_PASSWORD as required by the backend
+func getTerraformAuthEnv(token string) []string {
+	return []string{
+		fmt.Sprintf("TF_HTTP_USERNAME=%s", "gridapi"), // ignored by Grid API
+		fmt.Sprintf("TF_HTTP_PASSWORD=%s", token),
+	}
+}

@@ -172,6 +172,15 @@ func (s *Service) GetStateByGUID(ctx context.Context, guid string) (*models.Stat
 	return record, nil
 }
 
+// GetEdgeByID retrieves an edge by ID for authorization checks
+func (s *Service) GetEdgeByID(ctx context.Context, edgeID int64) (*models.Edge, error) {
+	edge, err := s.edgeRepo.GetByID(ctx, edgeID)
+	if err != nil {
+		return nil, fmt.Errorf("get edge: %w", err)
+	}
+	return edge, nil
+}
+
 // GetStateLock returns the current lock metadata for a state.
 func (s *Service) GetStateLock(ctx context.Context, guid string) (*models.LockInfo, error) {
 	record, err := s.repo.GetByGUID(ctx, guid)

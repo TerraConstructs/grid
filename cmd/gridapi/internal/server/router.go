@@ -124,6 +124,11 @@ func NewRouter(opts RouterOptions) chi.Router {
 	}
 	r.Get("/health", healthHandler)
 
+	// Authentication configuration discovery endpoint for SDK clients
+	if opts.Cfg != nil {
+		r.Get("/auth/config", HandleAuthConfig(opts.Cfg))
+	}
+
 	if opts.ExtraRoutes != nil {
 		opts.ExtraRoutes(r)
 	}

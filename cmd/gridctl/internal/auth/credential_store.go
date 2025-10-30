@@ -9,22 +9,19 @@ import (
 	"github.com/terraconstructs/grid/pkg/sdk"
 )
 
-// CredentialStore is an interface for storing and retrieving credentials.
-type CredentialStore interface {
-	SaveCredentials(credentials *sdk.Credentials) error
-	LoadCredentials() (*sdk.Credentials, error)
-	DeleteCredentials() error
-}
-
 const credentialsFile = "credentials.json"
 
-// FileStore implements the CredentialStore interface using a JSON file.
+// FileStore implements sdk.CredentialStore using a JSON file.
+// This is the CLI's credential persistence implementation.
 type FileStore struct {
 	path string
 }
 
-// NewFileStore creates a new FileStore.
-func NewFileStore() (CredentialStore, error) {
+// Ensure FileStore implements sdk.CredentialStore at compile time.
+var _ sdk.CredentialStore = (*FileStore)(nil)
+
+// NewFileStore creates a new FileStore that implements sdk.CredentialStore.
+func NewFileStore() (sdk.CredentialStore, error) {
 	home, err := os.UserHomeDir()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get user home directory: %w", err)

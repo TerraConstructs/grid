@@ -3,7 +3,9 @@ package sdk
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"io"
 	"log"
 	"net/http"
 	"os"
@@ -27,9 +29,97 @@ type LoginSuccessMetadata struct {
 	ExpiresAt time.Time
 }
 
+// AuthConfig represents Grid's authentication configuration.
+// This is returned by the /auth/config endpoint and tells SDK clients
+// where to authenticate and what client ID to use.
+type AuthConfig struct {
+	Mode               string  `json:"mode"`                 // "external-idp" or "internal-idp"
+	Issuer             string  `json:"issuer"`               // OIDC issuer URL
+	ClientID           *string `json:"client_id,omitempty"`  // Public client ID for device flow (nil if not supported)
+	Audience           *string `json:"audience,omitempty"`   // Expected aud claim in access tokens
+	SupportsDeviceFlow bool    `json:"supports_device_flow"` // Whether interactive device flow is supported
+}
+
+// DiscoverAuthConfig fetches authentication configuration from Grid API.
+// This enables mode-agnostic authentication by discovering whether Grid
+// is using an external IdP (Mode 1) or internal IdP (Mode 2).
+func DiscoverAuthConfig(ctx context.Context, serverURL string) (*AuthConfig, error) {
+	url := fmt.Sprintf("%s/auth/config", serverURL)
+	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to contact server: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("server returned %d: %s", resp.StatusCode, string(body))
+	}
+
+	var config AuthConfig
+	if err := json.NewDecoder(resp.Body).Decode(&config); err != nil {
+		return nil, fmt.Errorf("failed to parse auth config: %w", err)
+	}
+
+	return &config, nil
+}
+
+// LoginInteractive performs device flow authentication using discovered config.
+// This is the SDK's main authentication entrypoint for interactive users.
+//
+// Flow:
+// 1. Discovers auth configuration from Grid API (/auth/config)
+// 2. Checks if interactive device flow is supported
+// 3. Initiates OIDC device authorization flow against the discovered issuer
+// 4. Optionally saves credentials using the provided store
+//
+// The store parameter is optional - pass nil to skip credential persistence.
+//
+// Returns an error if the Grid deployment does not support interactive authentication
+// (e.g., Mode 2 Internal IdP only supports service accounts).
+func LoginInteractive(ctx context.Context, serverURL string, store CredentialStore) (*LoginSuccessMetadata, error) {
+	// 1. Discover auth config
+	config, err := DiscoverAuthConfig(ctx, serverURL)
+	if err != nil {
+		return nil, fmt.Errorf("auth discovery failed: %w", err)
+	}
+
+	// 2. Check if device flow is supported
+	if !config.SupportsDeviceFlow {
+		return nil, fmt.Errorf("interactive login not supported in mode=%s (use service account authentication with GRID_CLIENT_ID and GRID_CLIENT_SECRET)", config.Mode)
+	}
+
+	if config.ClientID == nil || *config.ClientID == "" {
+		return nil, fmt.Errorf("no client_id returned for device flow")
+	}
+
+	// 3. Perform device flow
+	meta, creds, err := performDeviceFlow(ctx, config.Issuer, *config.ClientID)
+	if err != nil {
+		return nil, err
+	}
+
+	// 4. Save credentials (if store provided)
+	if store != nil {
+		if err := store.SaveCredentials(creds); err != nil {
+			return nil, fmt.Errorf("failed to save credentials: %w", err)
+		}
+	}
+
+	return meta, nil
+}
+
 // LoginWithDeviceCode initiates the OIDC Device Authorization Flow (RFC 8628).
 // It guides the user to authorize the CLI in a browser, polls for tokens,
-// and saves them using the provided CredentialStore.
+// and returns the credentials.
+//
+// Deprecated: Use LoginInteractive instead, which automatically discovers
+// the correct issuer and client ID from the Grid API.
 //
 // This function works with both Grid deployment modes:
 //   - Mode 1 (External IdP): issuer = external IdP URL (e.g., https://keycloak.local/realms/grid)
@@ -38,6 +128,17 @@ type LoginSuccessMetadata struct {
 // The function performs OIDC discovery from the issuer to find device authorization
 // endpoints automatically.
 func LoginWithDeviceCode(
+	ctx context.Context,
+	issuer string,
+	clientID string,
+) (*LoginSuccessMetadata, *Credentials, error) {
+	return performDeviceFlow(ctx, issuer, clientID)
+}
+
+// performDeviceFlow is the internal implementation of device authorization flow.
+// It initiates the OIDC Device Authorization Flow (RFC 8628), guides the user
+// to authorize in a browser, and polls for tokens.
+func performDeviceFlow(
 	ctx context.Context,
 	issuer string,
 	clientID string,

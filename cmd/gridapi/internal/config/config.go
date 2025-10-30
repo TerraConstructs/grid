@@ -81,8 +81,9 @@ func (c *OIDCConfig) IsInternalIdPMode() bool {
 // - Grid validates tokens but never issues them
 type ExternalIdPConfig struct {
 	Issuer       string   // External IdP's issuer URL (e.g., "https://login.microsoftonline.com/tenant-id/v2.0")
-	ClientID     string   // Grid's client ID registered with external IdP
-	ClientSecret string   // Grid's client secret with external IdP
+	ClientID     string   // Grid's confidential client ID for server-side operations (SSO callback)
+	CLIClientID  string   // Public client ID for CLI device flow (e.g., "gridctl")
+	ClientSecret string   // Grid's client secret with external IdP (for confidential client only)
 	RedirectURI  string   // Grid's SSO callback URL (e.g., "https://grid.example.com/auth/sso/callback")
 	Scopes       []string // Optional: Additional OIDC scopes beyond default ["openid", "profile", "email"]
 }
@@ -166,6 +167,7 @@ func loadExternalIdPConfig() *ExternalIdPConfig {
 	return &ExternalIdPConfig{
 		Issuer:       issuer,
 		ClientID:     getEnv("EXTERNAL_IDP_CLIENT_ID", ""),
+		CLIClientID:  getEnv("EXTERNAL_IDP_CLI_CLIENT_ID", "gridctl"),
 		ClientSecret: getEnv("EXTERNAL_IDP_CLIENT_SECRET", ""),
 		RedirectURI:  getEnv("EXTERNAL_IDP_REDIRECT_URI", ""),
 		Scopes:       scopes,

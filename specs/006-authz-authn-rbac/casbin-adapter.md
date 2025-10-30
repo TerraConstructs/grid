@@ -99,6 +99,13 @@ func (a *Adapter) RemovePolicy(_ string, ptype string, rule []string) error {
 }
 ```
 
+## No Watcher Implemented
+
+Currently when multiple Grid API instances are running, policy changes in one instance are not propagated to others.
+- **Reason:** Simplicity, low change frequency
+- **Impact:** Changes to policies (e.g., role assignments) may take effect only after a server restart in other instances
+- **Future Work:** Implement a Casbin Watcher using Redis or similar pub/sub mechanism to notify other instances of policy changes.
+
 ## Dynamic Groupings and Database Synchronization
 
 ### Current Behavior

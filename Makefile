@@ -123,6 +123,7 @@ test-integration-mode1: build ## Run Mode 1 (External IdP) integration tests wit
 		EXTERNAL_IDP_ISSUER="http://localhost:8443/realms/grid" \
 		EXTERNAL_IDP_CLIENT_ID="grid-api" \
 		EXTERNAL_IDP_CLIENT_SECRET="$(GRIDAPI_SECRET)" \
+		EXTERNAL_IDP_CLI_CLIENT_ID="gridctl" \
 		EXTERNAL_IDP_REDIRECT_URI="http://localhost:8080/auth/sso/callback" \
 		MODE1_TEST_CLIENT_ID="integration-tests" \
 		MODE1_TEST_CLIENT_SECRET="$(INTEGRATION_TESTS_SECRET)" \

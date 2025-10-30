@@ -2,6 +2,7 @@ package auth
 
 import (
 	"fmt"
+	"reflect"
 	"strings"
 	"sync"
 
@@ -27,9 +28,9 @@ func BexprMatchFunction() func(args ...any) (any, error) {
 			return false, fmt.Errorf("bexprMatch: first argument must be string (scopeExpr)")
 		}
 
-		labels, ok := args[1].(map[string]any)
+		labels, ok := toStringAnyMap(args[1])
 		if !ok {
-			return false, fmt.Errorf("bexprMatch: second argument must be map[string]any (labels)")
+			return false, fmt.Errorf("bexprMatch: second argument must be a map with string keys (labels)")
 		}
 
 		// Evaluate expression against labels
@@ -73,4 +74,40 @@ func EvaluateBexpr(scopeExpr string, labels map[string]any) bool {
 		return false
 	}
 	return matches
+}
+
+// toStringAnyMap attempts to coerce an arbitrary value into a map[string]any.
+// Accepts:
+// - map[string]any directly
+// - Any map type with string keys (e.g., a named type whose underlying type is map[string]any)
+// Returns a fresh map for non-exact types to avoid mutation surprises.
+func toStringAnyMap(v any) (map[string]any, bool) {
+	if v == nil {
+		return map[string]any{}, true
+	}
+	if m, ok := v.(map[string]any); ok {
+		return m, true
+	}
+
+	rv := reflect.ValueOf(v)
+	if rv.Kind() == reflect.Pointer {
+		if rv.IsNil() {
+			return map[string]any{}, true
+		}
+		rv = rv.Elem()
+	}
+	if rv.Kind() != reflect.Map {
+		return nil, false
+	}
+	if rv.Type().Key().Kind() != reflect.String {
+		return nil, false
+	}
+
+	out := make(map[string]any, rv.Len())
+	iter := rv.MapRange()
+	for iter.Next() {
+		k := iter.Key().String()
+		out[k] = iter.Value().Interface()
+	}
+	return out, true
 }

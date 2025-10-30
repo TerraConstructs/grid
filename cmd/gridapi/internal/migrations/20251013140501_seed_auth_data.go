@@ -92,7 +92,7 @@ func up_20251013140501(ctx context.Context, db *bun.DB) error {
 		// product-engineer role: Label-scoped dev access
 		{Ptype: "p", V0: "role:product-engineer", V1: "state", V2: "state:create", V3: `env == "dev"`, V4: "allow"},
 		{Ptype: "p", V0: "role:product-engineer", V1: "state", V2: "state:read", V3: `env == "dev"`, V4: "allow"},
-		{Ptype: "p", V0: "role:product-engineer", V1: "state", V2: "state:list", V3: `env == "dev"`, V4: "allow"},
+		{Ptype: "p", V0: "role:product-engineer", V1: "state", V2: "state:list", V3: "", V4: "allow"}, // Listing allowed globally - TODO: service layer should filter?
 		{Ptype: "p", V0: "role:product-engineer", V1: "state", V2: "state:update-labels", V3: `env == "dev"`, V4: "allow"},
 		{Ptype: "p", V0: "role:product-engineer", V1: "state", V2: "tfstate:read", V3: `env == "dev"`, V4: "allow"},
 		{Ptype: "p", V0: "role:product-engineer", V1: "state", V2: "tfstate:write", V3: `env == "dev"`, V4: "allow"},
@@ -102,6 +102,8 @@ func up_20251013140501(ctx context.Context, db *bun.DB) error {
 		{Ptype: "p", V0: "role:product-engineer", V1: "state", V2: "dependency:read", V3: `env == "dev"`, V4: "allow"},
 		{Ptype: "p", V0: "role:product-engineer", V1: "state", V2: "dependency:list", V3: `env == "dev"`, V4: "allow"},
 		{Ptype: "p", V0: "role:product-engineer", V1: "state", V2: "dependency:delete", V3: `env == "dev"`, V4: "allow"},
+		{Ptype: "p", V0: "role:product-engineer", V1: "state", V2: "state-output:list", V3: `env == "dev"`, V4: "allow"},
+		{Ptype: "p", V0: "role:product-engineer", V1: "state", V2: "state-output:read", V3: `env == "dev"`, V4: "allow"},
 		{Ptype: "p", V0: "role:product-engineer", V1: "policy", V2: "policy:read", V3: "", V4: "allow"},
 	}
 
