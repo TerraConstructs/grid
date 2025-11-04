@@ -20,7 +20,7 @@ type BunStateRepository struct {
 }
 
 // NewBunStateRepository constructs a repository backed by Bun.
-func NewBunStateRepository(db *bun.DB) *BunStateRepository {
+func NewBunStateRepository(db *bun.DB) StateRepository {
 	return &BunStateRepository{db: db}
 }
 

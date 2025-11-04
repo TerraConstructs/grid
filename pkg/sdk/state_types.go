@@ -139,6 +139,7 @@ type AddDependencyResult struct {
 type CreateStateInput struct {
 	GUID    string
 	LogicID string
+	Labels  LabelMap
 }
 
 // TopologyDirection indicates the traversal direction for topological ordering.
@@ -190,6 +191,101 @@ type UpdateStateLabelsResult struct {
 	Labels        LabelMap
 	PolicyVersion int32
 	UpdatedAt     time.Time
+}
+
+// CreateConstraint defines a constraint for a label key.
+type CreateConstraint struct {
+	AllowedValues []string
+	Required      bool
+}
+
+// CreateConstraints defines the constraints for creating a state.
+type CreateConstraints struct {
+	Constraints map[string]CreateConstraint
+}
+
+// GetEffectivePermissionsInput describes the parameters for GetEffectivePermissions.
+type GetEffectivePermissionsInput struct {
+	PrincipalType string
+	PrincipalID   string
+}
+
+// EffectivePermissions describes the effective permissions for a principal.
+type EffectivePermissions struct {
+	Roles                      []string
+	Actions                    []string
+	LabelScopeExprs            []string
+	EffectiveCreateConstraints *CreateConstraints
+	EffectiveImmutableKeys     []string
+}
+
+// GetEffectivePermissionsResult is the result of GetEffectivePermissions.
+type GetEffectivePermissionsResult struct {
+	Permissions *EffectivePermissions
+}
+
+// AssignGroupRoleInput describes the parameters for AssignGroupRole.
+type AssignGroupRoleInput struct {
+	GroupName string
+	RoleName  string
+}
+
+// AssignGroupRoleResult is the result of AssignGroupRole.
+type AssignGroupRoleResult struct {
+	Success    bool
+	AssignedAt time.Time
+}
+
+// RemoveGroupRoleInput describes the parameters for RemoveGroupRole.
+type RemoveGroupRoleInput struct {
+	GroupName string
+	RoleName  string
+}
+
+// RemoveGroupRoleResult is the result of RemoveGroupRole.
+type RemoveGroupRoleResult struct {
+	Success bool
+}
+
+// ListGroupRolesInput describes the parameters for ListGroupRoles.
+type ListGroupRolesInput struct {
+	GroupName string
+}
+
+// GroupRoleAssignmentInfo describes a group-to-role assignment.
+type GroupRoleAssignmentInfo struct {
+	GroupName        string
+	RoleName         string
+	AssignedAt       time.Time
+	AssignedByUserID string
+}
+
+// ListGroupRolesResult is the result of ListGroupRoles.
+type ListGroupRolesResult struct {
+	Assignments []GroupRoleAssignmentInfo
+}
+
+// ExportRolesInput describes the parameters for ExportRoles.
+type ExportRolesInput struct {
+	RoleNames []string
+}
+
+// ExportRolesResult is the result of ExportRoles.
+type ExportRolesResult struct {
+	RolesJSON string
+}
+
+// ImportRolesInput describes the parameters for ImportRoles.
+type ImportRolesInput struct {
+	RolesJSON string
+	Force     bool
+}
+
+// ImportRolesResult is the result of ImportRoles.
+type ImportRolesResult struct {
+	ImportedCount int
+	SkippedCount  int
+	Errors        []string
 }
 
 // helper conversions from proto messages ----------------------------------------------------
@@ -297,4 +393,18 @@ func outputKeysFromProto(pbs []*statev1.OutputKey) []OutputKey {
 		outputs = append(outputs, outputKeyFromProto(pb))
 	}
 	return outputs
+}
+
+func createConstraintsFromProto(pb *statev1.CreateConstraints) *CreateConstraints {
+	if pb == nil {
+		return nil
+	}
+	constraints := make(map[string]CreateConstraint)
+	for k, v := range pb.Constraints {
+		constraints[k] = CreateConstraint{
+			AllowedValues: v.AllowedValues,
+			Required:      v.Required,
+		}
+	}
+	return &CreateConstraints{Constraints: constraints}
 }

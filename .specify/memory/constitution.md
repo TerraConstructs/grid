@@ -116,9 +116,16 @@ Rules:
   - MUST document its API contract in `docs/terraform-backend.md`
   - MUST have integration tests validating Terraform/OpenTofu CLI compatibility
 
+- **OIDC Authentication Flow Helpers**: SDKs MAY provide helper functions for OIDC authentication flows (e.g., device code flow, browser-based login) that make direct HTTP calls to `/auth/*` endpoints instead of using Connect RPC. This exception applies to:
+  - **Go SDK** (`pkg/sdk/auth.go`): `LoginWithDeviceCode`, `LoginWithServiceAccount` functions
+  - **TypeScript SDK** (`js/sdk/auth.ts`): `initLogin`, `handleCallback`, `logout` functions
+  - **Terraform wrapper** (`pkg/sdk/terraform/`): Process spawning, token injection, and credential management (not a Connect RPC concern)
+  - **Justification**: OIDC protocol mandates specific HTTP redirect flows (authorization endpoint, callback URLs) that are incompatible with Connect RPC's request/response model. OAuth2 device authorization flow requires polling a token endpoint with specific error semantics (RFC 8628). These flows follow external protocol specifications (OIDC Core, OAuth2 RFC 6749) that cannot be mapped to protobuf/Connect RPC without losing protocol compliance.
+  - **Constraints**: Auth helper functions MUST be well-documented as exceptions, clearly separated from RPC-backed SDK functions, and MUST NOT implement business logic beyond protocol flow orchestration. Administrative auth operations (role management, permission introspection) MUST remain in Connect RPC.
+
 **Rationale**: Connect RPC combines protobuf's cross-language type safety with HTTP/2 and gRPC-Web compatibility. Autogeneration eliminates manual synchronization errors, ensures API parity by construction, and provides forward/backward compatibility guarantees through protobuf's versioning rules. This is far more reliable than manual SDK maintenance.
 
-The Terraform backend exception is justified because it serves an external tool (Terraform) with a pre-defined protocol specification, not custom application logic requiring SDKs.
+The Terraform backend exception is justified because it serves an external tool (Terraform) with a pre-defined protocol specification, not custom application logic requiring SDKs. The OIDC authentication exception is justified because standard authentication flows require specific HTTP redirect patterns and URL-based callbacks that cannot be expressed in Connect RPC while maintaining protocol compliance.
 
 ### V. Test Strategy
 
@@ -197,6 +204,16 @@ Complexity gates:
 - New dependency requires justification (maintenance burden, supply chain risk, bundle size)
 
 **Rationale**: Monorepos accumulate complexity faster than single projects. Defensive minimalism prevents premature abstraction and keeps the codebase navigable. Even with code generation, unnecessary RPC boundaries add latency and debugging complexity.
+
+### VIII. Service Exposure Discipline
+
+**All externally reachable services MUST traverse the shared authentication and authorization guards.**
+
+- Connect RPC routers MUST only be mounted through the HTTP stack in `cmd/gridapi/cmd/serve.go`, downstream of the canonical `authn` and `authz` middleware chain. Alternate muxes or ad-hoc servers require an approved architecture change.
+- Each RPC handler MUST enforce its own role and scope requirements (e.g., admin-only checks) in addition to the coarse HTTP guard. Omitting handler-level enforcement constitutes a bug.
+- Any non-Chi transport (gRPC gateway, direct HTTP proxy, tests that invoke handlers directly) MUST register equivalent authentication and authorization interceptors before dispatching to service code. Bypassing those guards is prohibited unless explicitly documented and accepted in a design review.
+
+**Rationale**: Prevents inadvertent exposure of privileged RPCs, ensures fine-grained authorization lives with the business logic, and keeps alternative transports from silently bypassing critical security middleware.
 
 ## Development Workflow
 

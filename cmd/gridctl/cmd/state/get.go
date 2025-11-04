@@ -2,6 +2,7 @@ package state
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -55,13 +56,15 @@ dependents, and outputs. Uses .grid context if no identifier is provided.`,
 			return err
 		}
 
-		// Create SDK client
-		client := sdk.NewClient(ServerURL)
-		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		gridClient, err := sdkClient(cobraCmd.Context())
+		if err != nil {
+			return err
+		}
+		ctx, cancel := context.WithTimeout(cobraCmd.Context(), 10*time.Second)
 		defer cancel()
 
 		// Call GetStateInfo for enhanced display
-		info, err := client.GetStateInfo(ctx, sdk.StateReference{
+		info, err := gridClient.GetStateInfo(ctx, sdk.StateReference{
 			LogicID: stateRef.LogicID,
 			GUID:    stateRef.GUID,
 		})
@@ -69,71 +72,14 @@ dependents, and outputs. Uses .grid context if no identifier is provided.`,
 			return fmt.Errorf("failed to get state info: %w", err)
 		}
 
-		// Print state header
-		fmt.Printf("State: %s (guid: %s)\n", info.State.LogicID, info.State.GUID)
-		fmt.Printf("Created: %s\n", info.CreatedAt.Format("2006-01-02 15:04:05"))
-		if !info.UpdatedAt.IsZero() {
-			fmt.Printf("Updated: %s\n", info.UpdatedAt.Format("2006-01-02 15:04:05"))
+		switch getFormat {
+		case "text":
+			printState(info)
+		case "json":
+			printStateJSON(info)
+		default:
+			return fmt.Errorf("invalid format: %s", getFormat)
 		}
-		fmt.Println()
-
-		fmt.Println("Labels:")
-		labels := info.Labels
-		if len(labels) == 0 {
-			fmt.Println("  (none)")
-		} else {
-			for _, label := range sdk.SortLabels(labels) {
-				fmt.Printf("  %s = %v\n", label.Key, label.Value)
-			}
-		}
-		fmt.Println()
-
-		// Print dependencies (incoming edges)
-		fmt.Println("Dependencies (consuming from):")
-		if len(info.Dependencies) == 0 {
-			fmt.Println("  (none)")
-		} else {
-			for _, dep := range info.Dependencies {
-				toInput := dep.ToInputName
-				if toInput == "" {
-					toInput = "(auto-generated)"
-				}
-				fmt.Printf("  %s.%s → %s\n", dep.From.LogicID, dep.FromOutput, toInput)
-			}
-		}
-		fmt.Println()
-
-		// Print dependents (outgoing edges)
-		fmt.Println("Dependents (consumed by):")
-		if len(info.Dependents) == 0 {
-			fmt.Println("  (none)")
-		} else {
-			for _, dep := range info.Dependents {
-				fmt.Printf("  %s (using %s)\n", dep.To.LogicID, dep.FromOutput)
-			}
-		}
-		fmt.Println()
-
-		// Print outputs
-		fmt.Println("Outputs:")
-		if len(info.Outputs) == 0 {
-			fmt.Println("  (none - no Terraform state uploaded yet)")
-		} else {
-			for _, out := range info.Outputs {
-				sensitive := ""
-				if out.Sensitive {
-					sensitive = " (⚠️  sensitive)"
-				}
-				fmt.Printf("  %s%s\n", out.Key, sensitive)
-			}
-		}
-		fmt.Println()
-
-		// Print backend config
-		fmt.Println("Terraform HTTP Backend endpoints:")
-		fmt.Printf("  Address: %s\n", info.BackendConfig.Address)
-		fmt.Printf("  Lock:    %s\n", info.BackendConfig.LockAddress)
-		fmt.Printf("  Unlock:  %s\n", info.BackendConfig.UnlockAddress)
 
 		// Handle --link flag: write .grid file
 		if getLink {
@@ -200,5 +146,133 @@ func init() {
 	getCmd.Flags().BoolVar(&getLink, "link", false, "Write (or rewrite) .grid file to link directory to this state")
 	getCmd.Flags().BoolVar(&getForce, "force", false, "Overwrite existing .grid file (used with --link)")
 	getCmd.Flags().StringVar(&getPath, "path", ".", "Directory path to write .grid file (used with --link)")
-	getCmd.Flags().StringVar(&getFormat, "format", "json", "Output format (json|yaml) - not yet implemented")
+	getCmd.Flags().StringVar(&getFormat, "format", "text", "Output format (text|json)")
+}
+
+func printState(info *sdk.StateInfo) {
+	// Print state header
+	fmt.Printf("State: %s (guid: %s)\n", info.State.LogicID, info.State.GUID)
+	fmt.Printf("Created: %s\n", info.CreatedAt.Format("2006-01-02 15:04:05"))
+	if !info.UpdatedAt.IsZero() {
+		fmt.Printf("Updated: %s\n", info.UpdatedAt.Format("2006-01-02 15:04:05"))
+	}
+	fmt.Println()
+
+	fmt.Println("Labels:")
+	labels := info.Labels
+	if len(labels) == 0 {
+		fmt.Println("  (none)")
+	} else {
+		for _, label := range sdk.SortLabels(labels) {
+			fmt.Printf("  %s = %v\n", label.Key, label.Value)
+		}
+	}
+	fmt.Println()
+
+	// Print dependencies (incoming edges)
+	fmt.Println("Dependencies (consuming from):")
+	if len(info.Dependencies) == 0 {
+		fmt.Println("  (none)")
+	} else {
+		for _, dep := range info.Dependencies {
+			toInput := dep.ToInputName
+			if toInput == "" {
+				toInput = "(auto-generated)"
+			}
+			fmt.Printf("  %s.%s → %s\n", dep.From.LogicID, dep.FromOutput, toInput)
+		}
+	}
+	fmt.Println()
+
+	// Print dependents (outgoing edges)
+	fmt.Println("Dependents (consumed by):")
+	if len(info.Dependents) == 0 {
+		fmt.Println("  (none)")
+	} else {
+		for _, dep := range info.Dependents {
+			fmt.Printf("  %s (using %s)\n", dep.To.LogicID, dep.FromOutput)
+		}
+	}
+	fmt.Println()
+
+	// Print outputs
+	fmt.Println("Outputs:")
+	if len(info.Outputs) == 0 {
+		fmt.Println("  (none - no Terraform state uploaded yet)")
+	} else {
+		for _, out := range info.Outputs {
+			sensitive := ""
+			if out.Sensitive {
+				sensitive = " (⚠️  sensitive)"
+			}
+			fmt.Printf("  %s%s\n", out.Key, sensitive)
+		}
+	}
+	fmt.Println()
+
+	// Print backend config
+	fmt.Println("Terraform HTTP Backend endpoints:")
+	fmt.Printf("  Address: %s\n", info.BackendConfig.Address)
+	fmt.Printf("  Lock:    %s\n", info.BackendConfig.LockAddress)
+	fmt.Printf("  Unlock:  %s\n", info.BackendConfig.UnlockAddress)
+}
+
+func printStateJSON(info *sdk.StateInfo) {
+	object := make(map[string]any)
+	// Metadata
+	object["logic_id"] = info.State.LogicID
+	object["guid"] = info.State.GUID
+	object["created_at"] = info.CreatedAt.Format(time.RFC3339)
+	if !info.UpdatedAt.IsZero() {
+		object["updated_at"] = info.UpdatedAt.Format(time.RFC3339)
+	}
+	object["labels"] = sdk.SortLabels(info.Labels)
+	// Dependencies
+	dependencies := []map[string]any{}
+	for _, dep := range info.Dependencies {
+		toInput := dep.ToInputName
+		if toInput == "" {
+			toInput = "(auto-generated)"
+		}
+		dependencies = append(dependencies, map[string]any{
+			"edge_id":       dep.ID,
+			"from_logic_id": dep.From.LogicID,
+			"from_output":   dep.FromOutput,
+			"to_input":      toInput,
+		})
+	}
+	object["dependencies"] = dependencies
+	// Dependents
+	dependents := []map[string]string{}
+	for _, dep := range info.Dependents {
+		dependents = append(dependents, map[string]string{
+			"to_logic_id": dep.To.LogicID,
+			"from_output": dep.FromOutput,
+		})
+	}
+	object["dependents"] = dependents
+	// Outputs
+	outputs := []map[string]any{}
+	for _, out := range info.Outputs {
+		outputs = append(outputs, map[string]any{
+			"key":       out.Key,
+			"sensitive": out.Sensitive,
+		})
+	}
+	object["outputs"] = outputs
+	// Backend config
+	backendConfig := map[string]string{
+		"address":        info.BackendConfig.Address,
+		"lock_address":   info.BackendConfig.LockAddress,
+		"unlock_address": info.BackendConfig.UnlockAddress,
+	}
+	object["backend_config"] = backendConfig
+
+	// Marshal to JSON
+	data, err := json.MarshalIndent(object, "", "  ")
+	if err != nil {
+		pterm.Error.Printf("Failed to marshal state info to JSON: %v\n", err)
+		return
+	}
+	fmt.Println(string(data))
 }

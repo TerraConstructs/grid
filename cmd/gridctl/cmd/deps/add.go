@@ -55,15 +55,18 @@ If --to is not specified, the .grid context will be used (if available).`,
 			}
 		}
 
-		client := sdk.NewClient(ServerURL)
-		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		gridClient, err := sdkClient(cobraCmd.Context())
+		if err != nil {
+			return err
+		}
+		ctx, cancel := context.WithTimeout(cobraCmd.Context(), 30*time.Second)
 		defer cancel()
 
 		// If --output not provided, fetch outputs and prompt interactively
 		outputKeys := []string{fromOutput}
 		if fromOutput == "" {
 			// Fetch outputs from from-state
-			outputs, err := client.ListStateOutputs(ctx, sdk.StateReference{LogicID: fromLogicID})
+			outputs, err := gridClient.ListStateOutputs(ctx, sdk.StateReference{LogicID: fromLogicID})
 			if err != nil {
 				return fmt.Errorf("failed to list outputs from state %s: %w", fromLogicID, err)
 			}
@@ -79,7 +82,7 @@ If --to is not specified, the .grid context will be used (if available).`,
 
 		// Create dependency for each selected output
 		for _, outputKey := range outputKeys {
-			result, err := client.AddDependency(ctx, sdk.AddDependencyInput{
+			result, err := gridClient.AddDependency(ctx, sdk.AddDependencyInput{
 				From:          sdk.StateReference{LogicID: fromLogicID},
 				FromOutput:    outputKey,
 				To:            sdk.StateReference{LogicID: toLogicID},

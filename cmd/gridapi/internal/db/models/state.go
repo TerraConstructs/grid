@@ -60,13 +60,14 @@ type State struct {
 
 // LockInfo captures Terraform lock metadata stored with the state.
 type LockInfo struct {
-	ID        string    `json:"ID"`
-	Operation string    `json:"Operation"`
-	Info      string    `json:"Info"`
-	Who       string    `json:"Who"`
-	Version   string    `json:"Version"`
-	Created   time.Time `json:"Created"`
-	Path      string    `json:"Path"`
+	ID               string    `json:"ID"`
+	Operation        string    `json:"Operation"`
+	Info             string    `json:"Info"`
+	Who              string    `json:"Who"`
+	Version          string    `json:"Version"`
+	Created          time.Time `json:"Created"`
+	Path             string    `json:"Path"`
+	OwnerPrincipalID string    `json:"owner_principal_id,omitempty"`
 }
 
 // ValidateForCreate verifies the record is well formed before insertion.

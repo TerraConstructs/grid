@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"strings"
 
 	"connectrpc.com/connect"
 	"github.com/google/uuid"
@@ -76,9 +77,18 @@ func (c *Client) CreateState(ctx context.Context, input CreateStateInput) (*Stat
 		guid = uuid.NewString()
 	}
 
+	// Convert LabelMap (map[string]any) to proto labels (map[string]string)
+	protoLabels := make(map[string]string)
+	for k, v := range input.Labels {
+		if strVal, ok := v.(string); ok {
+			protoLabels[k] = strVal
+		}
+	}
+
 	req := connect.NewRequest(&statev1.CreateStateRequest{
 		Guid:    guid,
 		LogicId: input.LogicID,
+		Labels:  protoLabels,
 	})
 
 	resp, err := c.rpc.CreateState(ctx, req)
@@ -320,3 +330,140 @@ func (c *Client) GetStateInfo(ctx context.Context, ref StateReference) (*StateIn
 
 	return stateInfo, nil
 }
+
+// GetEffectivePermissions retrieves the effective permissions for a principal.
+// The principal can be identified by prefixing the ID ("user:alice", "sa:deployer")
+// or by explicitly setting PrincipalType. Valid types: "user", "service_account".
+func (c *Client) GetEffectivePermissions(ctx context.Context, input GetEffectivePermissionsInput) (*GetEffectivePermissionsResult, error) {
+	var principalId string
+	var principalType string
+	var hasPrefix bool
+
+	if principalId, hasPrefix = strings.CutPrefix(input.PrincipalID, "sa:"); hasPrefix {
+		principalType = "service_account"
+	} else if principalId, hasPrefix = strings.CutPrefix(input.PrincipalID, "user:"); hasPrefix {
+		principalType = "user"
+	} else {
+		principalId = input.PrincipalID
+	}
+
+	if !hasPrefix {
+		if input.PrincipalType == "" {
+			return nil, fmt.Errorf("principal ID must be prefixed with 'user:' or 'sa:', or principal type must be specified")
+		}
+		principalType = input.PrincipalType
+	}
+
+	// Validate consistency if both prefix and explicit type provided
+	if hasPrefix && input.PrincipalType != "" && input.PrincipalType != principalType {
+		return nil, fmt.Errorf("principal ID prefix '%s:' does not match specified principal type '%s'", principalType, input.PrincipalType)
+	}
+
+	req := connect.NewRequest(&statev1.GetEffectivePermissionsRequest{
+		PrincipalType: principalType,
+		PrincipalId:   principalId,
+	})
+
+	resp, err := c.rpc.GetEffectivePermissions(ctx, req)
+	if err != nil {
+		return nil, err
+	}
+
+	return &GetEffectivePermissionsResult{
+		Permissions: &EffectivePermissions{
+			Roles:                      resp.Msg.Permissions.Roles,
+			Actions:                    resp.Msg.Permissions.Actions,
+			LabelScopeExprs:            resp.Msg.Permissions.LabelScopeExprs,
+			EffectiveCreateConstraints: createConstraintsFromProto(resp.Msg.Permissions.EffectiveCreateConstraints),
+			EffectiveImmutableKeys:     resp.Msg.Permissions.EffectiveImmutableKeys,
+		},
+	}, nil
+}
+
+// AssignGroupRole assigns a group to a role.
+func (c *Client) AssignGroupRole(ctx context.Context, input AssignGroupRoleInput) (*AssignGroupRoleResult, error) {
+	req := connect.NewRequest(&statev1.AssignGroupRoleRequest{
+		GroupName: input.GroupName,
+		RoleName:  input.RoleName,
+	})
+
+	resp, err := c.rpc.AssignGroupRole(ctx, req)
+	if err != nil {
+		return nil, err
+	}
+
+	return &AssignGroupRoleResult{
+		Success:    resp.Msg.Success,
+		AssignedAt: resp.Msg.AssignedAt.AsTime(),
+	}, nil
+}
+
+// RemoveGroupRole removes a group from a role.
+func (c *Client) RemoveGroupRole(ctx context.Context, input RemoveGroupRoleInput) (*RemoveGroupRoleResult, error) {
+	req := connect.NewRequest(&statev1.RemoveGroupRoleRequest{
+		GroupName: input.GroupName,
+		RoleName:  input.RoleName,
+	})
+
+	resp, err := c.rpc.RemoveGroupRole(ctx, req)
+	if err != nil {
+		return nil, err
+	}
+
+	return &RemoveGroupRoleResult{
+		Success: resp.Msg.Success,
+	}, nil
+}
+
+// ListGroupRoles lists group-to-role assignments.
+
+func (c *Client) ListGroupRoles(ctx context.Context, input ListGroupRolesInput) (*ListGroupRolesResult, error) {
+
+	return nil, fmt.Errorf("not implemented")
+
+}
+
+// ExportRoles exports roles to a JSON string.
+func (c *Client) ExportRoles(ctx context.Context, input ExportRolesInput) (*ExportRolesResult, error) {
+	return nil, fmt.Errorf("not implemented")
+}
+
+// // ExportRoles exports roles to a JSON string.
+// func (c *Client) ExportRoles(ctx context.Context, input ExportRolesInput) (*ExportRolesResult, error) {
+// 	req := connect.NewRequest(&statev1.ExportRolesRequest{
+// 		RoleNames: input.RoleNames,
+// 	})
+
+// 	resp, err := c.rpc.ExportRoles(ctx, req)
+// 	if err != nil {
+// 		return nil, err
+// 	}
+
+// 	return &ExportRolesResult{
+// 		RolesJSON: resp.Msg.RolesJson,
+// 	}, nil
+// }
+
+// ImportRoles imports roles from a JSON string.
+func (c *Client) ImportRoles(ctx context.Context, input ImportRolesInput) (*ImportRolesResult, error) {
+	return nil, fmt.Errorf("not implemented")
+}
+
+// // ImportRoles imports roles from a JSON string.
+// func (c *Client) ImportRoles(ctx context.Context, input ImportRolesInput) (*ImportRolesResult, error) {
+// 	req := connect.NewRequest(&statev1.ImportRolesRequest{
+// 		RolesJson: input.RolesJSON,
+// 		Force:     input.Force,
+// 	})
+
+// 	resp, err := c.rpc.ImportRoles(ctx, req)
+// 	if err != nil {
+// 		return nil, err
+// 	}
+
+// 	return &ImportRolesResult{
+// 		ImportedCount: int(resp.Msg.ImportedCount),
+// 		SkippedCount:  int(resp.Msg.SkippedCount),
+// 		Errors:        resp.Msg.Errors,
+// 	}, nil
+// }

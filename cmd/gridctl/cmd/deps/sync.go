@@ -50,11 +50,14 @@ If --state is not specified, the .grid context will be used (if available).`,
 			}
 		}
 
-		client := sdk.NewClient(ServerURL)
-		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		gridClient, err := sdkClient(cobraCmd.Context())
+		if err != nil {
+			return err
+		}
+		ctx, cancel := context.WithTimeout(cobraCmd.Context(), 10*time.Second)
 		defer cancel()
 
-		graph, err := client.GetDependencyGraph(ctx, sdk.StateReference{LogicID: logicID})
+		graph, err := gridClient.GetDependencyGraph(ctx, sdk.StateReference{LogicID: logicID})
 		if err != nil {
 			return fmt.Errorf("failed to get dependency graph: %w", err)
 		}

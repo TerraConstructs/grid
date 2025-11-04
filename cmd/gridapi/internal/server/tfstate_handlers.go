@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/terraconstructs/grid/cmd/gridapi/internal/auth"
 	"github.com/terraconstructs/grid/cmd/gridapi/internal/db/models"
 	statepkg "github.com/terraconstructs/grid/cmd/gridapi/internal/state"
 )
@@ -170,6 +171,16 @@ func (h *TerraformHandlers) LockState(w http.ResponseWriter, r *http.Request) {
 	// Set created timestamp if not provided
 	if lockInfo.Created.IsZero() {
 		lockInfo.Created = time.Now()
+	}
+
+	// Augment lock info with server-verified principal ID
+	principal, ok := auth.GetUserFromContext(r.Context())
+	if ok {
+		// Auth enabled: augment lock with owner for lock-aware authorization
+		lockInfo.OwnerPrincipalID = principal.PrincipalID
+	} else {
+		// Auth disabled: track as anonymous
+		lockInfo.OwnerPrincipalID = "anonymous"
 	}
 
 	// Attempt to acquire lock via service

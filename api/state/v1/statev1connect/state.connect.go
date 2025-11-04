@@ -89,6 +89,51 @@ const (
 	// StateServiceSetLabelPolicyProcedure is the fully-qualified name of the StateService's
 	// SetLabelPolicy RPC.
 	StateServiceSetLabelPolicyProcedure = "/state.v1.StateService/SetLabelPolicy"
+	// StateServiceCreateServiceAccountProcedure is the fully-qualified name of the StateService's
+	// CreateServiceAccount RPC.
+	StateServiceCreateServiceAccountProcedure = "/state.v1.StateService/CreateServiceAccount"
+	// StateServiceListServiceAccountsProcedure is the fully-qualified name of the StateService's
+	// ListServiceAccounts RPC.
+	StateServiceListServiceAccountsProcedure = "/state.v1.StateService/ListServiceAccounts"
+	// StateServiceRevokeServiceAccountProcedure is the fully-qualified name of the StateService's
+	// RevokeServiceAccount RPC.
+	StateServiceRevokeServiceAccountProcedure = "/state.v1.StateService/RevokeServiceAccount"
+	// StateServiceRotateServiceAccountProcedure is the fully-qualified name of the StateService's
+	// RotateServiceAccount RPC.
+	StateServiceRotateServiceAccountProcedure = "/state.v1.StateService/RotateServiceAccount"
+	// StateServiceCreateRoleProcedure is the fully-qualified name of the StateService's CreateRole RPC.
+	StateServiceCreateRoleProcedure = "/state.v1.StateService/CreateRole"
+	// StateServiceListRolesProcedure is the fully-qualified name of the StateService's ListRoles RPC.
+	StateServiceListRolesProcedure = "/state.v1.StateService/ListRoles"
+	// StateServiceUpdateRoleProcedure is the fully-qualified name of the StateService's UpdateRole RPC.
+	StateServiceUpdateRoleProcedure = "/state.v1.StateService/UpdateRole"
+	// StateServiceDeleteRoleProcedure is the fully-qualified name of the StateService's DeleteRole RPC.
+	StateServiceDeleteRoleProcedure = "/state.v1.StateService/DeleteRole"
+	// StateServiceAssignRoleProcedure is the fully-qualified name of the StateService's AssignRole RPC.
+	StateServiceAssignRoleProcedure = "/state.v1.StateService/AssignRole"
+	// StateServiceRemoveRoleProcedure is the fully-qualified name of the StateService's RemoveRole RPC.
+	StateServiceRemoveRoleProcedure = "/state.v1.StateService/RemoveRole"
+	// StateServiceListUserRolesProcedure is the fully-qualified name of the StateService's
+	// ListUserRoles RPC.
+	StateServiceListUserRolesProcedure = "/state.v1.StateService/ListUserRoles"
+	// StateServiceAssignGroupRoleProcedure is the fully-qualified name of the StateService's
+	// AssignGroupRole RPC.
+	StateServiceAssignGroupRoleProcedure = "/state.v1.StateService/AssignGroupRole"
+	// StateServiceRemoveGroupRoleProcedure is the fully-qualified name of the StateService's
+	// RemoveGroupRole RPC.
+	StateServiceRemoveGroupRoleProcedure = "/state.v1.StateService/RemoveGroupRole"
+	// StateServiceListGroupRolesProcedure is the fully-qualified name of the StateService's
+	// ListGroupRoles RPC.
+	StateServiceListGroupRolesProcedure = "/state.v1.StateService/ListGroupRoles"
+	// StateServiceGetEffectivePermissionsProcedure is the fully-qualified name of the StateService's
+	// GetEffectivePermissions RPC.
+	StateServiceGetEffectivePermissionsProcedure = "/state.v1.StateService/GetEffectivePermissions"
+	// StateServiceListSessionsProcedure is the fully-qualified name of the StateService's ListSessions
+	// RPC.
+	StateServiceListSessionsProcedure = "/state.v1.StateService/ListSessions"
+	// StateServiceRevokeSessionProcedure is the fully-qualified name of the StateService's
+	// RevokeSession RPC.
+	StateServiceRevokeSessionProcedure = "/state.v1.StateService/RevokeSession"
 )
 
 // StateServiceClient is a client for the state.v1.StateService service.
@@ -143,6 +188,29 @@ type StateServiceClient interface {
 	GetLabelPolicy(context.Context, *connect.Request[v1.GetLabelPolicyRequest]) (*connect.Response[v1.GetLabelPolicyResponse], error)
 	// SetLabelPolicy updates the label validation policy with version increment.
 	SetLabelPolicy(context.Context, *connect.Request[v1.SetLabelPolicyRequest]) (*connect.Response[v1.SetLabelPolicyResponse], error)
+	// Service Account Management
+	CreateServiceAccount(context.Context, *connect.Request[v1.CreateServiceAccountRequest]) (*connect.Response[v1.CreateServiceAccountResponse], error)
+	ListServiceAccounts(context.Context, *connect.Request[v1.ListServiceAccountsRequest]) (*connect.Response[v1.ListServiceAccountsResponse], error)
+	RevokeServiceAccount(context.Context, *connect.Request[v1.RevokeServiceAccountRequest]) (*connect.Response[v1.RevokeServiceAccountResponse], error)
+	RotateServiceAccount(context.Context, *connect.Request[v1.RotateServiceAccountRequest]) (*connect.Response[v1.RotateServiceAccountResponse], error)
+	// Role Management
+	CreateRole(context.Context, *connect.Request[v1.CreateRoleRequest]) (*connect.Response[v1.CreateRoleResponse], error)
+	ListRoles(context.Context, *connect.Request[v1.ListRolesRequest]) (*connect.Response[v1.ListRolesResponse], error)
+	UpdateRole(context.Context, *connect.Request[v1.UpdateRoleRequest]) (*connect.Response[v1.UpdateRoleResponse], error)
+	DeleteRole(context.Context, *connect.Request[v1.DeleteRoleRequest]) (*connect.Response[v1.DeleteRoleResponse], error)
+	// Role Assignment (User/Service Account)
+	AssignRole(context.Context, *connect.Request[v1.AssignRoleRequest]) (*connect.Response[v1.AssignRoleResponse], error)
+	RemoveRole(context.Context, *connect.Request[v1.RemoveRoleRequest]) (*connect.Response[v1.RemoveRoleResponse], error)
+	ListUserRoles(context.Context, *connect.Request[v1.ListUserRolesRequest]) (*connect.Response[v1.ListUserRolesResponse], error)
+	// Group-to-Role Management
+	AssignGroupRole(context.Context, *connect.Request[v1.AssignGroupRoleRequest]) (*connect.Response[v1.AssignGroupRoleResponse], error)
+	RemoveGroupRole(context.Context, *connect.Request[v1.RemoveGroupRoleRequest]) (*connect.Response[v1.RemoveGroupRoleResponse], error)
+	ListGroupRoles(context.Context, *connect.Request[v1.ListGroupRolesRequest]) (*connect.Response[v1.ListGroupRolesResponse], error)
+	// Permission Introspection
+	GetEffectivePermissions(context.Context, *connect.Request[v1.GetEffectivePermissionsRequest]) (*connect.Response[v1.GetEffectivePermissionsResponse], error)
+	// Session Management
+	ListSessions(context.Context, *connect.Request[v1.ListSessionsRequest]) (*connect.Response[v1.ListSessionsResponse], error)
+	RevokeSession(context.Context, *connect.Request[v1.RevokeSessionRequest]) (*connect.Response[v1.RevokeSessionResponse], error)
 }
 
 // NewStateServiceClient constructs a client for the state.v1.StateService service. By default, it
@@ -270,30 +338,149 @@ func NewStateServiceClient(httpClient connect.HTTPClient, baseURL string, opts .
 			connect.WithSchema(stateServiceMethods.ByName("SetLabelPolicy")),
 			connect.WithClientOptions(opts...),
 		),
+		createServiceAccount: connect.NewClient[v1.CreateServiceAccountRequest, v1.CreateServiceAccountResponse](
+			httpClient,
+			baseURL+StateServiceCreateServiceAccountProcedure,
+			connect.WithSchema(stateServiceMethods.ByName("CreateServiceAccount")),
+			connect.WithClientOptions(opts...),
+		),
+		listServiceAccounts: connect.NewClient[v1.ListServiceAccountsRequest, v1.ListServiceAccountsResponse](
+			httpClient,
+			baseURL+StateServiceListServiceAccountsProcedure,
+			connect.WithSchema(stateServiceMethods.ByName("ListServiceAccounts")),
+			connect.WithClientOptions(opts...),
+		),
+		revokeServiceAccount: connect.NewClient[v1.RevokeServiceAccountRequest, v1.RevokeServiceAccountResponse](
+			httpClient,
+			baseURL+StateServiceRevokeServiceAccountProcedure,
+			connect.WithSchema(stateServiceMethods.ByName("RevokeServiceAccount")),
+			connect.WithClientOptions(opts...),
+		),
+		rotateServiceAccount: connect.NewClient[v1.RotateServiceAccountRequest, v1.RotateServiceAccountResponse](
+			httpClient,
+			baseURL+StateServiceRotateServiceAccountProcedure,
+			connect.WithSchema(stateServiceMethods.ByName("RotateServiceAccount")),
+			connect.WithClientOptions(opts...),
+		),
+		createRole: connect.NewClient[v1.CreateRoleRequest, v1.CreateRoleResponse](
+			httpClient,
+			baseURL+StateServiceCreateRoleProcedure,
+			connect.WithSchema(stateServiceMethods.ByName("CreateRole")),
+			connect.WithClientOptions(opts...),
+		),
+		listRoles: connect.NewClient[v1.ListRolesRequest, v1.ListRolesResponse](
+			httpClient,
+			baseURL+StateServiceListRolesProcedure,
+			connect.WithSchema(stateServiceMethods.ByName("ListRoles")),
+			connect.WithClientOptions(opts...),
+		),
+		updateRole: connect.NewClient[v1.UpdateRoleRequest, v1.UpdateRoleResponse](
+			httpClient,
+			baseURL+StateServiceUpdateRoleProcedure,
+			connect.WithSchema(stateServiceMethods.ByName("UpdateRole")),
+			connect.WithClientOptions(opts...),
+		),
+		deleteRole: connect.NewClient[v1.DeleteRoleRequest, v1.DeleteRoleResponse](
+			httpClient,
+			baseURL+StateServiceDeleteRoleProcedure,
+			connect.WithSchema(stateServiceMethods.ByName("DeleteRole")),
+			connect.WithClientOptions(opts...),
+		),
+		assignRole: connect.NewClient[v1.AssignRoleRequest, v1.AssignRoleResponse](
+			httpClient,
+			baseURL+StateServiceAssignRoleProcedure,
+			connect.WithSchema(stateServiceMethods.ByName("AssignRole")),
+			connect.WithClientOptions(opts...),
+		),
+		removeRole: connect.NewClient[v1.RemoveRoleRequest, v1.RemoveRoleResponse](
+			httpClient,
+			baseURL+StateServiceRemoveRoleProcedure,
+			connect.WithSchema(stateServiceMethods.ByName("RemoveRole")),
+			connect.WithClientOptions(opts...),
+		),
+		listUserRoles: connect.NewClient[v1.ListUserRolesRequest, v1.ListUserRolesResponse](
+			httpClient,
+			baseURL+StateServiceListUserRolesProcedure,
+			connect.WithSchema(stateServiceMethods.ByName("ListUserRoles")),
+			connect.WithClientOptions(opts...),
+		),
+		assignGroupRole: connect.NewClient[v1.AssignGroupRoleRequest, v1.AssignGroupRoleResponse](
+			httpClient,
+			baseURL+StateServiceAssignGroupRoleProcedure,
+			connect.WithSchema(stateServiceMethods.ByName("AssignGroupRole")),
+			connect.WithClientOptions(opts...),
+		),
+		removeGroupRole: connect.NewClient[v1.RemoveGroupRoleRequest, v1.RemoveGroupRoleResponse](
+			httpClient,
+			baseURL+StateServiceRemoveGroupRoleProcedure,
+			connect.WithSchema(stateServiceMethods.ByName("RemoveGroupRole")),
+			connect.WithClientOptions(opts...),
+		),
+		listGroupRoles: connect.NewClient[v1.ListGroupRolesRequest, v1.ListGroupRolesResponse](
+			httpClient,
+			baseURL+StateServiceListGroupRolesProcedure,
+			connect.WithSchema(stateServiceMethods.ByName("ListGroupRoles")),
+			connect.WithClientOptions(opts...),
+		),
+		getEffectivePermissions: connect.NewClient[v1.GetEffectivePermissionsRequest, v1.GetEffectivePermissionsResponse](
+			httpClient,
+			baseURL+StateServiceGetEffectivePermissionsProcedure,
+			connect.WithSchema(stateServiceMethods.ByName("GetEffectivePermissions")),
+			connect.WithClientOptions(opts...),
+		),
+		listSessions: connect.NewClient[v1.ListSessionsRequest, v1.ListSessionsResponse](
+			httpClient,
+			baseURL+StateServiceListSessionsProcedure,
+			connect.WithSchema(stateServiceMethods.ByName("ListSessions")),
+			connect.WithClientOptions(opts...),
+		),
+		revokeSession: connect.NewClient[v1.RevokeSessionRequest, v1.RevokeSessionResponse](
+			httpClient,
+			baseURL+StateServiceRevokeSessionProcedure,
+			connect.WithSchema(stateServiceMethods.ByName("RevokeSession")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
 // stateServiceClient implements StateServiceClient.
 type stateServiceClient struct {
-	createState         *connect.Client[v1.CreateStateRequest, v1.CreateStateResponse]
-	listStates          *connect.Client[v1.ListStatesRequest, v1.ListStatesResponse]
-	getStateConfig      *connect.Client[v1.GetStateConfigRequest, v1.GetStateConfigResponse]
-	getStateLock        *connect.Client[v1.GetStateLockRequest, v1.GetStateLockResponse]
-	unlockState         *connect.Client[v1.UnlockStateRequest, v1.UnlockStateResponse]
-	addDependency       *connect.Client[v1.AddDependencyRequest, v1.AddDependencyResponse]
-	removeDependency    *connect.Client[v1.RemoveDependencyRequest, v1.RemoveDependencyResponse]
-	listDependencies    *connect.Client[v1.ListDependenciesRequest, v1.ListDependenciesResponse]
-	listDependents      *connect.Client[v1.ListDependentsRequest, v1.ListDependentsResponse]
-	searchByOutput      *connect.Client[v1.SearchByOutputRequest, v1.SearchByOutputResponse]
-	getTopologicalOrder *connect.Client[v1.GetTopologicalOrderRequest, v1.GetTopologicalOrderResponse]
-	getStateStatus      *connect.Client[v1.GetStateStatusRequest, v1.GetStateStatusResponse]
-	getDependencyGraph  *connect.Client[v1.GetDependencyGraphRequest, v1.GetDependencyGraphResponse]
-	listStateOutputs    *connect.Client[v1.ListStateOutputsRequest, v1.ListStateOutputsResponse]
-	getStateInfo        *connect.Client[v1.GetStateInfoRequest, v1.GetStateInfoResponse]
-	listAllEdges        *connect.Client[v1.ListAllEdgesRequest, v1.ListAllEdgesResponse]
-	updateStateLabels   *connect.Client[v1.UpdateStateLabelsRequest, v1.UpdateStateLabelsResponse]
-	getLabelPolicy      *connect.Client[v1.GetLabelPolicyRequest, v1.GetLabelPolicyResponse]
-	setLabelPolicy      *connect.Client[v1.SetLabelPolicyRequest, v1.SetLabelPolicyResponse]
+	createState             *connect.Client[v1.CreateStateRequest, v1.CreateStateResponse]
+	listStates              *connect.Client[v1.ListStatesRequest, v1.ListStatesResponse]
+	getStateConfig          *connect.Client[v1.GetStateConfigRequest, v1.GetStateConfigResponse]
+	getStateLock            *connect.Client[v1.GetStateLockRequest, v1.GetStateLockResponse]
+	unlockState             *connect.Client[v1.UnlockStateRequest, v1.UnlockStateResponse]
+	addDependency           *connect.Client[v1.AddDependencyRequest, v1.AddDependencyResponse]
+	removeDependency        *connect.Client[v1.RemoveDependencyRequest, v1.RemoveDependencyResponse]
+	listDependencies        *connect.Client[v1.ListDependenciesRequest, v1.ListDependenciesResponse]
+	listDependents          *connect.Client[v1.ListDependentsRequest, v1.ListDependentsResponse]
+	searchByOutput          *connect.Client[v1.SearchByOutputRequest, v1.SearchByOutputResponse]
+	getTopologicalOrder     *connect.Client[v1.GetTopologicalOrderRequest, v1.GetTopologicalOrderResponse]
+	getStateStatus          *connect.Client[v1.GetStateStatusRequest, v1.GetStateStatusResponse]
+	getDependencyGraph      *connect.Client[v1.GetDependencyGraphRequest, v1.GetDependencyGraphResponse]
+	listStateOutputs        *connect.Client[v1.ListStateOutputsRequest, v1.ListStateOutputsResponse]
+	getStateInfo            *connect.Client[v1.GetStateInfoRequest, v1.GetStateInfoResponse]
+	listAllEdges            *connect.Client[v1.ListAllEdgesRequest, v1.ListAllEdgesResponse]
+	updateStateLabels       *connect.Client[v1.UpdateStateLabelsRequest, v1.UpdateStateLabelsResponse]
+	getLabelPolicy          *connect.Client[v1.GetLabelPolicyRequest, v1.GetLabelPolicyResponse]
+	setLabelPolicy          *connect.Client[v1.SetLabelPolicyRequest, v1.SetLabelPolicyResponse]
+	createServiceAccount    *connect.Client[v1.CreateServiceAccountRequest, v1.CreateServiceAccountResponse]
+	listServiceAccounts     *connect.Client[v1.ListServiceAccountsRequest, v1.ListServiceAccountsResponse]
+	revokeServiceAccount    *connect.Client[v1.RevokeServiceAccountRequest, v1.RevokeServiceAccountResponse]
+	rotateServiceAccount    *connect.Client[v1.RotateServiceAccountRequest, v1.RotateServiceAccountResponse]
+	createRole              *connect.Client[v1.CreateRoleRequest, v1.CreateRoleResponse]
+	listRoles               *connect.Client[v1.ListRolesRequest, v1.ListRolesResponse]
+	updateRole              *connect.Client[v1.UpdateRoleRequest, v1.UpdateRoleResponse]
+	deleteRole              *connect.Client[v1.DeleteRoleRequest, v1.DeleteRoleResponse]
+	assignRole              *connect.Client[v1.AssignRoleRequest, v1.AssignRoleResponse]
+	removeRole              *connect.Client[v1.RemoveRoleRequest, v1.RemoveRoleResponse]
+	listUserRoles           *connect.Client[v1.ListUserRolesRequest, v1.ListUserRolesResponse]
+	assignGroupRole         *connect.Client[v1.AssignGroupRoleRequest, v1.AssignGroupRoleResponse]
+	removeGroupRole         *connect.Client[v1.RemoveGroupRoleRequest, v1.RemoveGroupRoleResponse]
+	listGroupRoles          *connect.Client[v1.ListGroupRolesRequest, v1.ListGroupRolesResponse]
+	getEffectivePermissions *connect.Client[v1.GetEffectivePermissionsRequest, v1.GetEffectivePermissionsResponse]
+	listSessions            *connect.Client[v1.ListSessionsRequest, v1.ListSessionsResponse]
+	revokeSession           *connect.Client[v1.RevokeSessionRequest, v1.RevokeSessionResponse]
 }
 
 // CreateState calls state.v1.StateService.CreateState.
@@ -391,6 +578,91 @@ func (c *stateServiceClient) SetLabelPolicy(ctx context.Context, req *connect.Re
 	return c.setLabelPolicy.CallUnary(ctx, req)
 }
 
+// CreateServiceAccount calls state.v1.StateService.CreateServiceAccount.
+func (c *stateServiceClient) CreateServiceAccount(ctx context.Context, req *connect.Request[v1.CreateServiceAccountRequest]) (*connect.Response[v1.CreateServiceAccountResponse], error) {
+	return c.createServiceAccount.CallUnary(ctx, req)
+}
+
+// ListServiceAccounts calls state.v1.StateService.ListServiceAccounts.
+func (c *stateServiceClient) ListServiceAccounts(ctx context.Context, req *connect.Request[v1.ListServiceAccountsRequest]) (*connect.Response[v1.ListServiceAccountsResponse], error) {
+	return c.listServiceAccounts.CallUnary(ctx, req)
+}
+
+// RevokeServiceAccount calls state.v1.StateService.RevokeServiceAccount.
+func (c *stateServiceClient) RevokeServiceAccount(ctx context.Context, req *connect.Request[v1.RevokeServiceAccountRequest]) (*connect.Response[v1.RevokeServiceAccountResponse], error) {
+	return c.revokeServiceAccount.CallUnary(ctx, req)
+}
+
+// RotateServiceAccount calls state.v1.StateService.RotateServiceAccount.
+func (c *stateServiceClient) RotateServiceAccount(ctx context.Context, req *connect.Request[v1.RotateServiceAccountRequest]) (*connect.Response[v1.RotateServiceAccountResponse], error) {
+	return c.rotateServiceAccount.CallUnary(ctx, req)
+}
+
+// CreateRole calls state.v1.StateService.CreateRole.
+func (c *stateServiceClient) CreateRole(ctx context.Context, req *connect.Request[v1.CreateRoleRequest]) (*connect.Response[v1.CreateRoleResponse], error) {
+	return c.createRole.CallUnary(ctx, req)
+}
+
+// ListRoles calls state.v1.StateService.ListRoles.
+func (c *stateServiceClient) ListRoles(ctx context.Context, req *connect.Request[v1.ListRolesRequest]) (*connect.Response[v1.ListRolesResponse], error) {
+	return c.listRoles.CallUnary(ctx, req)
+}
+
+// UpdateRole calls state.v1.StateService.UpdateRole.
+func (c *stateServiceClient) UpdateRole(ctx context.Context, req *connect.Request[v1.UpdateRoleRequest]) (*connect.Response[v1.UpdateRoleResponse], error) {
+	return c.updateRole.CallUnary(ctx, req)
+}
+
+// DeleteRole calls state.v1.StateService.DeleteRole.
+func (c *stateServiceClient) DeleteRole(ctx context.Context, req *connect.Request[v1.DeleteRoleRequest]) (*connect.Response[v1.DeleteRoleResponse], error) {
+	return c.deleteRole.CallUnary(ctx, req)
+}
+
+// AssignRole calls state.v1.StateService.AssignRole.
+func (c *stateServiceClient) AssignRole(ctx context.Context, req *connect.Request[v1.AssignRoleRequest]) (*connect.Response[v1.AssignRoleResponse], error) {
+	return c.assignRole.CallUnary(ctx, req)
+}
+
+// RemoveRole calls state.v1.StateService.RemoveRole.
+func (c *stateServiceClient) RemoveRole(ctx context.Context, req *connect.Request[v1.RemoveRoleRequest]) (*connect.Response[v1.RemoveRoleResponse], error) {
+	return c.removeRole.CallUnary(ctx, req)
+}
+
+// ListUserRoles calls state.v1.StateService.ListUserRoles.
+func (c *stateServiceClient) ListUserRoles(ctx context.Context, req *connect.Request[v1.ListUserRolesRequest]) (*connect.Response[v1.ListUserRolesResponse], error) {
+	return c.listUserRoles.CallUnary(ctx, req)
+}
+
+// AssignGroupRole calls state.v1.StateService.AssignGroupRole.
+func (c *stateServiceClient) AssignGroupRole(ctx context.Context, req *connect.Request[v1.AssignGroupRoleRequest]) (*connect.Response[v1.AssignGroupRoleResponse], error) {
+	return c.assignGroupRole.CallUnary(ctx, req)
+}
+
+// RemoveGroupRole calls state.v1.StateService.RemoveGroupRole.
+func (c *stateServiceClient) RemoveGroupRole(ctx context.Context, req *connect.Request[v1.RemoveGroupRoleRequest]) (*connect.Response[v1.RemoveGroupRoleResponse], error) {
+	return c.removeGroupRole.CallUnary(ctx, req)
+}
+
+// ListGroupRoles calls state.v1.StateService.ListGroupRoles.
+func (c *stateServiceClient) ListGroupRoles(ctx context.Context, req *connect.Request[v1.ListGroupRolesRequest]) (*connect.Response[v1.ListGroupRolesResponse], error) {
+	return c.listGroupRoles.CallUnary(ctx, req)
+}
+
+// GetEffectivePermissions calls state.v1.StateService.GetEffectivePermissions.
+func (c *stateServiceClient) GetEffectivePermissions(ctx context.Context, req *connect.Request[v1.GetEffectivePermissionsRequest]) (*connect.Response[v1.GetEffectivePermissionsResponse], error) {
+	return c.getEffectivePermissions.CallUnary(ctx, req)
+}
+
+// ListSessions calls state.v1.StateService.ListSessions.
+func (c *stateServiceClient) ListSessions(ctx context.Context, req *connect.Request[v1.ListSessionsRequest]) (*connect.Response[v1.ListSessionsResponse], error) {
+	return c.listSessions.CallUnary(ctx, req)
+}
+
+// RevokeSession calls state.v1.StateService.RevokeSession.
+func (c *stateServiceClient) RevokeSession(ctx context.Context, req *connect.Request[v1.RevokeSessionRequest]) (*connect.Response[v1.RevokeSessionResponse], error) {
+	return c.revokeSession.CallUnary(ctx, req)
+}
+
 // StateServiceHandler is an implementation of the state.v1.StateService service.
 type StateServiceHandler interface {
 	// CreateState creates a new state with client-generated GUID and logic ID.
@@ -443,6 +715,29 @@ type StateServiceHandler interface {
 	GetLabelPolicy(context.Context, *connect.Request[v1.GetLabelPolicyRequest]) (*connect.Response[v1.GetLabelPolicyResponse], error)
 	// SetLabelPolicy updates the label validation policy with version increment.
 	SetLabelPolicy(context.Context, *connect.Request[v1.SetLabelPolicyRequest]) (*connect.Response[v1.SetLabelPolicyResponse], error)
+	// Service Account Management
+	CreateServiceAccount(context.Context, *connect.Request[v1.CreateServiceAccountRequest]) (*connect.Response[v1.CreateServiceAccountResponse], error)
+	ListServiceAccounts(context.Context, *connect.Request[v1.ListServiceAccountsRequest]) (*connect.Response[v1.ListServiceAccountsResponse], error)
+	RevokeServiceAccount(context.Context, *connect.Request[v1.RevokeServiceAccountRequest]) (*connect.Response[v1.RevokeServiceAccountResponse], error)
+	RotateServiceAccount(context.Context, *connect.Request[v1.RotateServiceAccountRequest]) (*connect.Response[v1.RotateServiceAccountResponse], error)
+	// Role Management
+	CreateRole(context.Context, *connect.Request[v1.CreateRoleRequest]) (*connect.Response[v1.CreateRoleResponse], error)
+	ListRoles(context.Context, *connect.Request[v1.ListRolesRequest]) (*connect.Response[v1.ListRolesResponse], error)
+	UpdateRole(context.Context, *connect.Request[v1.UpdateRoleRequest]) (*connect.Response[v1.UpdateRoleResponse], error)
+	DeleteRole(context.Context, *connect.Request[v1.DeleteRoleRequest]) (*connect.Response[v1.DeleteRoleResponse], error)
+	// Role Assignment (User/Service Account)
+	AssignRole(context.Context, *connect.Request[v1.AssignRoleRequest]) (*connect.Response[v1.AssignRoleResponse], error)
+	RemoveRole(context.Context, *connect.Request[v1.RemoveRoleRequest]) (*connect.Response[v1.RemoveRoleResponse], error)
+	ListUserRoles(context.Context, *connect.Request[v1.ListUserRolesRequest]) (*connect.Response[v1.ListUserRolesResponse], error)
+	// Group-to-Role Management
+	AssignGroupRole(context.Context, *connect.Request[v1.AssignGroupRoleRequest]) (*connect.Response[v1.AssignGroupRoleResponse], error)
+	RemoveGroupRole(context.Context, *connect.Request[v1.RemoveGroupRoleRequest]) (*connect.Response[v1.RemoveGroupRoleResponse], error)
+	ListGroupRoles(context.Context, *connect.Request[v1.ListGroupRolesRequest]) (*connect.Response[v1.ListGroupRolesResponse], error)
+	// Permission Introspection
+	GetEffectivePermissions(context.Context, *connect.Request[v1.GetEffectivePermissionsRequest]) (*connect.Response[v1.GetEffectivePermissionsResponse], error)
+	// Session Management
+	ListSessions(context.Context, *connect.Request[v1.ListSessionsRequest]) (*connect.Response[v1.ListSessionsResponse], error)
+	RevokeSession(context.Context, *connect.Request[v1.RevokeSessionRequest]) (*connect.Response[v1.RevokeSessionResponse], error)
 }
 
 // NewStateServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -566,6 +861,108 @@ func NewStateServiceHandler(svc StateServiceHandler, opts ...connect.HandlerOpti
 		connect.WithSchema(stateServiceMethods.ByName("SetLabelPolicy")),
 		connect.WithHandlerOptions(opts...),
 	)
+	stateServiceCreateServiceAccountHandler := connect.NewUnaryHandler(
+		StateServiceCreateServiceAccountProcedure,
+		svc.CreateServiceAccount,
+		connect.WithSchema(stateServiceMethods.ByName("CreateServiceAccount")),
+		connect.WithHandlerOptions(opts...),
+	)
+	stateServiceListServiceAccountsHandler := connect.NewUnaryHandler(
+		StateServiceListServiceAccountsProcedure,
+		svc.ListServiceAccounts,
+		connect.WithSchema(stateServiceMethods.ByName("ListServiceAccounts")),
+		connect.WithHandlerOptions(opts...),
+	)
+	stateServiceRevokeServiceAccountHandler := connect.NewUnaryHandler(
+		StateServiceRevokeServiceAccountProcedure,
+		svc.RevokeServiceAccount,
+		connect.WithSchema(stateServiceMethods.ByName("RevokeServiceAccount")),
+		connect.WithHandlerOptions(opts...),
+	)
+	stateServiceRotateServiceAccountHandler := connect.NewUnaryHandler(
+		StateServiceRotateServiceAccountProcedure,
+		svc.RotateServiceAccount,
+		connect.WithSchema(stateServiceMethods.ByName("RotateServiceAccount")),
+		connect.WithHandlerOptions(opts...),
+	)
+	stateServiceCreateRoleHandler := connect.NewUnaryHandler(
+		StateServiceCreateRoleProcedure,
+		svc.CreateRole,
+		connect.WithSchema(stateServiceMethods.ByName("CreateRole")),
+		connect.WithHandlerOptions(opts...),
+	)
+	stateServiceListRolesHandler := connect.NewUnaryHandler(
+		StateServiceListRolesProcedure,
+		svc.ListRoles,
+		connect.WithSchema(stateServiceMethods.ByName("ListRoles")),
+		connect.WithHandlerOptions(opts...),
+	)
+	stateServiceUpdateRoleHandler := connect.NewUnaryHandler(
+		StateServiceUpdateRoleProcedure,
+		svc.UpdateRole,
+		connect.WithSchema(stateServiceMethods.ByName("UpdateRole")),
+		connect.WithHandlerOptions(opts...),
+	)
+	stateServiceDeleteRoleHandler := connect.NewUnaryHandler(
+		StateServiceDeleteRoleProcedure,
+		svc.DeleteRole,
+		connect.WithSchema(stateServiceMethods.ByName("DeleteRole")),
+		connect.WithHandlerOptions(opts...),
+	)
+	stateServiceAssignRoleHandler := connect.NewUnaryHandler(
+		StateServiceAssignRoleProcedure,
+		svc.AssignRole,
+		connect.WithSchema(stateServiceMethods.ByName("AssignRole")),
+		connect.WithHandlerOptions(opts...),
+	)
+	stateServiceRemoveRoleHandler := connect.NewUnaryHandler(
+		StateServiceRemoveRoleProcedure,
+		svc.RemoveRole,
+		connect.WithSchema(stateServiceMethods.ByName("RemoveRole")),
+		connect.WithHandlerOptions(opts...),
+	)
+	stateServiceListUserRolesHandler := connect.NewUnaryHandler(
+		StateServiceListUserRolesProcedure,
+		svc.ListUserRoles,
+		connect.WithSchema(stateServiceMethods.ByName("ListUserRoles")),
+		connect.WithHandlerOptions(opts...),
+	)
+	stateServiceAssignGroupRoleHandler := connect.NewUnaryHandler(
+		StateServiceAssignGroupRoleProcedure,
+		svc.AssignGroupRole,
+		connect.WithSchema(stateServiceMethods.ByName("AssignGroupRole")),
+		connect.WithHandlerOptions(opts...),
+	)
+	stateServiceRemoveGroupRoleHandler := connect.NewUnaryHandler(
+		StateServiceRemoveGroupRoleProcedure,
+		svc.RemoveGroupRole,
+		connect.WithSchema(stateServiceMethods.ByName("RemoveGroupRole")),
+		connect.WithHandlerOptions(opts...),
+	)
+	stateServiceListGroupRolesHandler := connect.NewUnaryHandler(
+		StateServiceListGroupRolesProcedure,
+		svc.ListGroupRoles,
+		connect.WithSchema(stateServiceMethods.ByName("ListGroupRoles")),
+		connect.WithHandlerOptions(opts...),
+	)
+	stateServiceGetEffectivePermissionsHandler := connect.NewUnaryHandler(
+		StateServiceGetEffectivePermissionsProcedure,
+		svc.GetEffectivePermissions,
+		connect.WithSchema(stateServiceMethods.ByName("GetEffectivePermissions")),
+		connect.WithHandlerOptions(opts...),
+	)
+	stateServiceListSessionsHandler := connect.NewUnaryHandler(
+		StateServiceListSessionsProcedure,
+		svc.ListSessions,
+		connect.WithSchema(stateServiceMethods.ByName("ListSessions")),
+		connect.WithHandlerOptions(opts...),
+	)
+	stateServiceRevokeSessionHandler := connect.NewUnaryHandler(
+		StateServiceRevokeSessionProcedure,
+		svc.RevokeSession,
+		connect.WithSchema(stateServiceMethods.ByName("RevokeSession")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/state.v1.StateService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case StateServiceCreateStateProcedure:
@@ -606,6 +1003,40 @@ func NewStateServiceHandler(svc StateServiceHandler, opts ...connect.HandlerOpti
 			stateServiceGetLabelPolicyHandler.ServeHTTP(w, r)
 		case StateServiceSetLabelPolicyProcedure:
 			stateServiceSetLabelPolicyHandler.ServeHTTP(w, r)
+		case StateServiceCreateServiceAccountProcedure:
+			stateServiceCreateServiceAccountHandler.ServeHTTP(w, r)
+		case StateServiceListServiceAccountsProcedure:
+			stateServiceListServiceAccountsHandler.ServeHTTP(w, r)
+		case StateServiceRevokeServiceAccountProcedure:
+			stateServiceRevokeServiceAccountHandler.ServeHTTP(w, r)
+		case StateServiceRotateServiceAccountProcedure:
+			stateServiceRotateServiceAccountHandler.ServeHTTP(w, r)
+		case StateServiceCreateRoleProcedure:
+			stateServiceCreateRoleHandler.ServeHTTP(w, r)
+		case StateServiceListRolesProcedure:
+			stateServiceListRolesHandler.ServeHTTP(w, r)
+		case StateServiceUpdateRoleProcedure:
+			stateServiceUpdateRoleHandler.ServeHTTP(w, r)
+		case StateServiceDeleteRoleProcedure:
+			stateServiceDeleteRoleHandler.ServeHTTP(w, r)
+		case StateServiceAssignRoleProcedure:
+			stateServiceAssignRoleHandler.ServeHTTP(w, r)
+		case StateServiceRemoveRoleProcedure:
+			stateServiceRemoveRoleHandler.ServeHTTP(w, r)
+		case StateServiceListUserRolesProcedure:
+			stateServiceListUserRolesHandler.ServeHTTP(w, r)
+		case StateServiceAssignGroupRoleProcedure:
+			stateServiceAssignGroupRoleHandler.ServeHTTP(w, r)
+		case StateServiceRemoveGroupRoleProcedure:
+			stateServiceRemoveGroupRoleHandler.ServeHTTP(w, r)
+		case StateServiceListGroupRolesProcedure:
+			stateServiceListGroupRolesHandler.ServeHTTP(w, r)
+		case StateServiceGetEffectivePermissionsProcedure:
+			stateServiceGetEffectivePermissionsHandler.ServeHTTP(w, r)
+		case StateServiceListSessionsProcedure:
+			stateServiceListSessionsHandler.ServeHTTP(w, r)
+		case StateServiceRevokeSessionProcedure:
+			stateServiceRevokeSessionHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -689,4 +1120,72 @@ func (UnimplementedStateServiceHandler) GetLabelPolicy(context.Context, *connect
 
 func (UnimplementedStateServiceHandler) SetLabelPolicy(context.Context, *connect.Request[v1.SetLabelPolicyRequest]) (*connect.Response[v1.SetLabelPolicyResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("state.v1.StateService.SetLabelPolicy is not implemented"))
+}
+
+func (UnimplementedStateServiceHandler) CreateServiceAccount(context.Context, *connect.Request[v1.CreateServiceAccountRequest]) (*connect.Response[v1.CreateServiceAccountResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("state.v1.StateService.CreateServiceAccount is not implemented"))
+}
+
+func (UnimplementedStateServiceHandler) ListServiceAccounts(context.Context, *connect.Request[v1.ListServiceAccountsRequest]) (*connect.Response[v1.ListServiceAccountsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("state.v1.StateService.ListServiceAccounts is not implemented"))
+}
+
+func (UnimplementedStateServiceHandler) RevokeServiceAccount(context.Context, *connect.Request[v1.RevokeServiceAccountRequest]) (*connect.Response[v1.RevokeServiceAccountResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("state.v1.StateService.RevokeServiceAccount is not implemented"))
+}
+
+func (UnimplementedStateServiceHandler) RotateServiceAccount(context.Context, *connect.Request[v1.RotateServiceAccountRequest]) (*connect.Response[v1.RotateServiceAccountResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("state.v1.StateService.RotateServiceAccount is not implemented"))
+}
+
+func (UnimplementedStateServiceHandler) CreateRole(context.Context, *connect.Request[v1.CreateRoleRequest]) (*connect.Response[v1.CreateRoleResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("state.v1.StateService.CreateRole is not implemented"))
+}
+
+func (UnimplementedStateServiceHandler) ListRoles(context.Context, *connect.Request[v1.ListRolesRequest]) (*connect.Response[v1.ListRolesResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("state.v1.StateService.ListRoles is not implemented"))
+}
+
+func (UnimplementedStateServiceHandler) UpdateRole(context.Context, *connect.Request[v1.UpdateRoleRequest]) (*connect.Response[v1.UpdateRoleResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("state.v1.StateService.UpdateRole is not implemented"))
+}
+
+func (UnimplementedStateServiceHandler) DeleteRole(context.Context, *connect.Request[v1.DeleteRoleRequest]) (*connect.Response[v1.DeleteRoleResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("state.v1.StateService.DeleteRole is not implemented"))
+}
+
+func (UnimplementedStateServiceHandler) AssignRole(context.Context, *connect.Request[v1.AssignRoleRequest]) (*connect.Response[v1.AssignRoleResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("state.v1.StateService.AssignRole is not implemented"))
+}
+
+func (UnimplementedStateServiceHandler) RemoveRole(context.Context, *connect.Request[v1.RemoveRoleRequest]) (*connect.Response[v1.RemoveRoleResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("state.v1.StateService.RemoveRole is not implemented"))
+}
+
+func (UnimplementedStateServiceHandler) ListUserRoles(context.Context, *connect.Request[v1.ListUserRolesRequest]) (*connect.Response[v1.ListUserRolesResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("state.v1.StateService.ListUserRoles is not implemented"))
+}
+
+func (UnimplementedStateServiceHandler) AssignGroupRole(context.Context, *connect.Request[v1.AssignGroupRoleRequest]) (*connect.Response[v1.AssignGroupRoleResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("state.v1.StateService.AssignGroupRole is not implemented"))
+}
+
+func (UnimplementedStateServiceHandler) RemoveGroupRole(context.Context, *connect.Request[v1.RemoveGroupRoleRequest]) (*connect.Response[v1.RemoveGroupRoleResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("state.v1.StateService.RemoveGroupRole is not implemented"))
+}
+
+func (UnimplementedStateServiceHandler) ListGroupRoles(context.Context, *connect.Request[v1.ListGroupRolesRequest]) (*connect.Response[v1.ListGroupRolesResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("state.v1.StateService.ListGroupRoles is not implemented"))
+}
+
+func (UnimplementedStateServiceHandler) GetEffectivePermissions(context.Context, *connect.Request[v1.GetEffectivePermissionsRequest]) (*connect.Response[v1.GetEffectivePermissionsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("state.v1.StateService.GetEffectivePermissions is not implemented"))
+}
+
+func (UnimplementedStateServiceHandler) ListSessions(context.Context, *connect.Request[v1.ListSessionsRequest]) (*connect.Response[v1.ListSessionsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("state.v1.StateService.ListSessions is not implemented"))
+}
+
+func (UnimplementedStateServiceHandler) RevokeSession(context.Context, *connect.Request[v1.RevokeSessionRequest]) (*connect.Response[v1.RevokeSessionResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("state.v1.StateService.RevokeSession is not implemented"))
 }

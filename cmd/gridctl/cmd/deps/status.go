@@ -41,11 +41,14 @@ Status can be:
 			}
 		}
 
-		client := sdk.NewClient(ServerURL)
-		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		gridClient, err := sdkClient(cobraCmd.Context())
+		if err != nil {
+			return err
+		}
+		ctx, cancel := context.WithTimeout(cobraCmd.Context(), 10*time.Second)
 		defer cancel()
 
-		status, err := client.GetStateStatus(ctx, sdk.StateReference{LogicID: logicID})
+		status, err := gridClient.GetStateStatus(ctx, sdk.StateReference{LogicID: logicID})
 		if err != nil {
 			return fmt.Errorf("failed to get state status: %w", err)
 		}

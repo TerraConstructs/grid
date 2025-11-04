@@ -49,21 +49,23 @@ If neither flag is provided, .grid context will be used for --state (if availabl
 			return fmt.Errorf("provide exactly one of --state or --from")
 		}
 
-		client := sdk.NewClient(ServerURL)
-		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		gridClient, err := sdkClient(cobraCmd.Context())
+		if err != nil {
+			return err
+		}
+		ctx, cancel := context.WithTimeout(cobraCmd.Context(), 10*time.Second)
 		defer cancel()
 
 		var (
 			edges  []sdk.DependencyEdge
-			err    error
 			header string
 		)
 
 		if showIncoming {
-			edges, err = client.ListDependencies(ctx, sdk.StateReference{LogicID: consumerLogicID})
+			edges, err = gridClient.ListDependencies(ctx, sdk.StateReference{LogicID: consumerLogicID})
 			header = fmt.Sprintf("Incoming dependencies for %s", consumerLogicID)
 		} else {
-			edges, err = client.ListDependents(ctx, sdk.StateReference{LogicID: producerLogicID})
+			edges, err = gridClient.ListDependents(ctx, sdk.StateReference{LogicID: producerLogicID})
 			header = fmt.Sprintf("Outgoing dependents for %s", producerLogicID)
 		}
 		if err != nil {

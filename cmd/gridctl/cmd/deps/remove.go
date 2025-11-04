@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/spf13/cobra"
-	"github.com/terraconstructs/grid/pkg/sdk"
 )
 
 var removeEdgeID int64
@@ -21,11 +20,14 @@ var removeCmd = &cobra.Command{
 			return fmt.Errorf("flag --edge-id must be provided")
 		}
 
-		client := sdk.NewClient(ServerURL)
-		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		gridClient, err := sdkClient(cobraCmd.Context())
+		if err != nil {
+			return err
+		}
+		ctx, cancel := context.WithTimeout(cobraCmd.Context(), 10*time.Second)
 		defer cancel()
 
-		if err := client.RemoveDependency(ctx, removeEdgeID); err != nil {
+		if err := gridClient.RemoveDependency(ctx, removeEdgeID); err != nil {
 			return fmt.Errorf("failed to remove dependency: %w", err)
 		}
 

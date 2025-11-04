@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"time"
 
 	"github.com/terraconstructs/grid/cmd/gridapi/internal/db/models"
 )
@@ -47,6 +48,103 @@ type EdgeRepository interface {
 type OutputKey struct {
 	Key       string
 	Sensitive bool
+}
+
+// ========================================
+// Auth Repositories
+// ========================================
+
+// UserRepository exposes persistence operations for users
+type UserRepository interface {
+	Create(ctx context.Context, user *models.User) error
+	GetByID(ctx context.Context, id string) (*models.User, error)
+	GetBySubject(ctx context.Context, subject string) (*models.User, error)
+	GetByEmail(ctx context.Context, email string) (*models.User, error)
+	Update(ctx context.Context, user *models.User) error
+	UpdateLastLogin(ctx context.Context, id string) error
+	SetPasswordHash(ctx context.Context, id string, passwordHash string) error
+	List(ctx context.Context) ([]models.User, error)
+}
+
+// ServiceAccountRepository exposes persistence operations for service accounts
+type ServiceAccountRepository interface {
+	Create(ctx context.Context, sa *models.ServiceAccount) error
+	GetByID(ctx context.Context, id string) (*models.ServiceAccount, error)
+	GetByName(ctx context.Context, name string) (*models.ServiceAccount, error)
+	GetByClientID(ctx context.Context, clientID string) (*models.ServiceAccount, error)
+	Update(ctx context.Context, sa *models.ServiceAccount) error
+	UpdateLastUsed(ctx context.Context, id string) error
+	UpdateSecretHash(ctx context.Context, id string, secretHash string) error
+	SetDisabled(ctx context.Context, id string, disabled bool) error
+	List(ctx context.Context) ([]models.ServiceAccount, error)
+	ListByCreator(ctx context.Context, createdBy string) ([]models.ServiceAccount, error)
+}
+
+// RoleRepository exposes persistence operations for roles
+type RoleRepository interface {
+	Create(ctx context.Context, role *models.Role) error
+	GetByID(ctx context.Context, id string) (*models.Role, error)
+	GetByName(ctx context.Context, name string) (*models.Role, error)
+	Update(ctx context.Context, role *models.Role) error
+	Delete(ctx context.Context, id string) error
+	List(ctx context.Context) ([]models.Role, error)
+}
+
+// UserRoleRepository exposes persistence operations for user-role assignments
+type UserRoleRepository interface {
+	Create(ctx context.Context, ur *models.UserRole) error
+	GetByID(ctx context.Context, id string) (*models.UserRole, error)
+	GetByUserID(ctx context.Context, userID string) ([]models.UserRole, error)
+	GetByUserAndRoleID(ctx context.Context, userID string, roleID string) (*models.UserRole, error)
+	GetByServiceAccountID(ctx context.Context, serviceAccountID string) ([]models.UserRole, error)
+	GetByServiceAccountAndRoleID(ctx context.Context, serviceAccountID string, roleID string) (*models.UserRole, error)
+	GetByRoleID(ctx context.Context, roleID string) ([]models.UserRole, error)
+	Delete(ctx context.Context, id string) error
+	DeleteByUserAndRole(ctx context.Context, userID string, roleID string) error
+	DeleteByServiceAccountAndRole(ctx context.Context, serviceAccountID string, roleID string) error
+	List(ctx context.Context) ([]models.UserRole, error)
+}
+
+// GroupRoleRepository exposes persistence operations for group-role mappings
+type GroupRoleRepository interface {
+	Create(ctx context.Context, gr *models.GroupRole) error
+	GetByID(ctx context.Context, id string) (*models.GroupRole, error)
+	GetByGroupName(ctx context.Context, groupName string) ([]models.GroupRole, error)
+	GetByRoleID(ctx context.Context, roleID string) ([]models.GroupRole, error)
+	Delete(ctx context.Context, id string) error
+	DeleteByGroupAndRole(ctx context.Context, groupName string, roleID string) error
+	List(ctx context.Context) ([]models.GroupRole, error)
+}
+
+// SessionRepository exposes persistence operations for sessions
+type SessionRepository interface {
+	Create(ctx context.Context, session *models.Session) error
+	GetByID(ctx context.Context, id string) (*models.Session, error)
+	GetByTokenHash(ctx context.Context, tokenHash string) (*models.Session, error)
+	GetByUserID(ctx context.Context, userID string) ([]models.Session, error)
+	GetByServiceAccountID(ctx context.Context, serviceAccountID string) ([]models.Session, error)
+	UpdateLastUsed(ctx context.Context, id string) error
+	Revoke(ctx context.Context, id string) error
+	RevokeByUserID(ctx context.Context, userID string) error
+	RevokeByServiceAccountID(ctx context.Context, serviceAccountID string) error
+	DeleteExpired(ctx context.Context) error
+	List(ctx context.Context) ([]models.Session, error)
+}
+
+// RevokedJTIRepository exposes persistence operations for revoked JWT IDs
+type RevokedJTIRepository interface {
+	// Create adds a JTI to the revocation denylist
+	Create(ctx context.Context, revokedJTI *models.RevokedJTI) error
+
+	// IsRevoked checks if a JTI exists in the revocation table
+	IsRevoked(ctx context.Context, jti string) (bool, error)
+
+	// DeleteExpired removes revoked JTIs where exp < now() - grace period
+	// Used for periodic cleanup to prevent table bloat
+	DeleteExpired(ctx context.Context, gracePeriod time.Duration) error
+
+	// GetByJTI retrieves a revoked JTI entry by its ID
+	GetByJTI(ctx context.Context, jti string) (*models.RevokedJTI, error)
 }
 
 // StateOutputRef represents a state reference with an output key.

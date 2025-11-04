@@ -19,11 +19,13 @@ var listCmd = &cobra.Command{
 	Short: "List all Terraform states",
 	Long:  `Lists all Terraform states with status and dependency information.`,
 	RunE: func(cobraCmd *cobra.Command, args []string) error {
-		// Create SDK client
-		client := sdk.NewClient(ServerURL)
+		gridClient, err := sdkClient(cobraCmd.Context())
+		if err != nil {
+			return err
+		}
 
 		// Call ListStates
-		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		ctx, cancel := context.WithTimeout(cobraCmd.Context(), 10*time.Second)
 		defer cancel()
 
 		labelsFilter, warnings, err := parseLabelArgs(listLabelFilterArgs)
@@ -45,7 +47,7 @@ var listCmd = &cobra.Command{
 		}
 
 		include := true
-		states, err := client.ListStatesWithOptions(ctx, sdk.ListStatesOptions{Filter: finalFilter, IncludeLabels: &include})
+		states, err := gridClient.ListStatesWithOptions(ctx, sdk.ListStatesOptions{Filter: finalFilter, IncludeLabels: &include})
 		if err != nil {
 			return fmt.Errorf("failed to list states: %w", err)
 		}

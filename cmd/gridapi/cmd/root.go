@@ -5,6 +5,8 @@ import (
 	"os"
 
 	"github.com/spf13/cobra"
+	"github.com/terraconstructs/grid/cmd/gridapi/cmd/iam"
+	"github.com/terraconstructs/grid/cmd/gridapi/cmd/sa"
 	"github.com/terraconstructs/grid/cmd/gridapi/internal/config"
 )
 
@@ -31,6 +33,10 @@ func init() {
 	rootCmd.PersistentFlags().String("server-addr", "", "Server bind address (env: SERVER_ADDR)")
 	rootCmd.PersistentFlags().String("server-url", "", "Server base URL for backend config (env: SERVER_URL)")
 	rootCmd.PersistentFlags().Bool("debug", false, "Enable debug logging (env: DEBUG)")
+
+	// Add subcommands
+	rootCmd.AddCommand(sa.SaCmd)
+	rootCmd.AddCommand(iam.IamCmd)
 }
 
 // Execute runs the root command

@@ -18,6 +18,9 @@ tests/**/.terraform.lock.hcl
 tests/**/terraform.tfstate*
 tests/**/backend.tf
 
+# Generated keys
+tmp/keys/*
+
 # Go workspace files
 go.work.sum
 

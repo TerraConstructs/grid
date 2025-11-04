@@ -1,12 +1,18 @@
 package policy
 
 import (
+	"context"
+	"fmt"
+
 	"github.com/spf13/cobra"
+	"github.com/terraconstructs/grid/cmd/gridctl/internal/client"
+	"github.com/terraconstructs/grid/pkg/sdk"
 )
 
 var (
 	serverURL      string
 	nonInteractive bool
+	clientProvider *client.Provider
 )
 
 // PolicyCmd is the parent command for label policy operations.
@@ -30,4 +36,16 @@ func SetServerURL(url string) {
 // SetNonInteractive controls interactive prompts (reserved for future use).
 func SetNonInteractive(value bool) {
 	nonInteractive = value
+}
+
+// SetClientProvider injects the shared authenticated client provider.
+func SetClientProvider(provider *client.Provider) {
+	clientProvider = provider
+}
+
+func sdkClient(ctx context.Context) (*sdk.Client, error) {
+	if clientProvider == nil {
+		return nil, fmt.Errorf("client provider not configured")
+	}
+	return clientProvider.SDKClient(ctx)
 }

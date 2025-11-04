@@ -17,7 +17,7 @@ type BunLabelPolicyRepository struct {
 }
 
 // NewBunLabelPolicyRepository constructs a repository backed by Bun.
-func NewBunLabelPolicyRepository(db *bun.DB) *BunLabelPolicyRepository {
+func NewBunLabelPolicyRepository(db *bun.DB) LabelPolicyRepository {
 	return &BunLabelPolicyRepository{db: db}
 }
 

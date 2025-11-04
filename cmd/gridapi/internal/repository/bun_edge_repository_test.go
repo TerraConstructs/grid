@@ -22,7 +22,7 @@ func ensureEdgesTable(t *testing.T, db *bun.DB) {
 	}
 }
 
-func createTestState(t *testing.T, repo *BunStateRepository, prefix string) *models.State {
+func createTestState(t *testing.T, repo StateRepository, prefix string) *models.State {
 	t.Helper()
 
 	state := &models.State{GUID: uuid.NewString(), LogicID: prefix + uuid.NewString()[0:8]}

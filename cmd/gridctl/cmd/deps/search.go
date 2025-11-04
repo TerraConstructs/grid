@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/spf13/cobra"
-	"github.com/terraconstructs/grid/pkg/sdk"
 )
 
 var searchOutputKey string
@@ -24,11 +23,14 @@ var searchCmd = &cobra.Command{
 			return fmt.Errorf("flag --output is required")
 		}
 
-		client := sdk.NewClient(ServerURL)
-		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		gridClient, err := sdkClient(cobraCmd.Context())
+		if err != nil {
+			return err
+		}
+		ctx, cancel := context.WithTimeout(cobraCmd.Context(), 10*time.Second)
 		defer cancel()
 
-		edges, err := client.SearchByOutput(ctx, searchOutputKey)
+		edges, err := gridClient.SearchByOutput(ctx, searchOutputKey)
 		if err != nil {
 			return fmt.Errorf("failed to search by output: %w", err)
 		}

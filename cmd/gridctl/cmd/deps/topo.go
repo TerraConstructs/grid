@@ -47,8 +47,11 @@ Direction can be:
 			return fmt.Errorf("direction must be 'downstream' or 'upstream'")
 		}
 
-		client := sdk.NewClient(ServerURL)
-		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		gridClient, err := sdkClient(cobraCmd.Context())
+		if err != nil {
+			return err
+		}
+		ctx, cancel := context.WithTimeout(cobraCmd.Context(), 10*time.Second)
 		defer cancel()
 
 		dir := sdk.Downstream
@@ -56,7 +59,7 @@ Direction can be:
 			dir = sdk.Upstream
 		}
 
-		layers, err := client.GetTopologicalOrder(ctx, sdk.TopologyInput{
+		layers, err := gridClient.GetTopologicalOrder(ctx, sdk.TopologyInput{
 			Root:      sdk.StateReference{LogicID: logicID},
 			Direction: dir,
 		})

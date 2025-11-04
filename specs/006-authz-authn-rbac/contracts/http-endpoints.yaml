@@ -1,0 +1,431 @@
+openapi: 3.0.3
+info:
+  title: Grid Auth HTTP Endpoints
+  description: |
+    OIDC authentication flow endpoints (non-Connect RPC)
+
+    ## Device Flow Architecture
+
+    The device code endpoints (`/auth/device/code`, `/auth/device/token`) enable CLI authentication per FR-003/FR-008.
+
+    **Implementation Note**: These endpoints can be implemented in two ways:
+
+    1. **Grid-Native**: Grid implements OAuth2 Device Authorization Grant (RFC 8628) by proxying to the IdP's device flow endpoints and managing device code state. CLI polls Grid server.
+
+    2. **IdP-Native**: Grid exposes OIDC discovery metadata (`.well-known/openid-configuration`) pointing to IdP's device endpoints. CLI talks directly to IdP, exchanges IdP token for Grid session.
+
+    Current contract assumes Grid-Native approach. If implementing IdP-Native, these endpoints become optional discovery metadata providers.
+  version: 1.0.0
+  contact:
+    name: Grid API
+    url: https://github.com/terraconstructs/grid
+
+servers:
+  - url: http://localhost:8080
+    description: Development server
+  - url: https://grid.example.com
+    description: Production server
+
+paths:
+  /auth/login:
+    get:
+      summary: Initiate OIDC login flow
+      description: Redirects user to identity provider for authentication
+      operationId: loginInit
+      parameters:
+        - name: redirect_uri
+          in: query
+          description: Post-login redirect URL (must be registered)
+          required: false
+          schema:
+            type: string
+            format: uri
+            example: http://localhost:3000/callback
+      responses:
+        '302':
+          description: Redirect to identity provider
+          headers:
+            Location:
+              schema:
+                type: string
+                format: uri
+              description: IdP authorization endpoint URL
+        '400':
+          description: Invalid request (bad redirect_uri)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /auth/callback:
+    get:
+      summary: OIDC callback handler
+      description: Receives authorization code from IdP, exchanges for tokens
+      operationId: loginCallback
+      parameters:
+        - name: code
+          in: query
+          description: Authorization code from IdP
+          required: true
+          schema:
+            type: string
+        - name: state
+          in: query
+          description: CSRF protection state
+          required: true
+          schema:
+            type: string
+        - name: error
+          in: query
+          description: Error code (if auth failed)
+          required: false
+          schema:
+            type: string
+        - name: error_description
+          in: query
+          description: Error description
+          required: false
+          schema:
+            type: string
+      responses:
+        '302':
+          description: Redirect to application with session cookie
+          headers:
+            Set-Cookie:
+              schema:
+                type: string
+              description: Session cookie (HTTPOnly, Secure)
+            Location:
+              schema:
+                type: string
+                format: uri
+              description: Redirect to original destination
+        '200':
+          description: Success (CLI flow - return token directly)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenResponse'
+        '400':
+          description: Invalid request or auth failure
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Token exchange failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /auth/token:
+    post:
+      summary: OAuth2 token exchange (service accounts)
+      description: Exchange client credentials for access token
+      operationId: tokenExchange
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              required:
+                - grant_type
+                - client_id
+                - client_secret
+              properties:
+                grant_type:
+                  type: string
+                  enum: [client_credentials]
+                  description: OAuth2 grant type
+                client_id:
+                  type: string
+                  format: uuid
+                  description: Service account client ID
+                client_secret:
+                  type: string
+                  description: Service account client secret
+                scope:
+                  type: string
+                  description: Space-separated scope list
+                  example: openid profile
+      responses:
+        '200':
+          description: Token issued successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenResponse'
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OAuth2Error'
+        '401':
+          description: Invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OAuth2Error'
+
+  /auth/logout:
+    post:
+      summary: Logout and revoke session
+      description: Revokes current session and clears cookie
+      operationId: logout
+      security:
+        - bearerAuth: []
+        - cookieAuth: []
+      responses:
+        '200':
+          description: Logged out successfully
+          headers:
+            Set-Cookie:
+              schema:
+                type: string
+              description: Clears session cookie
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+        '401':
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /auth/device/code:
+    post:
+      summary: Initiate device authorization flow
+      description: Returns device code and user code for CLI device flow (OAuth2 Device Authorization Grant - RFC 8628)
+      operationId: deviceCodeInit
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              required:
+                - client_id
+              properties:
+                client_id:
+                  type: string
+                  description: Client identifier for the CLI application
+                  example: gridctl
+                scope:
+                  type: string
+                  description: Space-separated scope list
+                  example: openid profile email
+      responses:
+        '200':
+          description: Device code issued successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeviceCodeResponse'
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OAuth2Error'
+
+  /auth/device/token:
+    post:
+      summary: Poll for device authorization completion
+      description: Exchange device code for access token after user completes authentication
+      operationId: deviceTokenPoll
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              required:
+                - grant_type
+                - device_code
+                - client_id
+              properties:
+                grant_type:
+                  type: string
+                  enum: [urn:ietf:params:oauth:grant-type:device_code]
+                  description: OAuth2 grant type for device flow
+                device_code:
+                  type: string
+                  description: Device code from /auth/device/code response
+                client_id:
+                  type: string
+                  description: Client identifier for the CLI application
+                  example: gridctl
+      responses:
+        '200':
+          description: Authorization complete, token issued
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenResponse'
+        '400':
+          description: Invalid request or authorization pending/slow down/expired/denied
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeviceTokenError'
+
+components:
+  schemas:
+    TokenResponse:
+      type: object
+      required:
+        - access_token
+        - token_type
+        - expires_in
+      properties:
+        access_token:
+          type: string
+          description: Bearer token (JWT)
+          example: eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9...
+        token_type:
+          type: string
+          enum: [Bearer]
+          description: Token type
+        expires_in:
+          type: integer
+          description: Token lifetime in seconds
+          example: 43200
+        refresh_token:
+          type: string
+          description: Refresh token (optional)
+        id_token:
+          type: string
+          description: OIDC ID token (JWT)
+        scope:
+          type: string
+          description: Granted scopes
+          example: openid profile email
+
+    Error:
+      type: object
+      required:
+        - error
+        - message
+      properties:
+        error:
+          type: string
+          description: Error code
+          example: invalid_request
+        message:
+          type: string
+          description: Human-readable error message
+          example: Missing required parameter 'code'
+        details:
+          type: object
+          additionalProperties: true
+          description: Additional error details
+
+    OAuth2Error:
+      type: object
+      required:
+        - error
+      properties:
+        error:
+          type: string
+          enum:
+            - invalid_request
+            - invalid_client
+            - invalid_grant
+            - unauthorized_client
+            - unsupported_grant_type
+          description: OAuth2 error code
+        error_description:
+          type: string
+          description: Human-readable error description
+        error_uri:
+          type: string
+          format: uri
+          description: URI to error documentation
+
+    DeviceCodeResponse:
+      type: object
+      required:
+        - device_code
+        - user_code
+        - verification_uri
+        - expires_in
+      properties:
+        device_code:
+          type: string
+          description: Device verification code (opaque to client)
+          example: GmRhmhcxhwAzkoEqiMEg_DnyEysNkuNhszIySk9eS
+        user_code:
+          type: string
+          description: End-user verification code (user-friendly, e.g., "WDJB-MJHT")
+          example: WDJB-MJHT
+        verification_uri:
+          type: string
+          format: uri
+          description: URL where user should navigate to enter the user_code
+          example: https://grid.example.com/activate
+        verification_uri_complete:
+          type: string
+          format: uri
+          description: Optional complete URL with user_code embedded (QR code friendly)
+          example: https://grid.example.com/activate?user_code=WDJB-MJHT
+        expires_in:
+          type: integer
+          description: Lifetime of device_code and user_code in seconds
+          example: 1800
+        interval:
+          type: integer
+          description: Minimum polling interval in seconds (default 5)
+          example: 5
+
+    DeviceTokenError:
+      type: object
+      required:
+        - error
+      properties:
+        error:
+          type: string
+          enum:
+            - authorization_pending
+            - slow_down
+            - access_denied
+            - expired_token
+            - invalid_request
+            - invalid_client
+            - invalid_grant
+          description: Device flow error code (RFC 8628)
+        error_description:
+          type: string
+          description: Human-readable error description
+        error_uri:
+          type: string
+          format: uri
+          description: URI to error documentation
+        interval:
+          type: integer
+          description: Updated polling interval in seconds (for slow_down error)
+
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT token from OIDC provider
+
+    cookieAuth:
+      type: apiKey
+      in: cookie
+      name: grid_session
+      description: Session cookie (HTTPOnly, Secure, SameSite=Lax)
+
+security:
+  - bearerAuth: []
+  - cookieAuth: []
