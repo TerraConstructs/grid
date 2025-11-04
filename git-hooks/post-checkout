@@ -1,0 +1,2 @@
+#!/bin/bash
+bd import -i .beads/issues.jsonl

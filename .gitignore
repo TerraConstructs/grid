@@ -27,6 +27,7 @@ go.work.sum
 # Dependency directories
 vendor/
 node_modules/
+.pnpm-store/
 
 # JS/TS build artifacts
 js/sdk/lib/

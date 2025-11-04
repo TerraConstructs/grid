@@ -29,11 +29,19 @@ make build
 # Start dependencies (PostgreSQL via Docker Compose)
 make db-up
 
-# Run the API server (defaults: :8080, DATABASE_URL env var)
+# Run database migrations
+make db-migrate
+
+# Run the API server without AuthN/AuthZ (defaults: :8080, DATABASE_URL env var)
 ./bin/gridapi serve --db-url "postgres://grid:gridpass@localhost:5432/grid?sslmode=disable" &
 
 # Use gridctl against the running server
 ./bin/gridctl state list --server http://localhost:8080
+
+# Dashboard (webapp)
+cd webapp
+pnpm install
+pnpm dev
 ```
 
 Grid CLI commands read `.grid/` context in your working directory so repeated calls automatically target the same state. Override with explicit flags whenever needed.
@@ -48,5 +56,42 @@ Grid CLI commands read `.grid/` context in your working directory so repeated ca
 ├── js/sdk/        # Generated TypeScript SDK (WIP)
 ├── examples/      # Terraform sample projects
 ├── demo/          # VHS scripts and rendered assets
+├── webapp/        # Web application for the dashboard
 └── specs/         # Product specifications and UX docs
+```
+
+## Beads Usage
+
+Beads is a issue tracking tool for Humans and AI that integrates with git. See [steveyegge/beads](https://github.com/steveyegge/beads).
+
+### Git Hooks
+
+Git Hooks for beads handle SQLite to JSONL flushing before commits to avoid dirty working trees. See [git-hooks/README.md](git-hooks/README.md) for details.
+
+### MCP Server
+
+[ref](https://github.com/steveyegge/beads/blob/main/integrations/beads-mcp/README.md)
+
+
+```bash
+# Using uv (recommended)
+uv tool install beads-mcp
+
+# Or using pip
+pip install beads-mcp
+```
+
+Register with Agents
+
+```bash
+# Claude Code
+claude mcp add --transport stdio beads beads-mcp
+# Gemini CLI
+gemini mcp add --transport stdio beads beads-mcp
+```
+
+Upgrade with `uv tool upgrade`:
+
+```bash
+uv tool upgrade beads-mcp
 ```
