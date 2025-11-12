@@ -152,6 +152,13 @@ func NewVerifier(cfg *config.Config, opts ...VerifierOption) (func(http.Handler)
 				return
 			}
 
+			// Check if claims already set (by session middleware)
+			if _, hasClaims := ClaimsFromContext(r.Context()); hasClaims {
+				// Session middleware already authenticated - skip JWT verification
+				next.ServeHTTP(w, r)
+				return
+			}
+
 			token, err := oidctoken.GetTokenString(r.Header.Get, tokenStrings)
 			if err != nil || token == "" {
 				vOpts.errorResponder(w, r, fmt.Errorf("unable to extract bearer token: %w", err))
@@ -249,4 +256,15 @@ func HashToken(token string) string {
 	hasher := sha256.New()
 	hasher.Write([]byte(token))
 	return hex.EncodeToString(hasher.Sum(nil))
+}
+
+// SetClaimsContext allows middleware to inject synthetic claims (e.g., from session cookies).
+// This enables session authentication to reuse the existing JWT authentication flow.
+func SetClaimsContext(ctx context.Context, claims map[string]any) context.Context {
+	return context.WithValue(ctx, defaultClaimsContextKey, claims)
+}
+
+// SetTokenHashContext allows middleware to set token hash for session lookup.
+func SetTokenHashContext(ctx context.Context, hash string) context.Context {
+	return context.WithValue(ctx, defaultTokenHashContextKey, hash)
 }

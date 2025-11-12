@@ -47,7 +47,8 @@ func (r *BunUserRepository) GetByID(ctx context.Context, id string) (*models.Use
 	return user, nil
 }
 
-// GetBySubject retrieves a user by their OIDC subject
+// GetBySubject retrieves a user by their OIDC subject.
+// For internal IdP users (subject = NULL), falls back to ID lookup if subject looks like a UUID.
 func (r *BunUserRepository) GetBySubject(ctx context.Context, subject string) (*models.User, error) {
 	user := new(models.User)
 	err := r.db.NewSelect().
@@ -56,11 +57,22 @@ func (r *BunUserRepository) GetBySubject(ctx context.Context, subject string) (*
 		Scan(ctx)
 	if err != nil {
 		if err == sql.ErrNoRows {
+			// For internal IdP users, subject is NULL in DB but PrincipalSubject() returns the ID
+			// Try lookup by ID if subject looks like a UUID
+			if isUUID(subject) {
+				return r.GetByID(ctx, subject)
+			}
 			return nil, fmt.Errorf("user not found with subject: %s", subject)
 		}
 		return nil, fmt.Errorf("get user by subject: %w", err)
 	}
 	return user, nil
+}
+
+// isUUID checks if a string looks like a UUID (simple check)
+func isUUID(s string) bool {
+	// UUID format: 8-4-4-4-12 hex digits
+	return len(s) == 36 && s[8] == '-' && s[13] == '-' && s[18] == '-' && s[23] == '-'
 }
 
 // GetByEmail retrieves a user by their email

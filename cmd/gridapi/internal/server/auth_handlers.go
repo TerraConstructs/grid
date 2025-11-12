@@ -1,6 +1,8 @@
 package server
 
 import (
+	"crypto/rand"
+	"encoding/hex"
 	"encoding/json"
 	"net/http"
 	"time"
@@ -9,6 +11,7 @@ import (
 	"github.com/terraconstructs/grid/cmd/gridapi/internal/config"
 	"github.com/terraconstructs/grid/cmd/gridapi/internal/db/models"
 	gridmiddleware "github.com/terraconstructs/grid/cmd/gridapi/internal/middleware"
+	"golang.org/x/crypto/bcrypt"
 )
 
 // HandleSSOLogin initiates the OIDC Authorization Code Flow.
@@ -155,7 +158,7 @@ func HandleAuthConfig(cfg *config.Config) http.HandlerFunc {
 			// Only supports service account authentication (client credentials)
 			response.Mode = "internal-idp"
 			response.Issuer = cfg.OIDC.Issuer
-			response.ClientID = nil // No public client for device flow
+			response.ClientID = &cfg.OIDC.ClientID // Return clientID for webapp authentication
 			response.Audience = &cfg.OIDC.ClientID
 			response.SupportsDeviceFlow = false
 		} else {
@@ -168,4 +171,204 @@ func HandleAuthConfig(cfg *config.Config) http.HandlerFunc {
 			http.Error(w, "Failed to encode response", http.StatusInternalServerError)
 		}
 	}
+}
+
+// InternalLoginRequest represents credentials for internal IdP authentication
+type InternalLoginRequest struct {
+	Username string `json:"username"`
+	Password string `json:"password"`
+}
+
+// UserResponse represents user data in API responses
+type UserResponse struct {
+	ID       string   `json:"id"`
+	Username string   `json:"username"`
+	Email    string   `json:"email"`
+	AuthType string   `json:"auth_type"`
+	Roles    []string `json:"roles"`
+}
+
+// LoginResponse represents the response from POST /auth/login
+type LoginResponse struct {
+	User      UserResponse `json:"user"`
+	ExpiresAt int64        `json:"expires_at"`
+}
+
+// SessionResponse represents session data in API responses
+type SessionResponse struct {
+	ID        string `json:"id"`
+	ExpiresAt int64  `json:"expires_at"`
+}
+
+// WhoamiResponse represents the response from GET /api/auth/whoami
+type WhoamiResponse struct {
+	User    UserResponse    `json:"user"`
+	Session SessionResponse `json:"session"`
+}
+
+// HandleInternalLogin authenticates users with username/password for internal IdP mode
+func HandleInternalLogin(deps *gridmiddleware.AuthnDependencies) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		ctx := r.Context()
+
+		// Parse request body
+		var req InternalLoginRequest
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			http.Error(w, "Invalid request body", http.StatusBadRequest)
+			return
+		}
+
+		// Validate input
+		if req.Username == "" || req.Password == "" {
+			http.Error(w, "Missing username or password", http.StatusBadRequest)
+			return
+		}
+
+		// Lookup user by email
+		user, err := deps.Users.GetByEmail(ctx, req.Username)
+		if err != nil {
+			http.Error(w, "Invalid credentials", http.StatusUnauthorized)
+			return
+		}
+
+		// Verify password hash
+		if user.PasswordHash == nil || *user.PasswordHash == "" {
+			http.Error(w, "Invalid credentials", http.StatusUnauthorized)
+			return
+		}
+
+		if err := verifyPasswordHash(*user.PasswordHash, req.Password); err != nil {
+			http.Error(w, "Invalid credentials", http.StatusUnauthorized)
+			return
+		}
+
+		// Check if user is disabled
+		if user.DisabledAt != nil {
+			http.Error(w, "Account disabled", http.StatusForbidden)
+			return
+		}
+
+		// Generate session token
+		token := generateSessionToken()
+		expiresAt := time.Now().Add(2 * time.Hour)
+		tokenHash := auth.HashToken(token)
+
+		// Create session record
+		newSession := &models.Session{
+			UserID:    &user.ID,
+			TokenHash: tokenHash,
+			ExpiresAt: expiresAt,
+		}
+		if err := deps.Sessions.Create(ctx, newSession); err != nil {
+			http.Error(w, "Failed to create session", http.StatusInternalServerError)
+			return
+		}
+
+		// Resolve roles for internal IdP (no groups)
+		roles, _, err := resolveEffectiveRoles(ctx, deps, user.ID, newSession.ID, false)
+		if err != nil {
+			roles = []string{}
+		}
+
+		// Set session cookie
+		cookie := &http.Cookie{
+			Name:     auth.SessionCookieName,
+			Value:    token,
+			Path:     "/",
+			Expires:  expiresAt,
+			HttpOnly: true,
+			Secure:   r.URL.Scheme == "https",
+			SameSite: http.SameSiteLaxMode,
+		}
+		http.SetCookie(w, cookie)
+
+		// Return login response
+		w.Header().Set("Content-Type", "application/json")
+		resp := LoginResponse{
+			User: UserResponse{
+				ID:       user.ID,
+				Username: user.Name,
+				Email:    user.Email,
+				AuthType: "internal",
+				Roles:    roles,
+			},
+			ExpiresAt: expiresAt.UnixMilli(),
+		}
+		if err := json.NewEncoder(w).Encode(resp); err != nil {
+			http.Error(w, "Failed to encode response", http.StatusInternalServerError)
+		}
+	}
+}
+
+// HandleWhoAmI returns the authenticated user's information and session metadata
+func HandleWhoAmI(deps *gridmiddleware.AuthnDependencies) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		ctx := r.Context()
+
+		// Extract principal from context (set by authn middleware)
+		principal, ok := auth.GetUserFromContext(ctx)
+		if !ok {
+			http.Error(w, "Unauthorized", http.StatusUnauthorized)
+			return
+		}
+
+		// Fetch session to get expiration
+		session, err := deps.Sessions.GetByID(ctx, principal.SessionID)
+		if err != nil || session == nil {
+			http.Error(w, "Session not found", http.StatusUnauthorized)
+			return
+		}
+
+		// Fetch user to get full details
+		user, err := deps.Users.GetByID(ctx, principal.InternalID)
+		if err != nil {
+			http.Error(w, "User not found", http.StatusInternalServerError)
+			return
+		}
+
+		// Determine auth type
+		authType := "internal"
+		if user.Subject != nil && *user.Subject != "" {
+			authType = "external"
+		}
+
+		// Resolve roles
+		roles, _, err := resolveEffectiveRoles(ctx, deps, user.ID, session.ID, authType == "external")
+		if err != nil {
+			roles = []string{}
+		}
+
+		// Build response
+		w.Header().Set("Content-Type", "application/json")
+		resp := WhoamiResponse{
+			User: UserResponse{
+				ID:       user.ID,
+				Username: user.Name,
+				Email:    user.Email,
+				AuthType: authType,
+				Roles:    roles,
+			},
+			Session: SessionResponse{
+				ID:        session.ID,
+				ExpiresAt: session.ExpiresAt.UnixMilli(),
+			},
+		}
+		if err := json.NewEncoder(w).Encode(resp); err != nil {
+			http.Error(w, "Failed to encode response", http.StatusInternalServerError)
+		}
+	}
+}
+
+// generateSessionToken creates a secure random session token
+func generateSessionToken() string {
+	b := make([]byte, 32)
+	if _, err := rand.Read(b); err != nil {
+		panic(err)
+	}
+	return hex.EncodeToString(b)
+}
+
+// verifyPasswordHash checks if the provided password matches the bcrypt hash
+func verifyPasswordHash(hash, password string) error {
+	return bcrypt.CompareHashAndPassword([]byte(hash), []byte(password))
 }

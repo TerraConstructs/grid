@@ -80,8 +80,26 @@ bd create "Implement OAuth redirect handler" -t task --parent [grid-auth-feature
 # beads create tool
 beads - create (MCP)(title: "<title>", description: "<desc>", issue_type: "task", priority: 2, labels: ["spec:006-authz-authn-rbac","phase:3.11","component:webapp","requirement:FR-082"], deps: ["grid-d00f"], design: "<design>", acceptance: "<design>", workspace_root: "<set_context_path>")
 
-# Add a comment
+# Add a comment to an issue based on research
 bd comments add grid-xyz123 "Additional research identified bcrypt as best hashing algo"
+```
+
+### Exploring comments for context
+
+Use `bd comments` to add notes, research findings, or any relevant context to a task. This helps in task generation and exploration by providing additional details that might not fit into the task title, description, design or notes sections on the task directly.
+
+**Example:**
+```bash
+bd comments grid-044b
+```
+
+This will show comments associated with `grid-044b`, such as:
+
+```console
+Comments on grid-044b:
+[vincentdesmet] Research hashicorp/js-bexpr library: https://github.com/hashicorp/js-bexpr - This may provide go-bexpr compatible syntax for browser. Alternative: expr-eval or custom parser. at
+ 2025-11-04 23:49
+```
 
 # Mark task as completed with context
 bd update grid-xyz123 --status closed --notes "Completed with bcrypt, 12 rounds, <100ms"

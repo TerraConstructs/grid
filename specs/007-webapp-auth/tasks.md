@@ -1,0 +1,469 @@
+# Tasks Index: WebApp User Login Flow with Role-Based Filtering
+
+Beads Issue Graph Index into the tasks and phases for this feature implementation.
+This index does **not contain tasks directly**—those are fully managed through Beads CLI and MCP agent APIs.
+
+## Feature Tracking
+
+* **Beads Epic ID**: `grid-baf5`
+* **Epic Title**: WebApp User Login Flow with Role-Based Filtering
+* **User Stories Source**: `specs/007-webapp-auth/spec.md`
+* **Research Inputs**: `specs/007-webapp-auth/research.md`
+* **Planning Details**: `specs/007-webapp-auth/plan.md`
+* **Data Model**: `specs/007-webapp-auth/data-model.md`
+* **Contract Definitions**: `specs/007-webapp-auth/contracts/`
+
+## Beads Query Hints
+
+Use the `bd` CLI or MCP toolchain to query and manipulate the issue graph:
+
+```bash
+# Find all open tasks for this feature
+bd list --label spec:007-webapp-auth --status open
+
+# Find ready tasks to implement
+bd ready --label spec:007-webapp-auth
+
+# See design, acceptance criteria, and dependencies for a specific issue
+bd show grid-baf5
+
+# Explore comments for a specific issue
+bd comments grid-044b
+
+# View issues by component
+bd list --label component:webapp --label spec:007-webapp-auth
+bd list --label component:gridapi --label spec:007-webapp-auth
+bd list --label component:sdk --label spec:007-webapp-auth
+
+# Show all phases (features)
+bd list --type feature --label spec:007-webapp-auth
+
+# Show all tasks for a specific user story
+bd list --label story:US1 --label spec:007-webapp-auth
+bd list --label story:US2 --label spec:007-webapp-auth
+
+# Check stats
+bd stats
+```
+
+
+### Exploring comments for context
+
+Use `bd comments` to add notes, research findings, or any relevant context to a task. This helps in task generation and exploration by providing additional details that might not fit into the task title, description, design or notes sections on the task directly.
+
+**Example:**
+```bash
+bd comments grid-044b
+```
+
+This will show comments associated with `grid-044b`, such as:
+
+```console
+Comments on grid-044b:
+[vincentdesmet] Research hashicorp/js-bexpr library: https://github.com/hashicorp/js-bexpr - This may provide go-bexpr compatible syntax for browser. Alternative: expr-eval or custom parser. at
+ 2025-11-04 23:49
+```
+
+Use `bd comments add <issue-id> "<your comment>"` to add your own insights during implementation.
+
+## Tasks and Phases Structure
+
+This feature follows Beads' 2-level graph structure:
+
+* **Epic**: grid-baf5 → WebApp User Login Flow with Role-Based Filtering
+* **Phases**: Beads issues of type `feature`, child of the epic
+  * Phase 1: Setup and Infrastructure (grid-990f)
+  * Phase 2: Foundational Backend Requirements (grid-f6ce) - **BLOCKS all user stories**
+  * Phase 3: US1 - View States Without Authentication (grid-bad5)
+  * Phase 4: US2 - Authenticate Using Internal Identity Provider (grid-fdfc)
+  * Phase 5: US3 - Authenticate Using External Identity Provider (grid-74c0)
+  * Phase 6: US4 - See Only Authorized States (grid-32ef)
+  * Phase 7: US5 - View Authentication Status and Role Information (grid-b2e6)
+  * Phase 8: US6 - Log Out (grid-2374)
+  * Phase 9: Polish and Integration (grid-a16b)
+* **Tasks**: Issues of type `task`, children of each feature issue (phase)
+
+## Convention Summary
+
+| Label Type          | Purpose                                    | Examples                                             |
+| ------------------- | ------------------------------------------ | ---------------------------------------------------- |
+| `spec:007-webapp-auth` | All issues in this feature              | Applied to epic, features, and tasks                 |
+| `phase:setup`       | Phase categorization                       | setup, foundational, us1, us2, us3, us4, us5, us6, polish |
+| `story:US1`         | User story traceability                    | US1, US2, US3, US4, US5, US6                          |
+| `component:webapp`  | Implementation area                        | webapp, gridapi, sdk, infra, integration              |
+| `fr:FR-001`         | Functional requirement traceability        | FR-001 through FR-010 (from spec.md)                  |
+
+## Phase Details
+
+### Phase 1: Setup and Infrastructure (grid-990f)
+
+**Purpose**: Project initialization - TypeScript types, context scaffolding, SDK stubs
+
+**Tasks Created**:
+- grid-e586: Create TypeScript auth types (webapp/src/types/auth.ts)
+- grid-b1f7: Create js/sdk auth types (js/sdk/types/auth.ts)
+- grid-8602: Create AuthContext scaffolding (webapp/src/context/AuthContext.tsx)
+- grid-174c: Create js/sdk auth helper stubs (js/sdk/auth.ts)
+
+**Status**: Ready to start - no blockers
+
+---
+
+### Phase 2: Foundational Backend Requirements (grid-f6ce) ⚠️ BLOCKS ALL USER STORIES
+
+**Purpose**: Backend changes required before any user story can be implemented
+
+**Critical**: This phase MUST be complete before any user story work begins.
+
+**Architectural Note (Constitution IX)**: New auth handlers will follow the existing SSO auth handler pattern (direct repository access via `deps.Users` and `deps.Sessions`). This is documented technical debt per Constitution IX "Known Violations" section. The complete fix (introducing IAM service layer) is tracked separately for future refactoring.
+
+**Tasks Created**:
+- grid-87f5: Implement POST /auth/login for internal IdP (cmd/gridapi/internal/server/auth_handlers.go)
+- grid-8f1a: Implement gridapi users create command (cmd/gridapi/cmd/users/create.go)
+- grid-6b5a: Implement /api/auth/whoami endpoint (cmd/gridapi/internal/server/auth_handlers.go)
+- grid-c254: Implement role aggregation logic for whoami (cmd/gridapi/internal/server/auth_helpers.go)
+- grid-d2a2: Fix SessionID population bug in authn middleware (cmd/gridapi/internal/middleware/authn.go)
+- grid-830e: Mount whoami and internal login endpoints in router (cmd/gridapi/internal/server/router.go)
+
+**Backend Changes Summary** (from plan.md Complexity Tracking):
+1. POST /auth/login (internal IdP): Username/password authentication handler (~80 lines)
+2. gridapi users create: CLI command to bootstrap local users (~100 lines)
+3. GET /api/auth/whoami: Session restoration endpoint (~50 lines)
+4. Role aggregation: Union of user_roles + group_roles (~30 lines)
+5. SessionID bug fix: Populate principal.SessionID field (~5 lines)
+6. Router mounting: Register new endpoints (~2 lines)
+
+**Estimated Total Effort**: 7-10 hours
+
+**Constitution IX Justification**: All changes follow existing gridapi patterns - handlers call repositories directly for auth operations (see HandleSSOLogin, HandleLogout). No service layer needed for authentication middleware concerns.
+
+**Checkpoint**: Once complete, all user stories can proceed in parallel or sequentially by priority
+
+---
+
+### Phase 3: User Story 1 - View States Without Authentication (grid-bad5) 🎯 MVP CANDIDATE
+
+**Priority**: P1
+**Goal**: When gridapi runs without authentication enabled, users access the dashboard without login and see all states.
+
+**Why This Priority**: Baseline behavior - webapp must continue to work in non-authenticated mode for backward compatibility and development scenarios.
+
+**Independent Test**: Run gridapi without authentication configuration, navigate to webapp, verify dashboard loads immediately showing all states without any login UI.
+
+**Key Tasks** (query with `bd list --label story:US1`):
+- Implement conditional auth UI rendering in App.tsx
+- Implement fetchAuthConfig in js/sdk/auth.ts
+- Integrate config loading in AuthProvider
+
+**Acceptance Scenarios** (from spec.md):
+1. gridapi without auth → dashboard displays immediately without login prompt
+2. Dashboard displays → all states visible
+3. Dashboard displays → no login button or user menu visible
+
+**Status**: Depends on Phase 1 (Setup) and Phase 2 (Foundational)
+
+---
+
+### Phase 4: User Story 2 - Authenticate Using Internal Identity Provider (grid-fdfc) 🎯 MVP CANDIDATE
+
+**Priority**: P1
+**Goal**: When gridapi uses internal IdP mode, web users authenticate with username and password to access the dashboard with their assigned roles.
+
+**Why This Priority**: Primary web authentication flow for internal IdP mode - without this, authenticated web access is impossible when using Grid's built-in authentication.
+
+**Independent Test**: Run gridapi with internal IdP enabled, attempt to access dashboard, enter valid username/password credentials, verify successful login with role assignment displayed.
+
+**Key Tasks** (query with `bd list --label story:US2`):
+- Implement loginInternal in js/sdk/auth.ts (POST /auth/login)
+- Adapt LoginPage for internal IdP mode (webapp/src/components/LoginPage.tsx)
+- Implement fetchWhoami in js/sdk/auth.ts (GET /api/auth/whoami)
+- Implement session restoration in AuthProvider (useEffect calling fetchWhoami)
+- Create AuthGuard component (webapp/src/components/AuthGuard.tsx)
+
+**Acceptance Scenarios** (from spec.md):
+1. gridapi requires auth + user not logged in → see login form with username/password fields
+2. User enters valid credentials and submits → authenticated and see dashboard
+3. User has active session → dashboard displays immediately without login prompt
+4. User views auth status → displays username, email, assigned roles, auth type (Basic Auth - Internal IdP)
+5. User enters invalid credentials → error message without revealing username/password specifics
+
+**Backend Dependencies**:
+- grid-87f5: POST /auth/login implementation
+- grid-6b5a: GET /api/auth/whoami implementation
+- grid-8f1a: gridapi users create command (for test users)
+
+**Status**: Depends on Phase 1 (Setup) and Phase 2 (Foundational) - **HIGHEST PRIORITY FOR MVP**
+
+---
+
+### Phase 5: User Story 3 - Authenticate Using External Identity Provider (grid-74c0)
+
+**Priority**: P1
+**Goal**: When gridapi uses external IdP mode (SSO), web users authenticate through their organization's identity provider to access the dashboard with role assignments based on group memberships.
+
+**Why This Priority**: Primary web authentication flow for external IdP mode (SSO) - critical for organizations using enterprise identity providers like Keycloak, Azure Entra ID, or Okta.
+
+**Independent Test**: Run gridapi with external IdP enabled, attempt to access dashboard, click SSO login, complete authentication at external IdP, verify successful callback with group-based role assignment displayed.
+
+**Key Tasks** (query with `bd list --label story:US3`):
+- Implement loginExternal (SSO redirect) in js/sdk/auth.ts
+- Adapt LoginPage for external IdP mode (SSO button)
+- Handle OAuth2 callback flow (backend already implements this)
+
+**Acceptance Scenarios** (from spec.md):
+1. gridapi requires external IdP + user not logged in → see login form with SSO login option
+2. User initiates SSO login → redirected to external IdP login page
+3. User completes external IdP auth → OAuth2 callback completes, returns to dashboard authenticated
+4. User views auth status → displays username, email, group memberships, derived roles, auth type (OIDC)
+5. User authenticated via external IdP + JWT contains groups → system maps groups to roles per configured mappings
+
+**Note**: Backend OAuth2 handlers already exist (from 006-authz-authn-rbac). Webapp just needs to trigger redirect and handle post-callback session restoration.
+
+**Status**: Depends on Phase 1 (Setup) and Phase 2 (Foundational)
+
+---
+
+### Phase 6: User Story 4 - See Only Authorized States (grid-32ef)
+
+**Priority**: P1
+**Goal**: When authentication is enabled, the dashboard automatically filters the states list to show only states the user is authorized to view based on their role's user scope (label-based filtering).
+
+**Why This Priority**: Critical for security - users must not see states they don't have access to. Without this, role-based access control is meaningless.
+
+**Independent Test**: Create states with different label combinations (e.g., env=dev, env=prod, product=foo), log in as users with different role scopes, verify each user only sees states matching their role's user scope expression.
+
+**Key Tasks** (query with `bd list --label story:US4`):
+- Implement client-side state filtering based on role scope expressions
+- Parse and evaluate boolean expressions (go-bexpr compatible)
+- Apply filters to dashboard state list
+- Handle empty state list with appropriate messaging
+
+**Acceptance Scenarios** (from spec.md):
+1. User with role scope `env=="dev"` → only states with env=dev label displayed
+2. User with role scope `env=="prod"` → only states with env=prod label displayed
+3. User with role scope `env=="dev" and product=="foo"` → only states matching both label conditions
+4. User with no role assignments → dashboard shows empty state list with message
+5. State created that user cannot access → does not appear in user's dashboard view
+
+**Future Enhancement** (noted in contracts/README.md:414):
+Currently, ListStates returns all states and relies on client-side filtering. This is tracked in issue `grid-f5947b22`. Future server-side label filtering will improve security and performance.
+
+**Status**: Depends on Phase 1 (Setup), Phase 2 (Foundational), and either US2 or US3 (authentication working)
+
+---
+
+### Phase 7: User Story 5 - View Authentication Status and Role Information (grid-b2e6)
+
+**Priority**: P2
+**Goal**: Users can view their current authentication status, username, email, authentication type, and assigned roles through a user menu dropdown.
+
+**Why This Priority**: Provides transparency and helps users understand their identity and assigned roles, but the dashboard can function without it.
+
+**Independent Test**: Log in, click user menu in header, verify user information, authentication type, roles, and groups (if external IdP) displayed correctly.
+
+**Key Tasks** (query with `bd list --label story:US5`):
+- Adapt AuthStatus.tsx mockup to display real user data from AuthContext
+- Show username, email, auth type, roles, session expiry
+- Show groups for external IdP users
+- Format and style role/group badges
+
+**Acceptance Scenarios** (from spec.md):
+1. User authenticated → click username in header → dropdown displays email, auth type, roles, session expiration
+2. User authenticated via internal IdP → dropdown shows username, email, roles, auth type (Basic Auth), session expiry
+3. User authenticated via external IdP → dropdown shows username, email, group memberships, derived roles, auth type (OIDC), session expiry
+4. User has multiple roles → all roles displayed with distinct visual styling
+
+**Note**: Existing AuthStatus.tsx mockup provides UI foundation. Task is to wire it to real AuthContext data.
+
+**Status**: Depends on Phase 1 (Setup), Phase 2 (Foundational), and either US2 or US3 (authentication working)
+
+---
+
+### Phase 8: User Story 6 - Log Out (grid-2374)
+
+**Priority**: P2
+**Goal**: Users can log out of the application, clearing their session and requiring re-authentication to access the dashboard again.
+
+**Why This Priority**: Important for security and shared computer scenarios, but the application can function without it (sessions will eventually expire).
+
+**Independent Test**: Log in, click logout button in user menu, verify session cleared and user returned to login page.
+
+**Key Tasks** (query with `bd list --label story:US6`):
+- Implement logout function in js/sdk/auth.ts (POST /auth/logout)
+- Wire logout button in AuthStatus dropdown to logout function
+- Clear AuthContext state on logout
+- Redirect to login page after logout
+
+**Acceptance Scenarios** (from spec.md):
+1. User authenticated → clicks "Sign Out" in user menu → session cleared and logged out
+2. User logged out → attempts to access dashboard → shown login page
+3. User logging out → logout completes → see login page ready for re-authentication
+
+**Note**: Backend POST /auth/logout already exists (from 006-authz-authn-rbac). Webapp just needs to call it and clear local state.
+
+**Status**: Depends on Phase 1 (Setup), Phase 2 (Foundational), and US5 (AuthStatus UI with logout button)
+
+---
+
+### Phase 9: Polish and Integration (grid-a16b)
+
+**Purpose**: Cross-cutting concerns, error handling, edge cases, integration tests, documentation
+
+**Key Tasks** (query with `bd list --label phase:polish`):
+- Handle auth config changes while webapp loaded (detect on next API call)
+- Handle session expiry during dashboard view (401 → redirect to login)
+- Handle user with no role assignments (empty dashboard with message)
+- Handle role assignment changes during active session (re-login to apply)
+- Handle gridapi mode switch (authenticated → non-authenticated)
+- Handle network connectivity loss during login
+- Handle external IdP users with no group-to-role mappings
+- Add Connect RPC interceptor for 401 handling
+- Add error boundaries and user-friendly error messages
+- Write integration tests (webapp + gridapi)
+- Write component tests (Vitest + React Testing Library)
+- Update documentation
+
+**Edge Cases** (from spec.md:113-122):
+- Auth config changes while webapp loaded → detect on next API call, redirect to appropriate login
+- Session expires during dashboard view → next API request returns 401, redirect to login
+- User with no role assignments → can authenticate but sees empty dashboard with message
+- Role assignments change during active session → current session continues until logout/re-auth
+- gridapi switches from authenticated to non-authenticated → webapp detects lack of auth errors on reload
+- Network connectivity lost during login → user-friendly error message
+- External IdP user with no group-to-role mappings → can authenticate but no roles assigned, empty dashboard
+
+**Testing Strategy** (from plan.md:56-62):
+- Component tests: Vitest + React Testing Library
+- Integration tests: `createRouterTransport()` for Connect RPC mocking
+- Auth flow tests: Mock both Connect RPC and /auth/* HTTP endpoints
+- Coverage target: >80% for new components
+
+**Status**: Depends on all desired user stories being complete
+
+---
+
+## Dependencies & Execution Order
+
+### Phase Dependencies
+
+- **Setup (Phase 1)**: No dependencies - can start immediately ✅
+- **Foundational (Phase 2)**: Depends on Setup - **BLOCKS ALL USER STORIES** ⚠️
+- **User Stories (Phases 3-8)**: All depend on Foundational completion
+  - **US1 (P1)**: Non-auth mode - standalone
+  - **US2 (P1)**: Internal IdP - **MVP CANDIDATE** 🎯
+  - **US3 (P1)**: External IdP - parallel to US2
+  - **US4 (P1)**: Client-side filtering - depends on US2 or US3
+  - **US5 (P2)**: Auth status UI - depends on US2 or US3
+  - **US6 (P2)**: Logout - depends on US5
+- **Polish (Phase 9)**: Depends on all desired user stories
+
+### Suggested MVP Scope
+
+**Recommended MVP**: US1 + US2 (Non-auth mode + Internal IdP authentication)
+
+**Rationale**:
+- US1 ensures backward compatibility (non-auth mode)
+- US2 provides complete authentication flow for internal IdP
+- Together, these cover the core use case: webapp works with and without auth
+- Can be delivered and tested independently
+- Provides foundation for US3 (external IdP) in follow-up increment
+
+**MVP Tasks**:
+```bash
+# View MVP tasks
+bd list --label story:US1 --label spec:007-webapp-auth
+bd list --label story:US2 --label spec:007-webapp-auth
+bd list --label phase:foundational --label spec:007-webapp-auth
+```
+
+### Incremental Delivery Strategy
+
+1. **Sprint 1**: Phase 1 (Setup) + Phase 2 (Foundational) → Backend ready
+2. **Sprint 2**: US1 + US2 → MVP (non-auth + internal IdP working) 🎯
+3. **Sprint 3**: US3 → External IdP support
+4. **Sprint 4**: US4 → Role-based filtering
+5. **Sprint 5**: US5 + US6 → Auth status UI + logout
+6. **Sprint 6**: Phase 9 → Polish, testing, documentation
+
+Each sprint delivers a complete, testable increment.
+
+---
+
+## Task Execution Notes
+
+### For AI Agents
+
+When implementing tasks:
+
+1. **Check dependencies first**: `bd show <task-id>` to see blockers
+2. **Mark task in progress**: `bd update <task-id> --status in_progress`
+3. **Follow existing patterns**: All constitution justifications provided for gridapi tasks
+4. **Test as you go**: Each user story should be independently testable
+5. **Mark complete with notes**: `bd update <task-id> --status closed --notes "Implementation details"`
+
+### For Human Developers
+
+When picking up tasks:
+
+1. **Start with Phase 1 (Setup)**: Foundation first
+2. **Complete Phase 2 (Foundational) entirely**: Backend must be ready before frontend work
+3. **Implement user stories in priority order**: P1 before P2
+4. **Test each story independently**: Don't wait until end to verify
+5. **Use quickstart.md scenarios**: Once available, validate against documented test cases
+
+### Constitutional Compliance
+
+All gridapi tasks include explicit justification against **Constitution IX: API Server Internal Layering** violations:
+
+- Auth handlers follow existing pattern: handler → repository (direct, no service layer)
+- Authentication is middleware concern, not business logic
+- CLI commands directly access repositories (standard pattern in cmd/gridapi/cmd/*)
+- Helper functions for data aggregation (not services)
+- All changes are additive (no modifications to existing flows)
+
+See individual task descriptions for detailed justifications.
+
+---
+
+## Query Examples for Common Workflows
+
+```bash
+# What's ready to work on?
+bd ready --label spec:007-webapp-auth
+
+# What's blocking progress?
+bd blocked --label spec:007-webapp-auth
+
+# How many tasks are done?
+bd stats
+
+# Show full dependency tree
+bd show grid-baf5
+
+# Find all webapp frontend tasks
+bd list --label component:webapp --label spec:007-webapp-auth
+
+# Find all gridapi backend tasks
+bd list --label component:gridapi --label spec:007-webapp-auth
+
+# Find all SDK tasks
+bd list --label component:sdk --label spec:007-webapp-auth
+
+# Track specific user story progress
+bd list --label story:US2 --label spec:007-webapp-auth
+```
+
+---
+
+## Summary
+
+- **Epic**: grid-baf5 (WebApp User Login Flow with Role-Based Filtering)
+- **Total Phases**: 9 (1 setup, 1 foundational, 6 user stories, 1 polish)
+- **User Stories**: 6 (4 P1, 2 P2)
+- **MVP Scope**: US1 + US2 (non-auth mode + internal IdP)
+- **Testing**: Optional per spec (no TDD requirement, but tests recommended for polish phase)
+- **Backend Effort**: 7-10 hours (foundational phase)
+- **Frontend Effort**: ~2-3 days per user story
+- **Total Estimated Effort**: 2-3 weeks for full feature
+
+All task details, dependencies, and status are tracked in Beads. This file serves as a navigation index only.

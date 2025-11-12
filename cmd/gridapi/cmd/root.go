@@ -7,6 +7,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/terraconstructs/grid/cmd/gridapi/cmd/iam"
 	"github.com/terraconstructs/grid/cmd/gridapi/cmd/sa"
+	"github.com/terraconstructs/grid/cmd/gridapi/cmd/users"
 	"github.com/terraconstructs/grid/cmd/gridapi/internal/config"
 )
 
@@ -37,6 +38,7 @@ func init() {
 	// Add subcommands
 	rootCmd.AddCommand(sa.SaCmd)
 	rootCmd.AddCommand(iam.IamCmd)
+	rootCmd.AddCommand(users.UsersCmd)
 }
 
 // Execute runs the root command

@@ -78,52 +78,27 @@ func NewAuthnMiddleware(cfg *config.Config, deps AuthnDependencies, verifierOpts
 				return
 			}
 
-			// STEP 4: Extract subject and check identity disabled
-			subject, _ := claims["sub"].(string)
-			if subject == "" {
-				http.Error(w, "invalid token: missing subject", http.StatusUnauthorized)
-				return
-			}
+			// STEP 4: Extract token hash for session lookup
+			tokenHash, _ := auth.TokenHashFromContext(ctx)
 
-			// Check if identity is disabled
-			principal, identityDisabled, err := resolvePrincipal(ctx, deps, cfg, claims, subject)
+			// STEP 5: Resolve principal using shared function
+			// This performs: identity resolution, JIT provisioning, group extraction,
+			// role aggregation, Casbin grouping, and effective role calculation
+			principal, groups, err := ResolvePrincipal(ctx, claims, tokenHash, deps, cfg)
 			if err != nil {
-				log.Printf("error resolving principal for subject %s for %s %s: %v", subject, r.Method, r.URL.Path, err)
-				http.Error(w, "authentication error", http.StatusInternalServerError)
+				log.Printf("error resolving principal for %s %s: %v", r.Method, r.URL.Path, err)
+				// Check if account disabled vs other errors
+				if strings.Contains(err.Error(), "account disabled") {
+					http.Error(w, "account disabled", http.StatusUnauthorized)
+				} else {
+					http.Error(w, "authentication error", http.StatusInternalServerError)
+				}
 				return
-			}
-			if identityDisabled {
-				http.Error(w, "account disabled", http.StatusUnauthorized)
-				return
-			}
-
-			// STEP 5: Extract groups and apply dynamic Casbin grouping
-			groups := extractGroupsFromClaims(claims, cfg)
-
-			groupRoleMap, err := buildGroupRoleMap(ctx, deps, groups)
-			if err != nil {
-				log.Printf("error building group→role map for subject %s: %v", subject, err)
-				http.Error(w, "authorization setup failed", http.StatusInternalServerError)
-				return
-			}
-
-			if err := auth.ApplyDynamicGroupings(deps.Enforcer, principal.PrincipalID, groups, groupRoleMap); err != nil {
-				log.Printf("error applying dynamic groupings for %s: %v", subject, err)
-				http.Error(w, "authorization setup failed", http.StatusInternalServerError)
-				return
-			}
-
-			// Resolve effective roles for the principal
-			if roles, err := auth.GetEffectiveRoles(deps.Enforcer, principal.PrincipalID); err == nil {
-				// Trim Casbin role prefix when presenting externally
-				principal.Roles = stripRolePrefix(roles)
-			} else {
-				log.Printf("error getting effective roles for %s: %v", principal.PrincipalID, err)
 			}
 
 			// STEP 6: Store principal and groups in context for authz middleware
 			ctx = auth.SetGroupsContext(ctx, groups)
-			ctx = auth.SetUserContext(ctx, principal)
+			ctx = auth.SetUserContext(ctx, *principal)
 
 			next.ServeHTTP(w, r.WithContext(ctx))
 		})
@@ -134,8 +109,9 @@ func NewAuthnMiddleware(cfg *config.Config, deps AuthnDependencies, verifierOpts
 
 // resolvePrincipal resolves the authenticated principal from the subject claim.
 // In External IdP mode, automatically provisions users on first authentication (JIT provisioning).
+// Populates the SessionID field by looking up the session by token hash.
 // Returns the principal, whether the identity is disabled, and any error.
-func resolvePrincipal(ctx context.Context, deps AuthnDependencies, cfg *config.Config, claims map[string]interface{}, subject string) (auth.AuthenticatedPrincipal, bool, error) {
+func resolvePrincipal(ctx context.Context, deps AuthnDependencies, cfg *config.Config, claims map[string]interface{}, subject string, tokenHash string) (auth.AuthenticatedPrincipal, bool, error) {
 	// Check if service account (subject starts with "sa:")
 	if strings.HasPrefix(subject, "sa:") {
 		clientID := strings.TrimPrefix(subject, "sa:")
@@ -151,6 +127,17 @@ func resolvePrincipal(ctx context.Context, deps AuthnDependencies, cfg *config.C
 			Name:        sa.Name,
 			Type:        auth.PrincipalTypeServiceAccount,
 		}
+
+		// Populate SessionID by looking up session via token hash (for service account tokens)
+		if tokenHash != "" {
+			session, err := deps.Sessions.GetByTokenHash(ctx, tokenHash)
+			if err == nil && session != nil {
+				principal.SessionID = session.ID
+			} else if err != nil {
+				log.Printf("warning: failed to lookup session by token hash for service account: %v", err)
+			}
+		}
+
 		return principal, sa.Disabled, nil
 	}
 
@@ -186,6 +173,17 @@ func resolvePrincipal(ctx context.Context, deps AuthnDependencies, cfg *config.C
 		Name:        user.Name,
 		Type:        auth.PrincipalTypeUser,
 	}
+
+	// Populate SessionID by looking up session via token hash
+	if tokenHash != "" {
+		session, err := deps.Sessions.GetByTokenHash(ctx, tokenHash)
+		if err == nil && session != nil {
+			principal.SessionID = session.ID
+		} else if err != nil {
+			log.Printf("warning: failed to lookup session by token hash: %v", err)
+		}
+	}
+
 	return principal, user.DisabledAt != nil, nil
 }
 

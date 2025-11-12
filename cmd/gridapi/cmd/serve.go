@@ -111,6 +111,11 @@ var serveCmd = &cobra.Command{
 			enforcer.EnableAutoSave(true)
 			authnDeps.Enforcer = enforcer
 
+			// Add session middleware FIRST (checks for session cookies)
+			sessionMiddleware := gridmiddleware.NewSessionAuthMiddleware(authnDeps)
+			chiMiddleware = append(chiMiddleware, sessionMiddleware)
+
+			// Add JWT authn middleware SECOND (checks for Bearer tokens)
 			authnMiddleware, err := gridmiddleware.NewAuthnMiddleware(cfg, authnDeps)
 			if err != nil {
 				return fmt.Errorf("configure authentication middleware: %w", err)
@@ -127,7 +132,17 @@ var serveCmd = &cobra.Command{
 			}
 			chiMiddleware = append(chiMiddleware, authzMiddleware)
 
-			// Connect-specific authz interceptor
+			// Connect-specific authn interceptors (must run BEFORE authz)
+			sessionInterceptor := gridmiddleware.NewSessionInterceptor(cfg, authnDeps)
+			connectInterceptors = append(connectInterceptors, sessionInterceptor)
+
+			jwtInterceptor, err := gridmiddleware.NewJWTInterceptor(cfg, authnDeps)
+			if err != nil {
+				return fmt.Errorf("configure JWT interceptor: %w", err)
+			}
+			connectInterceptors = append(connectInterceptors, jwtInterceptor)
+
+			// Connect-specific authz interceptor (runs AFTER authn)
 			authzInterceptor := gridmiddleware.NewAuthzInterceptor(gridmiddleware.AuthzDependencies{
 				Enforcer:     enforcer,
 				StateService: svc,

@@ -1,15 +1,19 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { StateInfo, DependencyEdge } from '@tcons/grid';
+import { authService, Session } from './services/authMockService';
 import { useGridData } from './hooks/useGridData';
 import { GraphView } from './components/GraphView';
 import { ListView } from './components/ListView';
 import { DetailView } from './components/DetailView';
 import { Network, List, Loader2, RefreshCw, AlertCircle } from 'lucide-react';
 import type { ActiveLabelFilter } from './components/LabelFilter';
+import { LoginPage } from './components/LoginPage';
+import { AuthStatus } from './components/AuthStatus';
 
 type View = 'graph' | 'list';
 
 function App() {
+  const [session, setSession] = useState<Session | null>(() => authService.getSessionFromCookie());
   const [view, setView] = useState<View>('graph');
   const [selectedState, setSelectedState] = useState<StateInfo | null>(null);
   const {
@@ -25,8 +29,10 @@ function App() {
   const filterInitializedRef = useRef(false);
 
   useEffect(() => {
-    loadData();
-  }, [loadData]);
+    if (session) {
+      loadData();
+    }
+  }, [loadData, session]);
 
   const handleStateClick = async (logicId: string) => {
     const state = await getStateInfo(logicId);
@@ -45,6 +51,16 @@ function App() {
       setSelectedState(state);
     }
   };
+
+  const handleLogout = () => {
+    setSession(null);
+    // todo handle data clearing on logout
+    setSelectedState(null);
+  };
+
+  if (!session) {
+    return <LoginPage onLoginSuccess={setSession} />;
+  }
 
   const handleRefresh = async () => {
     const currentSelectedLogicId = selectedState?.logic_id;
@@ -126,7 +142,7 @@ function App() {
             </button>
           </div>
 
-          <div className="flex items-center gap-4 text-sm">
+          <div className="hidden md:flex items-center gap-4 text-sm">
             <div className="text-gray-400">
               <span className="text-white font-semibold">{states.length}</span> states
             </div>
@@ -142,6 +158,9 @@ function App() {
               <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
               Refresh
             </button>
+            <div className="pl-2 border-l border-gray-600">
+              <AuthStatus session={session} onLogout={handleLogout} />
+            </div>
           </div>
         </div>
       </header>

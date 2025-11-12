@@ -158,3 +158,10 @@ Integration tests in `tests/integration/`:
 ├── js/sdk/gen/            # Generated TypeScript SDK
 └── specs/                 # Feature specifications and design docs
 ```
+
+## Active Technologies
+- TypeScript 5.x (webapp), React 18 (UI framework) + React, @connectrpc/connect-web (RPC client), Vite (build tool), Tailwind CSS (styling), Lucide React (icons) (007-webapp-auth)
+- Browser localStorage/sessionStorage for session management, httpOnly cookies for auth tokens (managed by gridapi) (007-webapp-auth)
+
+## Recent Changes
+- 007-webapp-auth: Added TypeScript 5.x (webapp), React 18 (UI framework) + React, @connectrpc/connect-web (RPC client), Vite (build tool), Tailwind CSS (styling), Lucide React (icons)

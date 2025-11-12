@@ -44,6 +44,8 @@ func DefaultCORSOptions() cors.Options {
 		AllowedOrigins: []string{
 			"http://localhost:5173",
 			"http://127.0.0.1:5173",
+			"http://localhost:5174",
+			"http://127.0.0.1:5174",
 		},
 		AllowedMethods: []string{http.MethodGet, http.MethodPost, http.MethodOptions},
 		AllowedHeaders: []string{
@@ -103,12 +105,14 @@ func NewRouter(opts RouterOptions) chi.Router {
 	if opts.OIDCRouter != nil {
 		log.Println("Mounting OIDC router")
 		r.Mount("/", opts.OIDCRouter)
+		r.Post("/auth/login", HandleInternalLogin(&opts.AuthnDeps))
+		r.Get("/api/auth/whoami", HandleWhoAmI(&opts.AuthnDeps))
+		r.Post("/auth/logout", HandleLogout(&opts.AuthnDeps))
 	}
 
 	if opts.RelyingParty != nil {
 		r.Get("/auth/sso/login", HandleSSOLogin(opts.RelyingParty))
 		r.Get("/auth/sso/callback", HandleSSOCallback(opts.RelyingParty, &opts.AuthnDeps))
-		r.Post("/auth/logout", HandleLogout(&opts.AuthnDeps))
 	}
 
 	if opts.Service != nil {
