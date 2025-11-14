@@ -35,6 +35,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"os"
 	"os/exec"
@@ -446,4 +447,528 @@ func TestMode2_JWTRevocation(t *testing.T) {
 func getDatabaseConnection() (*sql.DB, error) {
 	dsn := "postgres://grid:gridpass@localhost:5432/grid?sslmode=disable"
 	return sql.Open("postgres", dsn)
+}
+
+// ============================================================================
+// Webapp Authentication Tests (Mode 2)
+// ============================================================================
+// These tests verify the webapp authentication handlers:
+// - POST /auth/login (internal IdP username/password)
+// - GET /api/auth/whoami (session restoration)
+// - POST /auth/logout (session termination)
+// - GET /auth/config (authentication mode discovery)
+
+// createTestUser creates a user via gridapi users create command
+// Returns the user's email for login testing
+func createTestUser(t *testing.T, username, email, password string) string {
+	t.Helper()
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	gridapiPath := getGridAPIPath(t)
+	cmd := exec.CommandContext(ctx, gridapiPath, "users", "create",
+		"--username", username,
+		"--email", email,
+		"--password", password,
+		"--role", "platform-engineer",
+		"--db-url", "postgres://grid:gridpass@localhost:5432/grid?sslmode=disable")
+
+	output, err := cmd.CombinedOutput()
+	require.NoError(t, err, "Failed to create user: %s", string(output))
+
+	t.Logf("Created test user: %s (%s)", username, email)
+	return email
+}
+
+// disableUser marks a user as disabled in the database
+func disableUser(t *testing.T, email string) {
+	t.Helper()
+	db, err := getDatabaseConnection()
+	require.NoError(t, err, "Failed to connect to database")
+	defer db.Close()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	query := `UPDATE users SET disabled_at = NOW() WHERE email = $1`
+	_, err = db.ExecContext(ctx, query, email)
+	require.NoError(t, err, "Failed to disable user")
+
+	t.Logf("Disabled user: %s", email)
+}
+
+// WebLoginResponse represents the response from POST /auth/login
+type WebLoginResponse struct {
+	User struct {
+		ID       string   `json:"id"`
+		Username string   `json:"username"`
+		Email    string   `json:"email"`
+		AuthType string   `json:"auth_type"`
+		Roles    []string `json:"roles"`
+	} `json:"user"`
+	ExpiresAt int64 `json:"expires_at"`
+}
+
+// WebWhoamiResponse represents the response from GET /api/auth/whoami
+type WebWhoamiResponse struct {
+	User struct {
+		ID       string   `json:"id"`
+		Subject  string   `json:"subject"`
+		Username string   `json:"username"`
+		Email    string   `json:"email"`
+		AuthType string   `json:"auth_type"`
+		Roles    []string `json:"roles"`
+		Groups   []string `json:"groups,omitempty"`
+	} `json:"user"`
+	Session struct {
+		ID        string `json:"id"`
+		ExpiresAt int64  `json:"expires_at"`
+	} `json:"session"`
+}
+
+// loginWebUser performs POST /auth/login and returns response + session cookie
+func loginWebUser(t *testing.T, email, password string) (*WebLoginResponse, *http.Cookie) {
+	t.Helper()
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	loginURL := fmt.Sprintf("%s/auth/login", serverURL)
+	payload := fmt.Sprintf(`{"username":"%s","password":"%s"}`, email, password)
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, loginURL, bytes.NewBufferString(payload))
+	require.NoError(t, err)
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := http.DefaultClient.Do(req)
+	require.NoError(t, err)
+	defer resp.Body.Close()
+
+	require.Equal(t, http.StatusOK, resp.StatusCode, "Login should return 200")
+
+	var loginResp WebLoginResponse
+	err = json.NewDecoder(resp.Body).Decode(&loginResp)
+	require.NoError(t, err, "Failed to decode login response")
+
+	// Extract session cookie
+	var sessionCookie *http.Cookie
+	for _, cookie := range resp.Cookies() {
+		if cookie.Name == "grid.session" {
+			sessionCookie = cookie
+			break
+		}
+	}
+	require.NotNil(t, sessionCookie, "Login response should include grid.session cookie")
+
+	t.Logf("Logged in user %s, session cookie: %s...", email, sessionCookie.Value[:16])
+	return &loginResp, sessionCookie
+}
+
+// fetchWhoamiWeb performs GET /api/auth/whoami with session cookie
+func fetchWhoamiWeb(t *testing.T, sessionCookie *http.Cookie) (*WebWhoamiResponse, error) {
+	t.Helper()
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	whoamiURL := fmt.Sprintf("%s/api/auth/whoami", serverURL)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, whoamiURL, nil)
+	require.NoError(t, err)
+	req.AddCookie(sessionCookie)
+
+	resp, err := http.DefaultClient.Do(req)
+	require.NoError(t, err)
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		bodyBytes, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("whoami returned %d: %s", resp.StatusCode, string(bodyBytes))
+	}
+
+	var whoamiResp WebWhoamiResponse
+	err = json.NewDecoder(resp.Body).Decode(&whoamiResp)
+	require.NoError(t, err, "Failed to decode whoami response")
+
+	return &whoamiResp, nil
+}
+
+// logoutWebUser performs POST /auth/logout with session cookie
+func logoutWebUser(t *testing.T, sessionCookie *http.Cookie) {
+	t.Helper()
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	logoutURL := fmt.Sprintf("%s/auth/logout", serverURL)
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, logoutURL, nil)
+	require.NoError(t, err)
+	req.AddCookie(sessionCookie)
+
+	resp, err := http.DefaultClient.Do(req)
+	require.NoError(t, err)
+	defer resp.Body.Close()
+
+	require.Equal(t, http.StatusOK, resp.StatusCode, "Logout should return 200")
+	t.Logf("Logged out successfully")
+}
+
+// TestMode2_WebAuth_LoginSuccess verifies successful login with valid credentials
+func TestMode2_WebAuth_LoginSuccess(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping integration test in short mode")
+	}
+
+	verifyAuthEnabled(t, "Mode 2")
+
+	if !isMode2Configured(t) {
+		t.Skip("Server not configured for Mode 2 (Internal IdP)")
+	}
+
+	// Create test user
+	email := fmt.Sprintf("testuser-%s@internal.grid", uuid.New().String()[:8])
+	createTestUser(t, "testuser", email, "password123")
+
+	// Login
+	loginResp, sessionCookie := loginWebUser(t, email, "password123")
+
+	// Verify response structure
+	require.NotEmpty(t, loginResp.User.ID, "User ID should be set")
+	require.Equal(t, "testuser", loginResp.User.Username, "Username should match")
+	require.Equal(t, email, loginResp.User.Email, "Email should match")
+	require.Equal(t, "internal", loginResp.User.AuthType, "Auth type should be 'internal'")
+	require.NotNil(t, loginResp.User.Roles, "Roles should be present (can be empty array)")
+	require.Greater(t, loginResp.ExpiresAt, time.Now().UnixMilli(), "ExpiresAt should be in the future")
+
+	// Verify session cookie exists
+	require.Equal(t, "grid.session", sessionCookie.Name, "Cookie name should be 'grid.session'")
+	require.NotEmpty(t, sessionCookie.Value, "Session cookie value should not be empty")
+
+	t.Log("✓ Login success test passed")
+}
+
+// TestMode2_WebAuth_LoginCookieAttributes verifies session cookie attributes
+func TestMode2_WebAuth_LoginCookieAttributes(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping integration test in short mode")
+	}
+
+	verifyAuthEnabled(t, "Mode 2")
+
+	if !isMode2Configured(t) {
+		t.Skip("Server not configured for Mode 2 (Internal IdP)")
+	}
+
+	// Create test user
+	email := fmt.Sprintf("testcookie-%s@internal.grid", uuid.New().String()[:8])
+	createTestUser(t, "testcookie", email, "password123")
+
+	// Login
+	_, sessionCookie := loginWebUser(t, email, "password123")
+
+	// Verify cookie attributes
+	require.True(t, sessionCookie.HttpOnly, "Session cookie should be HttpOnly")
+	require.Equal(t, http.SameSiteLaxMode, sessionCookie.SameSite, "Session cookie should use SameSite=Lax")
+	require.Equal(t, "/", sessionCookie.Path, "Session cookie path should be '/'")
+
+	// Verify expiry is approximately 2 hours from now (within 5 minute tolerance)
+	expectedExpiry := time.Now().Add(2 * time.Hour)
+	expiryDiff := sessionCookie.Expires.Sub(expectedExpiry).Abs()
+	require.Less(t, expiryDiff, 5*time.Minute, "Session cookie should expire in ~2 hours")
+
+	t.Logf("✓ Cookie attributes verified: HttpOnly=%v, SameSite=%v, Expires=%v",
+		sessionCookie.HttpOnly, sessionCookie.SameSite, sessionCookie.Expires)
+}
+
+// TestMode2_WebAuth_LoginInvalidCredentials verifies 401 for invalid credentials
+func TestMode2_WebAuth_LoginInvalidCredentials(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping integration test in short mode")
+	}
+
+	verifyAuthEnabled(t, "Mode 2")
+
+	if !isMode2Configured(t) {
+		t.Skip("Server not configured for Mode 2 (Internal IdP)")
+	}
+
+	testCases := []struct {
+		name     string
+		email    string
+		password string
+		setup    func(t *testing.T) string // Returns email to use
+	}{
+		{
+			name:     "NonExistentUser",
+			email:    "nonexistent@internal.grid",
+			password: "password123",
+			setup:    func(t *testing.T) string { return "nonexistent@internal.grid" },
+		},
+		{
+			name:     "WrongPassword",
+			password: "wrongpassword",
+			setup: func(t *testing.T) string {
+				email := fmt.Sprintf("wrongpw-%s@internal.grid", uuid.New().String()[:8])
+				createTestUser(t, "wrongpw", email, "correctpassword")
+				return email
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			email := tc.setup(t)
+			if tc.email != "" {
+				email = tc.email
+			}
+
+			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+			defer cancel()
+
+			loginURL := fmt.Sprintf("%s/auth/login", serverURL)
+			payload := fmt.Sprintf(`{"username":"%s","password":"%s"}`, email, tc.password)
+
+			req, err := http.NewRequestWithContext(ctx, http.MethodPost, loginURL, bytes.NewBufferString(payload))
+			require.NoError(t, err)
+			req.Header.Set("Content-Type", "application/json")
+
+			resp, err := http.DefaultClient.Do(req)
+			require.NoError(t, err)
+			defer resp.Body.Close()
+
+			require.Equal(t, http.StatusUnauthorized, resp.StatusCode, "Invalid credentials should return 401")
+
+			bodyBytes, _ := io.ReadAll(resp.Body)
+			bodyText := string(bodyBytes)
+			require.Contains(t, bodyText, "Invalid credentials", "Error message should be generic")
+
+			t.Logf("✓ Invalid credentials returned 401: %s", bodyText)
+		})
+	}
+}
+
+// TestMode2_WebAuth_LoginDisabledAccount verifies 403 for disabled accounts
+func TestMode2_WebAuth_LoginDisabledAccount(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping integration test in short mode")
+	}
+
+	verifyAuthEnabled(t, "Mode 2")
+
+	if !isMode2Configured(t) {
+		t.Skip("Server not configured for Mode 2 (Internal IdP)")
+	}
+
+	// Create test user
+	email := fmt.Sprintf("disabled-%s@internal.grid", uuid.New().String()[:8])
+	createTestUser(t, "disabled", email, "password123")
+
+	// Disable the user
+	disableUser(t, email)
+
+	// Attempt login
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	loginURL := fmt.Sprintf("%s/auth/login", serverURL)
+	payload := fmt.Sprintf(`{"username":"%s","password":"password123"}`, email)
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, loginURL, bytes.NewBufferString(payload))
+	require.NoError(t, err)
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := http.DefaultClient.Do(req)
+	require.NoError(t, err)
+	defer resp.Body.Close()
+
+	require.Equal(t, http.StatusForbidden, resp.StatusCode, "Disabled account should return 403")
+
+	bodyBytes, _ := io.ReadAll(resp.Body)
+	require.Contains(t, string(bodyBytes), "Account disabled", "Error message should indicate account is disabled")
+
+	t.Log("✓ Disabled account returned 403")
+}
+
+// TestMode2_WebAuth_WhoamiSuccess verifies session restoration via whoami
+func TestMode2_WebAuth_WhoamiSuccess(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping integration test in short mode")
+	}
+
+	verifyAuthEnabled(t, "Mode 2")
+
+	if !isMode2Configured(t) {
+		t.Skip("Server not configured for Mode 2 (Internal IdP)")
+	}
+
+	// Create test user
+	email := fmt.Sprintf("whoami-%s@internal.grid", uuid.New().String()[:8])
+	createTestUser(t, "whoami", email, "password123")
+
+	// Login
+	loginResp, sessionCookie := loginWebUser(t, email, "password123")
+
+	// Call whoami
+	whoamiResp, err := fetchWhoamiWeb(t, sessionCookie)
+	require.NoError(t, err, "Whoami should succeed with valid session cookie")
+
+	// Verify user data matches login response
+	require.Equal(t, loginResp.User.ID, whoamiResp.User.ID, "User ID should match login response")
+	require.Equal(t, loginResp.User.Username, whoamiResp.User.Username, "Username should match")
+	require.Equal(t, loginResp.User.Email, whoamiResp.User.Email, "Email should match")
+	require.Equal(t, "internal", whoamiResp.User.AuthType, "Auth type should be 'internal'")
+
+	// Verify session data
+	require.NotEmpty(t, whoamiResp.Session.ID, "Session ID should be set")
+	require.Greater(t, whoamiResp.Session.ExpiresAt, time.Now().UnixMilli(), "Session should not be expired")
+
+	t.Logf("✓ Whoami success: user=%s, session_id=%s", whoamiResp.User.Email, whoamiResp.Session.ID)
+}
+
+// TestMode2_WebAuth_WhoamiUnauthenticated verifies 401 without session cookie
+func TestMode2_WebAuth_WhoamiUnauthenticated(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping integration test in short mode")
+	}
+
+	verifyAuthEnabled(t, "Mode 2")
+
+	if !isMode2Configured(t) {
+		t.Skip("Server not configured for Mode 2 (Internal IdP)")
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	whoamiURL := fmt.Sprintf("%s/api/auth/whoami", serverURL)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, whoamiURL, nil)
+	require.NoError(t, err)
+
+	resp, err := http.DefaultClient.Do(req)
+	require.NoError(t, err)
+	defer resp.Body.Close()
+
+	require.Equal(t, http.StatusUnauthorized, resp.StatusCode, "Whoami without cookie should return 401")
+
+	bodyBytes, _ := io.ReadAll(resp.Body)
+	require.Contains(t, string(bodyBytes), "unauthenticated", "Error message should indicate unauthenticated")
+
+	t.Log("✓ Whoami without cookie returned 401")
+}
+
+// TestMode2_WebAuth_AuthConfig verifies GET /auth/config returns internal IdP mode
+func TestMode2_WebAuth_AuthConfig(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping integration test in short mode")
+	}
+
+	verifyAuthEnabled(t, "Mode 2")
+
+	if !isMode2Configured(t) {
+		t.Skip("Server not configured for Mode 2 (Internal IdP)")
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	configURL := fmt.Sprintf("%s/auth/config", serverURL)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, configURL, nil)
+	require.NoError(t, err)
+
+	resp, err := http.DefaultClient.Do(req)
+	require.NoError(t, err)
+	defer resp.Body.Close()
+
+	require.Equal(t, http.StatusOK, resp.StatusCode, "Auth config should return 200")
+
+	var config struct {
+		Mode               string `json:"mode"`
+		Issuer             string `json:"issuer"`
+		ClientID           string `json:"client_id"`
+		Audience           string `json:"audience"`
+		SupportsDeviceFlow bool   `json:"supports_device_flow"`
+	}
+	err = json.NewDecoder(resp.Body).Decode(&config)
+	require.NoError(t, err, "Failed to decode auth config response")
+
+	// Verify Mode 2 configuration
+	require.Equal(t, "internal-idp", config.Mode, "Mode should be 'internal-idp'")
+	require.Equal(t, "http://localhost:8080", config.Issuer, "Issuer should match OIDC_ISSUER")
+	require.Equal(t, "gridapi", config.ClientID, "ClientID should match OIDC_CLIENT_ID")
+	require.NotEmpty(t, config.Audience, "Audience should be set")
+
+	t.Logf("✓ Auth config verified: mode=%s, issuer=%s, clientId=%s",
+		config.Mode, config.Issuer, config.ClientID)
+}
+
+// TestMode2_WebAuth_LogoutSuccess verifies logout clears session
+func TestMode2_WebAuth_LogoutSuccess(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping integration test in short mode")
+	}
+
+	verifyAuthEnabled(t, "Mode 2")
+
+	if !isMode2Configured(t) {
+		t.Skip("Server not configured for Mode 2 (Internal IdP)")
+	}
+
+	// Create test user
+	email := fmt.Sprintf("logout-%s@internal.grid", uuid.New().String()[:8])
+	createTestUser(t, "logout", email, "password123")
+
+	// Login
+	_, sessionCookie := loginWebUser(t, email, "password123")
+
+	// Verify whoami works before logout
+	_, err := fetchWhoamiWeb(t, sessionCookie)
+	require.NoError(t, err, "Whoami should work before logout")
+
+	// Logout
+	logoutWebUser(t, sessionCookie)
+
+	// Verify whoami fails after logout
+	_, err = fetchWhoamiWeb(t, sessionCookie)
+	require.Error(t, err, "Whoami should fail after logout")
+	require.Contains(t, err.Error(), "401", "Whoami should return 401 after logout")
+
+	t.Log("✓ Logout successfully invalidated session")
+}
+
+// TestMode2_WebAuth_FullFlow verifies complete login → whoami → logout flow
+func TestMode2_WebAuth_FullFlow(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping integration test in short mode")
+	}
+
+	verifyAuthEnabled(t, "Mode 2")
+
+	if !isMode2Configured(t) {
+		t.Skip("Server not configured for Mode 2 (Internal IdP)")
+	}
+
+	// Create test user
+	email := fmt.Sprintf("fullflow-%s@internal.grid", uuid.New().String()[:8])
+	createTestUser(t, "fullflow", email, "password123")
+
+	// Step 1: Login
+	t.Log("Step 1: Login")
+	loginResp, sessionCookie := loginWebUser(t, email, "password123")
+	require.Equal(t, "internal", loginResp.User.AuthType)
+	require.NotEmpty(t, sessionCookie.Value)
+
+	// Step 2: Restore session via whoami
+	t.Log("Step 2: Restore session via whoami")
+	whoamiResp, err := fetchWhoamiWeb(t, sessionCookie)
+	require.NoError(t, err)
+	require.Equal(t, loginResp.User.ID, whoamiResp.User.ID)
+	require.Equal(t, email, whoamiResp.User.Email)
+
+	// Step 3: Logout
+	t.Log("Step 3: Logout")
+	logoutWebUser(t, sessionCookie)
+
+	// Step 4: Verify session is invalid
+	t.Log("Step 4: Verify session invalidation")
+	_, err = fetchWhoamiWeb(t, sessionCookie)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "401")
+
+	t.Log("✓ Full authentication flow completed successfully")
 }

@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/xenitab/go-oidc-middleware/oidctoken"
 	"github.com/xenitab/go-oidc-middleware/options"
 
@@ -267,4 +268,44 @@ func SetClaimsContext(ctx context.Context, claims map[string]any) context.Contex
 // SetTokenHashContext allows middleware to set token hash for session lookup.
 func SetTokenHashContext(ctx context.Context, hash string) context.Context {
 	return context.WithValue(ctx, defaultTokenHashContextKey, hash)
+}
+
+// ExtractGroupsFromIDToken parses a JWT ID token and extracts the "groups" claim.
+// The token is parsed without verification since it's already validated and stored in the database.
+// Returns an empty slice if no groups claim is present.
+//
+// This function is used by:
+// - Session interceptor (to extract groups from stored ID token for external IdP users)
+// - SSO callback handler (to extract groups during initial authentication)
+//
+// Related: grid-80ad (External IdP group-to-role mapping fix)
+func ExtractGroupsFromIDToken(idToken string) ([]string, error) {
+	if idToken == "" {
+		return nil, nil
+	}
+
+	// Parse without verification (token is already validated and stored in DB)
+	claims := jwt.MapClaims{}
+	_, _, err := new(jwt.Parser).ParseUnverified(idToken, claims)
+	if err != nil {
+		return nil, fmt.Errorf("parse ID token: %w", err)
+	}
+
+	// Extract "groups" claim (may be string or []interface{})
+	if groupsClaim, ok := claims["groups"]; ok {
+		switch v := groupsClaim.(type) {
+		case []interface{}:
+			groups := make([]string, 0, len(v))
+			for _, g := range v {
+				if gs, ok := g.(string); ok {
+					groups = append(groups, gs)
+				}
+			}
+			return groups, nil
+		case string:
+			return []string{v}, nil
+		}
+	}
+
+	return nil, nil
 }

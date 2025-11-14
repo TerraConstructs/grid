@@ -67,31 +67,3 @@ Beads is a issue tracking tool for Humans and AI that integrates with git. See [
 ### Git Hooks
 
 Git Hooks for beads handle SQLite to JSONL flushing before commits to avoid dirty working trees. See [git-hooks/README.md](git-hooks/README.md) for details.
-
-### MCP Server
-
-[ref](https://github.com/steveyegge/beads/blob/main/integrations/beads-mcp/README.md)
-
-
-```bash
-# Using uv (recommended)
-uv tool install beads-mcp
-
-# Or using pip
-pip install beads-mcp
-```
-
-Register with Agents
-
-```bash
-# Claude Code
-claude mcp add --transport stdio beads beads-mcp
-# Gemini CLI
-gemini mcp add --transport stdio beads beads-mcp
-```
-
-Upgrade with `uv tool upgrade`:
-
-```bash
-uv tool upgrade beads-mcp
-```

@@ -11,9 +11,9 @@ import (
 	"github.com/terraconstructs/grid/api/state/v1/statev1connect"
 	"github.com/terraconstructs/grid/cmd/gridapi/internal/config"
 	"github.com/terraconstructs/grid/cmd/gridapi/internal/db/models"
-	"github.com/terraconstructs/grid/cmd/gridapi/internal/dependency"
 	gridmiddleware "github.com/terraconstructs/grid/cmd/gridapi/internal/middleware"
-	statepkg "github.com/terraconstructs/grid/cmd/gridapi/internal/state"
+	"github.com/terraconstructs/grid/cmd/gridapi/internal/services/dependency"
+	statepkg "github.com/terraconstructs/grid/cmd/gridapi/internal/services/state"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
@@ -23,6 +23,7 @@ type StateServiceHandler struct {
 	service       *statepkg.Service
 	depService    *dependency.Service
 	policyService *statepkg.PolicyService
+	iamService    iamAdminService // Compile-time verified IAM service contract
 	authnDeps     *gridmiddleware.AuthnDependencies
 	cfg           *config.Config
 }
@@ -35,6 +36,13 @@ func NewStateServiceHandler(service *statepkg.Service, authnDeps *gridmiddleware
 // WithPolicyService adds the policy service to the handler (optional dependency).
 func (h *StateServiceHandler) WithPolicyService(policyService *statepkg.PolicyService) *StateServiceHandler {
 	h.policyService = policyService
+	return h
+}
+
+// WithIAMService adds the IAM service to the handler (optional dependency).
+// Used to refresh the group→role cache after admin operations.
+func (h *StateServiceHandler) WithIAMService(iamService iamAdminService) *StateServiceHandler {
+	h.iamService = iamService
 	return h
 }
 

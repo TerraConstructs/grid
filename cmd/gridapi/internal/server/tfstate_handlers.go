@@ -11,7 +11,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/terraconstructs/grid/cmd/gridapi/internal/auth"
 	"github.com/terraconstructs/grid/cmd/gridapi/internal/db/models"
-	statepkg "github.com/terraconstructs/grid/cmd/gridapi/internal/state"
+	statepkg "github.com/terraconstructs/grid/cmd/gridapi/internal/services/state"
 )
 
 // StateService defines the interface for state operations needed by Terraform handlers

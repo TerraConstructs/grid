@@ -14,13 +14,15 @@ import (
 
 	"github.com/terraconstructs/grid/cmd/gridapi/internal/auth"
 	"github.com/terraconstructs/grid/cmd/gridapi/internal/db/models"
-	statepkg "github.com/terraconstructs/grid/cmd/gridapi/internal/state"
+	"github.com/terraconstructs/grid/cmd/gridapi/internal/services/iam"
+	statepkg "github.com/terraconstructs/grid/cmd/gridapi/internal/services/state"
 )
 
 // AuthzDependencies provides the collaborators needed for authorization decisions.
 type AuthzDependencies struct {
 	Enforcer     casbin.IEnforcer
 	StateService *statepkg.Service
+	IAMService   iam.Service // Phase 4: IAM service for read-only authorization
 }
 
 // NewAuthzMiddleware constructs a Chi middleware that enforces Casbin policies for HTTP requests.
@@ -43,7 +45,7 @@ func NewAuthzMiddleware(deps AuthzDependencies) (func(http.Handler) http.Handler
 			// From here, we know it's a tfstate request and requires authorization.
 			principal, ok := auth.GetUserFromContext(r.Context())
 			if !ok || principal.PrincipalID == "" {
-				unauthenticated(w)
+				http.Error(w, "authentication required", http.StatusUnauthorized)
 				return
 			}
 
@@ -76,12 +78,21 @@ func NewAuthzMiddleware(deps AuthzDependencies) (func(http.Handler) http.Handler
 				return
 			}
 
-			allowed, err := deps.Enforcer.Enforce(principal.PrincipalID, auth.ObjectTypeState, tfstateAction, labels)
+			// Phase 4: Use IAM service for read-only authorization (no Casbin mutation)
+			// Convert legacy auth.AuthenticatedPrincipal to iam.Principal for authorization
+			iamPrincipal := &iam.Principal{
+				Roles: principal.Roles,
+			}
+
+			allowed, err := deps.IAMService.Authorize(r.Context(), iamPrincipal, auth.ObjectTypeState, tfstateAction, labels)
 			if err != nil {
+				log.Printf("authorization error for %s: %v", principal.PrincipalID, err)
 				http.Error(w, "authorization error", http.StatusInternalServerError)
 				return
 			}
 			if !allowed {
+				log.Printf("authorization denied: principal %s (roles=%v) for %s on state (labels=%v)",
+					principal.PrincipalID, principal.Roles, tfstateAction, labels)
 				http.Error(w, "forbidden", http.StatusForbidden)
 				return
 			}

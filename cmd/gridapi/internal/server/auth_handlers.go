@@ -1,20 +1,18 @@
 package server
 
 import (
-	"crypto/rand"
-	"encoding/hex"
 	"encoding/json"
 	"net/http"
 	"time"
 
 	"github.com/terraconstructs/grid/cmd/gridapi/internal/auth"
 	"github.com/terraconstructs/grid/cmd/gridapi/internal/config"
-	"github.com/terraconstructs/grid/cmd/gridapi/internal/db/models"
-	gridmiddleware "github.com/terraconstructs/grid/cmd/gridapi/internal/middleware"
 	"golang.org/x/crypto/bcrypt"
 )
 
 // HandleSSOLogin initiates the OIDC Authorization Code Flow.
+// Accepts optional redirect_uri query parameter to specify where to redirect after successful authentication.
+// Related: Beads issue grid-202d (SSO callback redirect fix)
 func HandleSSOLogin(rp *auth.RelyingParty) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		state, err := auth.GenerateNonce()
@@ -22,14 +20,21 @@ func HandleSSOLogin(rp *auth.RelyingParty) http.HandlerFunc {
 			http.Error(w, "Failed to generate state", http.StatusInternalServerError)
 			return
 		}
-		auth.SetStateCookie(w, state)
+		auth.SetStateCookie(w, r, state)
+
+		// Store redirect_uri from query parameter if provided
+		// This will be used after OAuth callback to redirect back to the webapp
+		if redirectURI := r.URL.Query().Get("redirect_uri"); redirectURI != "" {
+			auth.SetRedirectURICookie(w, r, redirectURI)
+		}
+
 		http.Redirect(w, r, rp.AuthCodeURL(state), http.StatusFound)
 	}
 }
 
 // HandleSSOCallback handles the OIDC callback, exchanges the code for a token,
 // verifies the token, and establishes a session.
-func HandleSSOCallback(rp *auth.RelyingParty, deps *gridmiddleware.AuthnDependencies) http.HandlerFunc {
+func HandleSSOCallback(rp *auth.RelyingParty, iamService iamAdminService) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
 
@@ -47,39 +52,27 @@ func HandleSSOCallback(rp *auth.RelyingParty, deps *gridmiddleware.AuthnDependen
 		idTokenClaims := tokens.IDTokenClaims
 		rawIDToken := tokens.IDToken
 
-		// Get or create user
-		user, err := deps.Users.GetBySubject(ctx, idTokenClaims.Subject)
+		// Get or create user (JIT provisioning via IAM service)
+		user, err := iamService.GetUserBySubject(ctx, idTokenClaims.Subject)
 		if err != nil {
-			// User not found, create a new one.
-			subject := idTokenClaims.Subject
-			newUser := &models.User{
-				Subject: &subject,
-				Email:   idTokenClaims.Email,
-				Name:    idTokenClaims.Name,
-			}
-			if err := deps.Users.Create(ctx, newUser); err != nil {
+			// User not found, create a new one via IAM service (with subject for external IdP)
+			user, err = iamService.CreateUser(ctx, idTokenClaims.Email, idTokenClaims.Name, idTokenClaims.Subject, "")
+			if err != nil {
 				http.Error(w, "Failed to create user", http.StatusInternalServerError)
 				return
 			}
-			user = newUser
 		}
 
-		// Create a new session
-		tokenHash := auth.HashToken(tokens.AccessToken)
-		newSession := &models.Session{
-			UserID:    &user.ID,
-			TokenHash: tokenHash,
-			ExpiresAt: tokens.Expiry,
-			IDToken:   rawIDToken,
-		}
-		if err := deps.Sessions.Create(ctx, newSession); err != nil {
+		// Create session via IAM service
+		_, token, err := iamService.CreateSession(ctx, user.ID, rawIDToken, tokens.Expiry)
+		if err != nil {
 			http.Error(w, "Failed to create session", http.StatusInternalServerError)
 			return
 		}
 
 		cookie := &http.Cookie{
 			Name:     auth.SessionCookieName,
-			Value:    tokens.AccessToken,
+			Value:    token,
 			Path:     "/",
 			Expires:  tokens.Expiry,
 			HttpOnly: true,
@@ -88,13 +81,19 @@ func HandleSSOCallback(rp *auth.RelyingParty, deps *gridmiddleware.AuthnDependen
 		}
 		http.SetCookie(w, cookie)
 
-		// Redirect to the frontend application, which is assumed to be at the root.
-		http.Redirect(w, r, "/", http.StatusFound)
+		// Redirect to the URI specified in the original login request (from cookie)
+		// Defaults to "/" if not provided. This enables webapp dev mode to work correctly.
+		// Related: Beads issue grid-202d (SSO callback redirect fix)
+		redirectURI := auth.GetRedirectURICookie(w, r)
+		if redirectURI == "" {
+			redirectURI = "/"
+		}
+		http.Redirect(w, r, redirectURI, http.StatusFound)
 	}
 }
 
 // HandleLogout revokes the user's session.
-func HandleLogout(deps *gridmiddleware.AuthnDependencies) http.HandlerFunc {
+func HandleLogout(iamService iamAdminService) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		principal, ok := auth.GetUserFromContext(r.Context())
 		if !ok {
@@ -102,7 +101,8 @@ func HandleLogout(deps *gridmiddleware.AuthnDependencies) http.HandlerFunc {
 			return
 		}
 
-		if err := deps.Sessions.Revoke(r.Context(), principal.SessionID); err != nil {
+		// Revoke session via IAM service
+		if err := iamService.RevokeSession(r.Context(), principal.SessionID); err != nil {
 			http.Error(w, "Failed to revoke session", http.StatusInternalServerError)
 			return
 		}
@@ -207,7 +207,7 @@ type WhoamiResponse struct {
 }
 
 // HandleInternalLogin authenticates users with username/password for internal IdP mode
-func HandleInternalLogin(deps *gridmiddleware.AuthnDependencies) http.HandlerFunc {
+func HandleInternalLogin(iamService iamAdminService) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
 
@@ -224,8 +224,8 @@ func HandleInternalLogin(deps *gridmiddleware.AuthnDependencies) http.HandlerFun
 			return
 		}
 
-		// Lookup user by email
-		user, err := deps.Users.GetByEmail(ctx, req.Username)
+		// Lookup user by email (via IAM service)
+		user, err := iamService.GetUserByEmail(ctx, req.Username)
 		if err != nil {
 			http.Error(w, "Invalid credentials", http.StatusUnauthorized)
 			return
@@ -248,24 +248,16 @@ func HandleInternalLogin(deps *gridmiddleware.AuthnDependencies) http.HandlerFun
 			return
 		}
 
-		// Generate session token
-		token := generateSessionToken()
+		// Create session via IAM service
 		expiresAt := time.Now().Add(2 * time.Hour)
-		tokenHash := auth.HashToken(token)
-
-		// Create session record
-		newSession := &models.Session{
-			UserID:    &user.ID,
-			TokenHash: tokenHash,
-			ExpiresAt: expiresAt,
-		}
-		if err := deps.Sessions.Create(ctx, newSession); err != nil {
+		session, token, err := iamService.CreateSession(ctx, user.ID, "", expiresAt)
+		if err != nil {
 			http.Error(w, "Failed to create session", http.StatusInternalServerError)
 			return
 		}
 
-		// Resolve roles for internal IdP (no groups)
-		roles, _, err := resolveEffectiveRoles(ctx, deps, user.ID, newSession.ID, false)
+		// Resolve roles for internal IdP (no groups, isUser=true)
+		roles, err := iamService.ResolveRoles(ctx, user.ID, []string{}, true)
 		if err != nil {
 			roles = []string{}
 		}
@@ -297,30 +289,33 @@ func HandleInternalLogin(deps *gridmiddleware.AuthnDependencies) http.HandlerFun
 		if err := json.NewEncoder(w).Encode(resp); err != nil {
 			http.Error(w, "Failed to encode response", http.StatusInternalServerError)
 		}
+
+		// Unused session variable
+		_ = session
 	}
 }
 
 // HandleWhoAmI returns the authenticated user's information and session metadata
-func HandleWhoAmI(deps *gridmiddleware.AuthnDependencies) http.HandlerFunc {
+func HandleWhoAmI(iamService iamAdminService) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
 
 		// Extract principal from context (set by authn middleware)
 		principal, ok := auth.GetUserFromContext(ctx)
 		if !ok {
-			http.Error(w, "Unauthorized", http.StatusUnauthorized)
+			http.Error(w, "unauthenticated", http.StatusUnauthorized)
 			return
 		}
 
-		// Fetch session to get expiration
-		session, err := deps.Sessions.GetByID(ctx, principal.SessionID)
+		// Fetch session via IAM service
+		session, err := iamService.GetSessionByID(ctx, principal.SessionID)
 		if err != nil || session == nil {
 			http.Error(w, "Session not found", http.StatusUnauthorized)
 			return
 		}
 
-		// Fetch user to get full details
-		user, err := deps.Users.GetByID(ctx, principal.InternalID)
+		// Fetch user via IAM service
+		user, err := iamService.GetUserByID(ctx, principal.InternalID)
 		if err != nil {
 			http.Error(w, "User not found", http.StatusInternalServerError)
 			return
@@ -328,12 +323,13 @@ func HandleWhoAmI(deps *gridmiddleware.AuthnDependencies) http.HandlerFunc {
 
 		// Determine auth type
 		authType := "internal"
-		if user.Subject != nil && *user.Subject != "" {
+		isExternalIdP := user.Subject != nil && *user.Subject != ""
+		if isExternalIdP {
 			authType = "external"
 		}
 
-		// Resolve roles
-		roles, _, err := resolveEffectiveRoles(ctx, deps, user.ID, session.ID, authType == "external")
+		// Resolve roles via IAM service (roles already resolved in principal, but we recompute for freshness)
+		roles, err := iamService.ResolveRoles(ctx, user.ID, []string{}, true /* isUser */)
 		if err != nil {
 			roles = []string{}
 		}
@@ -357,15 +353,6 @@ func HandleWhoAmI(deps *gridmiddleware.AuthnDependencies) http.HandlerFunc {
 			http.Error(w, "Failed to encode response", http.StatusInternalServerError)
 		}
 	}
-}
-
-// generateSessionToken creates a secure random session token
-func generateSessionToken() string {
-	b := make([]byte, 32)
-	if _, err := rand.Read(b); err != nil {
-		panic(err)
-	}
-	return hex.EncodeToString(b)
 }
 
 // verifyPasswordHash checks if the provided password matches the bcrypt hash

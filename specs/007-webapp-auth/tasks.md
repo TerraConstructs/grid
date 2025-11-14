@@ -1,7 +1,7 @@
 # Tasks Index: WebApp User Login Flow with Role-Based Filtering
 
 Beads Issue Graph Index into the tasks and phases for this feature implementation.
-This index does **not contain tasks directly**—those are fully managed through Beads CLI and MCP agent APIs.
+This index does **not contain tasks directly**—those are fully managed through Beads CLI.
 
 ## Feature Tracking
 
@@ -41,6 +41,12 @@ bd list --type feature --label spec:007-webapp-auth
 # Show all tasks for a specific user story
 bd list --label story:US1 --label spec:007-webapp-auth
 bd list --label story:US2 --label spec:007-webapp-auth
+
+# Define dependencies
+bd dep add <from-issue-id> <to-issue-id> --type <dependency-type>
+
+# valid dependency types
+# (blocks|related|parent-child|discovered-from) (default "blocks")
 
 # Check stats
 bd stats
@@ -105,7 +111,7 @@ This feature follows Beads' 2-level graph structure:
 - grid-8602: Create AuthContext scaffolding (webapp/src/context/AuthContext.tsx)
 - grid-174c: Create js/sdk auth helper stubs (js/sdk/auth.ts)
 
-**Status**: Ready to start - no blockers
+**Status**: completed
 
 ---
 
@@ -137,7 +143,25 @@ This feature follows Beads' 2-level graph structure:
 
 **Constitution IX Justification**: All changes follow existing gridapi patterns - handlers call repositories directly for auth operations (see HandleSSOLogin, HandleLogout). No service layer needed for authentication middleware concerns.
 
-**Checkpoint**: Once complete, all user stories can proceed in parallel or sequentially by priority
+**Checkpoint**: completed, with notes (see Problem below)
+
+**Problem**: Original webapp auth implementation was blocked by race conditions in gridapi authentication causing 30% test failure rate. Sessions were breaking under concurrent load.
+
+**Solution**: Complete gridapi authentication refactor (grid-f21b) across 9 phases:
+- **Phase 1-2**: IAM service layer with immutable group→role cache
+- **Phase 3**: Unified MultiAuth pattern (Session + JWT authenticators)
+- **Phase 4**: Read-only authorization (eliminated Casbin mutations)
+- **Phase 5**: Service layer organization
+- **Phase 6**: Handler refactoring (eliminated 26 layering violations)
+- **Phase 7**: Background cache refresh + Admin API
+- **Phase 8**: Testing & validation (32/32 integration tests passing)
+- **Phase 9**: Documentation
+
+**Result**: ✅ All integration tests passing, race detector clean, <50ms latency
+
+**Reference**: `specs/007-webapp-auth/gridapi-refactor/REFACTORING-STATUS.md`
+
+**Status**: Completed
 
 ---
 
@@ -150,7 +174,7 @@ This feature follows Beads' 2-level graph structure:
 
 **Independent Test**: Run gridapi without authentication configuration, navigate to webapp, verify dashboard loads immediately showing all states without any login UI.
 
-**Key Tasks** (query with `bd list --label story:US1`):
+**Key Tasks** (query with `bd list --label story:US1 --limit 10`):
 - Implement conditional auth UI rendering in App.tsx
 - Implement fetchAuthConfig in js/sdk/auth.ts
 - Integrate config loading in AuthProvider
@@ -205,7 +229,7 @@ This feature follows Beads' 2-level graph structure:
 
 **Independent Test**: Run gridapi with external IdP enabled, attempt to access dashboard, click SSO login, complete authentication at external IdP, verify successful callback with group-based role assignment displayed.
 
-**Key Tasks** (query with `bd list --label story:US3`):
+**Key Tasks** (query with `bd list --label story:US3 --limit 10`):
 - Implement loginExternal (SSO redirect) in js/sdk/auth.ts
 - Adapt LoginPage for external IdP mode (SSO button)
 - Handle OAuth2 callback flow (backend already implements this)
@@ -232,7 +256,7 @@ This feature follows Beads' 2-level graph structure:
 
 **Independent Test**: Create states with different label combinations (e.g., env=dev, env=prod, product=foo), log in as users with different role scopes, verify each user only sees states matching their role's user scope expression.
 
-**Key Tasks** (query with `bd list --label story:US4`):
+**Key Tasks** (query with `bd list --label story:US4 --limit 10`):
 - Implement client-side state filtering based on role scope expressions
 - Parse and evaluate boolean expressions (go-bexpr compatible)
 - Apply filters to dashboard state list
@@ -309,7 +333,7 @@ Currently, ListStates returns all states and relies on client-side filtering. Th
 
 **Purpose**: Cross-cutting concerns, error handling, edge cases, integration tests, documentation
 
-**Key Tasks** (query with `bd list --label phase:polish`):
+**Key Tasks** (query with `bd list --label phase:polish --label spec:007-webapp-auth --limit 10`):
 - Handle auth config changes while webapp loaded (detect on next API call)
 - Handle session expiry during dashboard view (401 → redirect to login)
 - Handle user with no role assignments (empty dashboard with message)
@@ -339,6 +363,175 @@ Currently, ListStates returns all states and relies on client-side filtering. Th
 - Coverage target: >80% for new components
 
 **Status**: Depends on all desired user stories being complete
+
+## GridAPI Integration Test Coverage
+
+Post refactor of gridAPI.
+
+### Integration Test Gap Discovery (2025-11-14)
+
+**Status**: ⚠️ Critical gap identified - Session + Connect RPC authentication is **untested**
+
+#### The Problem
+
+While gridapi refactor is complete and working, integration tests verify:
+- ✅ Session login/logout (POST /auth/login, GET /api/auth/whoami)
+- ✅ JWT + Connect RPCs (Mode 1 tests)
+- ❌ **Session cookies + Connect RPCs** (webapp's primary usage pattern)
+
+**Webapp Usage Pattern** (currently untested):
+```
+1. POST /auth/login → get grid.session cookie ✅ TESTED
+2. ListStates RPC + cookie → fetch dashboard    ❌ UNTESTED
+3. CreateState RPC + cookie → create state      ❌ UNTESTED
+4. UpdateLabels RPC + cookie → modify state     ❌ UNTESTED
+```
+
+**Impact**:
+- No contract protection for webapp's core functionality
+- Future changes could break webapp without detection
+- False confidence from passing tests
+
+### Integration Test Coverage Issues (grid-5c57)
+
+**Parent Issue**: `grid-5c57` - Add integration tests for webapp session + Connect RPC authentication contract
+
+**Purpose**: Protect webapp contract by testing session-based Connect RPC authentication in both auth modes.
+
+**Child Issues**:
+
+#### 1. Mode 1: External IdP / Keycloak SSO (grid-c1cd)
+**Priority**: P1
+**File**: `tests/integration/auth_mode1_test.go`
+**Function**: `TestMode1_WebAuth_SessionWithConnectRPC`
+
+**Test Flow**:
+1. SSO login via Keycloak
+2. Extract grid.session cookie from /auth/callback
+3. Call ListStates RPC with cookie → verify 200
+4. Call CreateState RPC with cookie → verify 200
+5. Call UpdateLabels RPC with cookie → verify 200
+6. Logout
+7. Verify Connect RPCs return 401 after logout
+
+**Status**: Ready to implement
+
+```bash
+bd show grid-c1cd
+```
+
+#### 2. Mode 2: Internal IdP / Username+Password (grid-787a)
+**Priority**: P1
+**File**: `tests/integration/auth_mode2_test.go`
+**Function**: `TestMode2_WebAuth_SessionWithConnectRPC`
+
+**Test Flow**:
+1. Create test user (gridapi users create)
+2. Login via POST /auth/login
+3. Extract grid.session cookie
+4. Call ListStates RPC with cookie → verify 200
+5. Call CreateState RPC with cookie → verify 200
+6. Call UpdateLabels RPC with cookie → verify 200
+7. Logout
+8. Verify Connect RPCs return 401 after logout
+
+**Why First**: Simpler (no Keycloak), reuses existing helpers, quick win (1-2 hours)
+
+**Status**: Ready to implement (recommended starting point)
+
+```bash
+bd show grid-787a
+```
+
+### SDK Credentials Configuration (grid-b2a5)
+
+**Issue**: `grid-b2a5` - Verify and configure Connect transport credentials for session cookie support
+
+**Priority**: P2
+
+**Problem**: SDK may not explicitly configure `credentials: 'include'` for Connect transport, relying on browser defaults.
+
+**Current Code** (`js/sdk/src/client.ts:34-38`):
+```typescript
+export function createGridTransport(baseUrl: string): Transport {
+  return createConnectTransport({
+    baseUrl,
+    // Missing: credentials: 'include' ?
+  });
+}
+```
+
+**Recommended Fix**:
+```typescript
+export function createGridTransport(baseUrl: string): Transport {
+  return createConnectTransport({
+    baseUrl,
+    credentials: 'include', // Ensure session cookies always sent
+  });
+}
+```
+
+**Testing Strategy**:
+1. Research @connectrpc/connect-web credential defaults
+2. Manual browser test (DevTools → verify Cookie header present)
+3. Integration tests (grid-787a, grid-c1cd) validate end-to-end
+
+**Status**: Investigation needed
+
+```bash
+bd show grid-b2a5
+```
+
+---
+
+### Issue Resolution: grid-b4dd (Connect Interceptor)
+
+**Status**: ✅ CLOSED - Feature already implemented
+
+**Original Issue**: "Create Connect authn interceptor for session authentication"
+
+**Resolution**: The refactor already implemented this in Phase 3:
+- **File**: `cmd/gridapi/internal/middleware/authn_multiauth_interceptor.go`
+- **Function**: `NewMultiAuthInterceptor(iamService iam.Service)`
+- **Registered**: `cmd/gridapi/cmd/serve.go:217`
+
+**How It Works**:
+1. Extracts session cookies from Connect request headers
+2. Tries all authenticators (SessionAuthenticator → JWTAuthenticator)
+3. Sets Principal in context for authz interceptor
+4. Handles both authenticated and unauthenticated requests
+
+**Why Closed**: Feature is fully implemented and working. The missing piece is test coverage, which is tracked separately in grid-5c57.
+
+```bash
+bd show grid-b4dd
+bd comments grid-b4dd
+```
+
+---
+
+### Query Commands
+
+```bash
+# View integration test parent issue
+bd show grid-5c57
+
+# View Mode 1 test (External IdP)
+bd show grid-c1cd
+
+# View Mode 2 test (Internal IdP) - RECOMMENDED STARTING POINT
+bd show grid-787a
+
+# View SDK credentials investigation
+bd show grid-b2a5
+
+# View closed Connect interceptor issue
+bd show grid-b4dd
+bd comments grid-b4dd
+
+# See all integration test issues
+bd list --label type:test --label spec:007-webapp-auth --status open
+```
 
 ---
 
@@ -428,11 +621,16 @@ See individual task descriptions for detailed justifications.
 ## Query Examples for Common Workflows
 
 ```bash
-# What's ready to work on?
-bd ready --label spec:007-webapp-auth
+# What's ready to work on? (can't filter by label yet, use list for that)
+# bd list --label spec:007-webapp-auth --status open --limit 5
+bd ready
 
-# What's blocking progress?
-bd blocked --label spec:007-webapp-auth
+# or with jq filtering:
+# bd ready --json | jq '.[] | select(.labels // [] | contains(["spec:007-webapp-auth"]))'
+
+# What's blocking progress? (can't filter by label yet)
+# bd list --label spec:007-webapp-auth
+bd blocked
 
 # How many tasks are done?
 bd stats

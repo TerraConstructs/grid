@@ -15,6 +15,7 @@ import (
 	"github.com/terraconstructs/grid/cmd/gridapi/internal/db/bunx"
 	"github.com/terraconstructs/grid/cmd/gridapi/internal/db/models"
 	"github.com/terraconstructs/grid/cmd/gridapi/internal/repository"
+	"github.com/terraconstructs/grid/cmd/gridapi/internal/services/iam"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -86,18 +87,43 @@ var createCmd = &cobra.Command{
 
 		ctx := context.Background()
 		userRepo := repository.NewBunUserRepository(db)
+		serviceAccountRepo := repository.NewBunServiceAccountRepository(db)
+		sessionRepo := repository.NewBunSessionRepository(db)
 		userRoleRepo := repository.NewBunUserRoleRepository(db)
+		groupRoleRepo := repository.NewBunGroupRoleRepository(db)
 		roleRepo := repository.NewBunRoleRepository(db)
+		revokedJTIRepo := repository.NewBunRevokedJTIRepository(db)
 		enforcer, err := auth.InitEnforcer(db)
 		if err != nil {
 			return fmt.Errorf("failed to initialize casbin enforcer: %w", err)
 		}
 		enforcer.EnableAutoSave(true)
 
-		// Validate roles exist
-		roles, err := validateRoles(ctx, roleRepo, rolesInput)
+		iamService, err := iam.NewIAMService(
+			iam.IAMServiceDependencies{
+				Users:           userRepo,
+				ServiceAccounts: serviceAccountRepo,
+				Sessions:        sessionRepo,
+				UserRoles:       userRoleRepo,
+				GroupRoles:      groupRoleRepo,
+				Roles:           roleRepo,
+				RevokedJTIs:     revokedJTIRepo,
+				Enforcer:        enforcer,
+			},
+			iam.IAMServiceConfig{Config: cfg},
+		)
 		if err != nil {
-			return err
+			return fmt.Errorf("failed to initialize IAM service: %w", err)
+		}
+
+		roles, invalidRoles, validRoleNames, err := iamService.GetRolesByName(ctx, rolesInput)
+		if err != nil {
+			return fmt.Errorf("failed to fetch roles: %w", err)
+		}
+		if len(invalidRoles) > 0 {
+			return fmt.Errorf("invalid role(s): %s\nValid roles are: %s",
+				strings.Join(invalidRoles, ", "),
+				strings.Join(validRoleNames, ", "))
 		}
 
 		// Check if email already exists
@@ -163,44 +189,8 @@ func isNotFoundError(err error) bool {
 	return strings.Contains(err.Error(), "user not found")
 }
 
-// validateRoles fetches all roles from the repository and validates the provided role names.
-// Returns the matching roles or an error with details about invalid roles.
-func validateRoles(ctx context.Context, roleRepo repository.RoleRepository, roleNames []string) ([]*models.Role, error) {
-	allRoles, err := roleRepo.List(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("failed to list roles: %w", err)
-	}
-
-	roleMap := make(map[string]*models.Role, len(allRoles))
-	validRoleNames := make([]string, 0, len(allRoles))
-	for _, role := range allRoles {
-		roleMap[role.Name] = &role
-		validRoleNames = append(validRoleNames, role.Name)
-	}
-
-	roles := make([]*models.Role, 0, len(roleNames))
-	invalidRoles := make([]string, 0)
-
-	for _, roleName := range roleNames {
-		role, exists := roleMap[roleName]
-		if !exists {
-			invalidRoles = append(invalidRoles, roleName)
-			continue
-		}
-		roles = append(roles, role)
-	}
-
-	if len(invalidRoles) > 0 {
-		return nil, fmt.Errorf("invalid role(s): %v\nValid roles are: %v",
-			strings.Join(invalidRoles, ", "),
-			strings.Join(validRoleNames, ", "))
-	}
-
-	return roles, nil
-}
-
 // assignRolesToUser assigns multiple roles to a user
-func assignRolesToUser(ctx context.Context, user *models.User, roles []*models.Role, userRoleRepo repository.UserRoleRepository, enforcer casbin.IEnforcer) error {
+func assignRolesToUser(ctx context.Context, user *models.User, roles []models.Role, userRoleRepo repository.UserRoleRepository, enforcer casbin.IEnforcer) error {
 	fmt.Println("Assigning roles...")
 	for _, role := range roles {
 		userRole := &models.UserRole{

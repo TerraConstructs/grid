@@ -21,6 +21,10 @@ import type {
  * @param baseUrl - Base URL of the Grid API server (e.g., 'http://localhost:8080')
  * @returns Connect transport for HTTP/2 communication
  *
+ * Note: httpOnly session cookies are automatically included by the browser for same-origin requests.
+ * In development, the Vite proxy makes requests appear same-origin (localhost:5173 → localhost:8080).
+ * In production, webapp and API must be deployed same-origin for cookies to work.
+ *
  * @example
  * ```typescript
  * const transport = createGridTransport('http://localhost:8080');

@@ -3,12 +3,12 @@ package iam
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/spf13/cobra"
 
+	"github.com/terraconstructs/grid/cmd/gridapi/cmd/cmdutil"
 	"github.com/terraconstructs/grid/cmd/gridapi/internal/config"
-	"github.com/terraconstructs/grid/cmd/gridapi/internal/db/bunx"
-	"github.com/terraconstructs/grid/cmd/gridapi/internal/repository"
 )
 
 var (
@@ -56,27 +56,29 @@ Example:
 			return fmt.Errorf("failed to load config: %w", err)
 		}
 
-		// Connect to database
-		bunDB, err := bunx.NewDB(cfg.DatabaseURL)
-		if err != nil {
-			return fmt.Errorf("failed to connect to database: %w", err)
-		}
-		defer bunx.Close(bunDB)
-
-		// Initialize repositories (only group_roles and roles repos needed)
-		roleRepo := repository.NewBunRoleRepository(bunDB)
-		groupRoleRepo := repository.NewBunGroupRoleRepository(bunDB)
-
-		// Validate roles
-		roles, err := validateRoles(ctx, roleRepo, rolesInput)
+		bundle, err := cmdutil.NewIAMServiceBundle(cfg, cmdutil.IAMServiceOptions{
+			EnableAutoSave: false,
+		})
 		if err != nil {
 			return err
+		}
+		defer bundle.Close()
+
+		// Fetch roles via service layer to ensure consistent validation
+		roles, invalidRoles, validRoleNames, err := bundle.Service.GetRolesByName(ctx, rolesInput)
+		if err != nil {
+			return fmt.Errorf("failed to fetch roles: %w", err)
+		}
+		if len(invalidRoles) > 0 {
+			return fmt.Errorf("invalid role(s): %s\nValid roles are: %s",
+				strings.Join(invalidRoles, ", "),
+				strings.Join(validRoleNames, ", "))
 		}
 
 		fmt.Printf("Bootstrapping group '%s' → roles %v\n", groupName, rolesInput)
 
-		// Assign roles to group
-		if err := assignRolesToGroup(ctx, groupName, roles, groupRoleRepo); err != nil {
+		// Assign roles to group via IAM service (auto-refreshes cache)
+		if err := assignRolesToGroup(ctx, groupName, roles, bundle.Service); err != nil {
 			return err
 		}
 
@@ -91,6 +93,8 @@ Example:
 		}
 		fmt.Println()
 		fmt.Println("\nUsers with this group will receive these roles at authentication time.")
+		fmt.Println("\n✅ Group→role cache has been automatically refreshed!")
+		fmt.Println("   Changes are immediately available if the server is running.")
 
 		return nil
 	},

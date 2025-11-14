@@ -18,20 +18,26 @@ This index does **not contain tasks directly**—those are fully managed through
 
 ## Beads Query Hints
 
-Use the `bd` CLI or MCP toolchain to query and manipulate the issue graph:
+Use the `bd` CLI to query and manipulate the issue graph:
 
 ```bash
 # Find all open tasks for this feature
-bd list --label spec:[epic-id] --status open
+bd list --label spec:[epic-id] --status open --limit 5
 
 # Find ready tasks to implement
-bd ready --label spec:[epic-id]
+bd ready --limit 5
 
 # See dependencies for issue
 bd dep tree [issue-id]
 
 # View issues by component
 bd list --label 'component:backend-services' --label 'spec:[epic-id]'
+
+# Define dependencies
+bd dep add [from-issue-id] [to-issue-id] --type [dependency-type]
+
+# valid dependency types
+# (blocks|related|parent-child|discovered-from) (default "blocks")
 
 # Show all phases
 bd list --type feature --label 'spec:[epic-id]'
@@ -63,7 +69,7 @@ MCP agents and AI workflows should:
 3. **Set metadata and dependencies** in the graph, not markdown
 4. **Use this markdown only as a navigational anchor**
 
-> Agents MUST NOT output tasks into this file. They MUST use Beads CLI or MCP Tools to record all task and phase structure.
+> Agents MUST NOT output tasks into this file. They MUST use Beads CLI to record all task and phase structure.
 
 ## Example Queries for Agents
 
@@ -76,9 +82,6 @@ bd list --label spec:[feature-name] --label story:US1
 
 # Add a new task
 bd create "Implement OAuth redirect handler" -t task --parent [grid-auth-feature] --label spec:[feature-name] --label component:backend-services
-
-# beads create tool
-beads - create (MCP)(title: "<title>", description: "<desc>", issue_type: "task", priority: 2, labels: ["spec:006-authz-authn-rbac","phase:3.11","component:webapp","requirement:FR-082"], deps: ["grid-d00f"], design: "<design>", acceptance: "<design>", workspace_root: "<set_context_path>")
 
 # Add a comment to an issue based on research
 bd comments add grid-xyz123 "Additional research identified bcrypt as best hashing algo"

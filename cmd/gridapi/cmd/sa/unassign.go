@@ -3,12 +3,12 @@ package sa
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/spf13/cobra"
-	"github.com/terraconstructs/grid/cmd/gridapi/internal/auth"
+
+	"github.com/terraconstructs/grid/cmd/gridapi/cmd/cmdutil"
 	"github.com/terraconstructs/grid/cmd/gridapi/internal/config"
-	"github.com/terraconstructs/grid/cmd/gridapi/internal/db/bunx"
-	"github.com/terraconstructs/grid/cmd/gridapi/internal/repository"
 )
 
 var unassignCmd = &cobra.Command{
@@ -35,34 +35,39 @@ var unassignCmd = &cobra.Command{
 			return fmt.Errorf("local service accounts require OIDC internal IdP to be enabled (OIDC_ISSUER must be set)")
 		}
 
-		db, err := bunx.NewDB(cfg.DatabaseURL)
-		if err != nil {
-			return fmt.Errorf("failed to connect to database: %w", err)
-		}
-		defer bunx.Close(db)
-
-		ctx := context.Background()
-		saRepo := repository.NewBunServiceAccountRepository(db)
-		roleRepo := repository.NewBunRoleRepository(db)
-		userRoleRepo := repository.NewBunUserRoleRepository(db)
-		enforcer, err := auth.InitEnforcer(db)
-		if err != nil {
-			return fmt.Errorf("failed to initialize casbin enforcer: %w", err)
-		}
-		enforcer.EnableAutoSave(true)
-
-		roles, err := validateRoles(ctx, roleRepo, rolesInput)
+		bundle, err := cmdutil.NewIAMServiceBundle(cfg, cmdutil.IAMServiceOptions{
+			EnableAutoSave: true,
+		})
 		if err != nil {
 			return err
 		}
+		defer bundle.Close()
 
-		sa, err := saRepo.GetByName(ctx, name)
+		ctx := context.Background()
+		iamService := bundle.Service
+
+		roles, invalidRoles, validRoleNames, err := iamService.GetRolesByName(ctx, rolesInput)
+		if err != nil {
+			return fmt.Errorf("failed to fetch roles: %w", err)
+		}
+		if len(invalidRoles) > 0 {
+			return fmt.Errorf("invalid role(s): %s\nValid roles are: %s",
+				strings.Join(invalidRoles, ", "),
+				strings.Join(validRoleNames, ", "))
+		}
+
+		sa, err := iamService.GetServiceAccountByName(ctx, name)
 		if err != nil {
 			return fmt.Errorf("failed to fetch service account: %w", err)
 		}
 
-		if err := unassignRolesFromServiceAccount(ctx, sa, roles, userRoleRepo, enforcer); err != nil {
-			return err
+		roleIDs := make([]string, len(roles))
+		for i, role := range roles {
+			roleIDs[i] = role.ID
+		}
+
+		if err := iamService.RemoveRolesFromServiceAccount(ctx, sa.ID, roleIDs); err != nil {
+			return fmt.Errorf("failed to unassign roles: %w", err)
 		}
 
 		return nil

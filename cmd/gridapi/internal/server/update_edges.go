@@ -9,7 +9,7 @@ import (
 
 	"github.com/terraconstructs/grid/cmd/gridapi/internal/db/models"
 	"github.com/terraconstructs/grid/cmd/gridapi/internal/repository"
-	"github.com/terraconstructs/grid/cmd/gridapi/internal/tfstate"
+	"github.com/terraconstructs/grid/cmd/gridapi/internal/services/tfstate"
 )
 
 // EdgeUpdateJob manages background edge status updates on tfstate writes

@@ -176,6 +176,14 @@ func bootstrapMode1TestUser() error {
 
 	fmt.Printf("✓ Group→role mapping bootstrapped: test-admins → platform-engineer\n")
 	fmt.Println("  Integration-tests service account must have 'test-admins' group in JWT")
+
+	// CRITICAL: Bootstrap runs in separate process with its own cache
+	// The test server's cache is stale until background refresh picks up changes
+	// Background refresh runs on startup + every 5 minutes
+	// Wait for the startup refresh to complete (should happen within 1-2 seconds)
+	fmt.Println("  Waiting 3 seconds for server cache to refresh after bootstrap...")
+	time.Sleep(3 * time.Second)
+
 	return nil
 }
 

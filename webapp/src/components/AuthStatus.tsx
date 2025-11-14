@@ -1,17 +1,18 @@
 import { useState } from 'react';
 import { User, LogOut, ChevronDown } from 'lucide-react';
-import { Session, authService } from '../services/authMockService';
+import { logout } from '../../../js/sdk/src/auth';
+import type { User as UserType } from '../types/auth';
 
 interface AuthStatusProps {
-  session: Session;
+  user: UserType;
   onLogout: () => void;
 }
 
-export function AuthStatus({ session, onLogout }: AuthStatusProps) {
+export function AuthStatus({ user, onLogout }: AuthStatusProps) {
   const [isOpen, setIsOpen] = useState(false);
 
   const handleLogout = async () => {
-    await authService.logout();
+    await logout();
     onLogout();
   };
 
@@ -39,7 +40,7 @@ export function AuthStatus({ session, onLogout }: AuthStatusProps) {
         className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium bg-gray-700 text-gray-300 hover:bg-gray-600 transition-colors"
       >
         <User className="w-4 h-4" />
-        <span className="hidden sm:inline">{session.user.username}</span>
+        <span className="hidden sm:inline">{user.username}</span>
         <ChevronDown className="w-4 h-4" />
       </button>
 
@@ -56,8 +57,8 @@ export function AuthStatus({ session, onLogout }: AuthStatusProps) {
                   <User className="w-6 h-6 text-purple-600" />
                 </div>
                 <div className="flex-1">
-                  <p className="font-semibold text-gray-900">{session.user.username}</p>
-                  <p className="text-xs text-gray-500">{session.user.email}</p>
+                  <p className="font-semibold text-gray-900">{user.username}</p>
+                  <p className="text-xs text-gray-500">{user.email}</p>
                 </div>
               </div>
             </div>
@@ -68,7 +69,7 @@ export function AuthStatus({ session, onLogout }: AuthStatusProps) {
                   Authentication Type
                 </p>
                 <div className="inline-block px-3 py-1 bg-blue-100 text-blue-800 rounded text-xs font-medium">
-                  {getAuthTypeLabel(session.user.authType)}
+                  {getAuthTypeLabel(user.authType)}
                 </div>
               </div>
 
@@ -77,10 +78,10 @@ export function AuthStatus({ session, onLogout }: AuthStatusProps) {
                   Roles
                 </p>
                 <div className="flex flex-wrap gap-1.5">
-                  {session.user.roles.length === 0 ? (
+                  {user.roles.length === 0 ? (
                     <span className="text-xs text-gray-500">No roles assigned</span>
                   ) : (
-                    session.user.roles.map((role) => (
+                    user.roles.map((role) => (
                       <span
                         key={role}
                         className={`px-2 py-1 rounded text-xs font-medium ${getRoleBadgeColor(
@@ -94,13 +95,13 @@ export function AuthStatus({ session, onLogout }: AuthStatusProps) {
                 </div>
               </div>
 
-              {session.user.groups && session.user.groups.length > 0 && (
+              {user.groups && user.groups.length > 0 && (
                 <div>
                   <p className="text-xs font-medium text-gray-500 uppercase mb-2">
                     Group Memberships
                   </p>
                   <div className="space-y-1">
-                    {session.user.groups.map((group) => (
+                    {user.groups.map((group) => (
                       <div
                         key={group}
                         className="px-2 py-1 bg-gray-50 rounded text-xs text-gray-700"
@@ -112,14 +113,16 @@ export function AuthStatus({ session, onLogout }: AuthStatusProps) {
                 </div>
               )}
 
-              <div>
-                <p className="text-xs font-medium text-gray-500 uppercase mb-1">
-                  Session Expires
-                </p>
-                <p className="text-xs text-gray-700">
-                  {new Date(session.expiresAt).toLocaleString()}
-                </p>
-              </div>
+              {user.sessionExpiresAt && (
+                <div>
+                  <p className="text-xs font-medium text-gray-500 uppercase mb-1">
+                    Session Expires
+                  </p>
+                  <p className="text-xs text-gray-700">
+                    {new Date(user.sessionExpiresAt).toLocaleString()}
+                  </p>
+                </div>
+              )}
             </div>
 
             <div className="p-4 border-t border-gray-200">

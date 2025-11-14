@@ -8,9 +8,9 @@ import (
 	"time"
 
 	"github.com/terraconstructs/grid/cmd/gridapi/internal/db/models"
-	"github.com/terraconstructs/grid/cmd/gridapi/internal/graph"
 	"github.com/terraconstructs/grid/cmd/gridapi/internal/repository"
-	"github.com/terraconstructs/grid/cmd/gridapi/internal/tfstate"
+	"github.com/terraconstructs/grid/cmd/gridapi/internal/services/graph"
+	"github.com/terraconstructs/grid/cmd/gridapi/internal/services/tfstate"
 )
 
 // Service handles dependency management operations

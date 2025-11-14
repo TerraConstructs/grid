@@ -10,6 +10,7 @@ import (
 	statev1 "github.com/terraconstructs/grid/api/state/v1"
 	"github.com/terraconstructs/grid/api/state/v1/statev1connect"
 	"github.com/terraconstructs/grid/cmd/gridapi/internal/auth"
+	"github.com/terraconstructs/grid/cmd/gridapi/internal/services/iam"
 )
 
 // NewAuthzInterceptor creates a Connect UnaryInterceptor that enforces Casbin policies.
@@ -26,6 +27,12 @@ func NewAuthzInterceptor(deps AuthzDependencies) connect.UnaryInterceptorFunc {
 				return nil, connect.NewError(connect.CodeUnauthenticated, fmt.Errorf("no authenticated principal found in context"))
 			}
 
+			// Phase 4: Convert to iam.Principal for authorization
+			// Only roles are needed for authorization checks
+			iamPrincipal := &iam.Principal{
+				Roles: principal.Roles,
+			}
+
 			procedure := req.Spec().Procedure
 			obj := "" // Can be objType (like "state") or specific resource ID (for ownership checks)
 			action := ""
@@ -37,6 +44,9 @@ func NewAuthzInterceptor(deps AuthzDependencies) connect.UnaryInterceptorFunc {
 			case statev1connect.StateServiceListStatesProcedure:
 				obj = auth.ObjectTypeState
 				action = auth.StateList
+			case statev1connect.StateServiceListAllEdgesProcedure:
+				obj = auth.ObjectTypeState
+				action = auth.StateOutputList
 			case statev1connect.StateServiceGetLabelPolicyProcedure:
 				obj = auth.ObjectTypePolicy
 				action = auth.PolicyRead
@@ -237,11 +247,12 @@ func NewAuthzInterceptor(deps AuthzDependencies) connect.UnaryInterceptorFunc {
 				if err != nil {
 					return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("from state not found: %w", err))
 				}
-				// Convert LabelMap to map[string]any for Casbin (type assertion requirement)
+				// Convert LabelMap to map[string]any for authorization
 				fromLabels := make(map[string]any, len(fromState.Labels))
 				maps.Copy(fromLabels, fromState.Labels)
 				log.Printf("enforcing principal %s for action '%s' on object '%s' with labels %v", principal.PrincipalID, auth.StateOutputRead, auth.ObjectTypeState, fromLabels)
-				allowed, err := deps.Enforcer.Enforce(principal.PrincipalID, auth.ObjectTypeState, auth.StateOutputRead, fromLabels)
+				// Phase 4: Use IAM service for read-only authorization
+				allowed, err := deps.IAMService.Authorize(ctx, iamPrincipal, auth.ObjectTypeState, auth.StateOutputRead, fromLabels)
 				if err != nil {
 					log.Printf("error enforcing from state auth for %s: %v", principal.PrincipalID, err)
 					return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("authorization error: %w", err))
@@ -255,11 +266,12 @@ func NewAuthzInterceptor(deps AuthzDependencies) connect.UnaryInterceptorFunc {
 				if err != nil {
 					return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("to state not found: %w", err))
 				}
-				// Convert LabelMap to map[string]any for Casbin (type assertion requirement)
+				// Convert LabelMap to map[string]any for authorization
 				toLabels := make(map[string]any, len(toState.Labels))
 				maps.Copy(toLabels, toState.Labels)
 				log.Printf("enforcing principal %s for action '%s' on object '%s' with labels %v", principal.PrincipalID, auth.DependencyCreate, auth.ObjectTypeState, toLabels)
-				allowed, err = deps.Enforcer.Enforce(principal.PrincipalID, auth.ObjectTypeState, auth.DependencyCreate, toLabels)
+				// Phase 4: Use IAM service for read-only authorization
+				allowed, err = deps.IAMService.Authorize(ctx, iamPrincipal, auth.ObjectTypeState, auth.DependencyCreate, toLabels)
 				if err != nil {
 					log.Printf("error enforcing to state auth for %s: %v", principal.PrincipalID, err)
 					return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("authorization error: %w", err))
@@ -383,21 +395,23 @@ func NewAuthzInterceptor(deps AuthzDependencies) connect.UnaryInterceptorFunc {
 
 			log.Printf("enforcing principal %s for action '%s' on object '%s' with labels %v", principal.PrincipalID, action, obj, labels)
 
-			// Perform the enforcement check
+			// Phase 4: Perform authorization check using IAM service (read-only, no Casbin mutation)
 			if labels == nil {
 				labels = make(map[string]any)
 			}
-			if deps.Enforcer == nil {
-				return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("authorization enforcer not initialized"))
+			if deps.IAMService == nil {
+				return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("IAM service not initialized"))
 			}
 
-			allowed, err := deps.Enforcer.Enforce(principal.PrincipalID, obj, action, labels)
+			allowed, err := deps.IAMService.Authorize(ctx, iamPrincipal, obj, action, labels)
 			if err != nil {
 				log.Printf("error enforce query for %s: %v", principal.PrincipalID, err)
 				return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("authorization enforcement error: %w", err))
 			}
 
 			if !allowed {
+				log.Printf("authorization denied: principal %s (roles=%v) for %s on %s (labels=%v)",
+					principal.PrincipalID, principal.Roles, action, obj, labels)
 				return nil, connect.NewError(connect.CodePermissionDenied, fmt.Errorf("permission denied for action '%s' on object '%s'", action, obj))
 			}
 

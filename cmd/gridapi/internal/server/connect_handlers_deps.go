@@ -7,7 +7,7 @@ import (
 	"connectrpc.com/connect"
 	statev1 "github.com/terraconstructs/grid/api/state/v1"
 	"github.com/terraconstructs/grid/cmd/gridapi/internal/db/models"
-	"github.com/terraconstructs/grid/cmd/gridapi/internal/dependency"
+	"github.com/terraconstructs/grid/cmd/gridapi/internal/services/dependency"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 

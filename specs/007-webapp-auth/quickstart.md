@@ -103,12 +103,37 @@ pnpm run dev
 # Webapp runs on http://localhost:5173
 ```
 
+**⚠️ Important - Vite Proxy Configuration**:
+
+The webapp **requires** the Vite proxy configuration in `webapp/vite.config.ts` for development:
+
+```typescript
+server: {
+  proxy: {
+    '/auth': 'http://localhost:8080',
+    '/api': 'http://localhost:8080',
+    '/state.v1.StateService': 'http://localhost:8080',
+    '/tfstate': 'http://localhost:8080',
+  }
+}
+```
+
+**Why**: httpOnly session cookies only work with same-origin requests. The proxy makes localhost:5173 (webapp) and localhost:8080 (API) appear same-origin to the browser.
+
+**DO NOT REMOVE** this configuration. Without it:
+- Authentication will fail (401 Unauthorized)
+- Session cookies won't be sent with API requests
+- SSO login will break
+
+See `webapp/README.md` for deployment architecture details and Beads issue `grid-202d` for SSO callback fix tracking.
+
 ### Step 2.5: Bootstrap Internal IdP Users
 
 **⚠️ REQUIRED for Internal IdP Mode**: Create initial admin user for testing.
 
 ```bash
 # Create bootstrap admin account (Internal IdP only)
+# NOTE: --role flag is REQUIRED (at least one role must be assigned)
 ./bin/gridapi users create \
   --email admin@grid.local \
   --username "Grid Admin" \
@@ -116,11 +141,15 @@ pnpm run dev
   --role platform-engineer
 
 # Expected output:
-# User created successfully
-#   ID: <uuid>
-#   Email: admin@grid.local
-#   Username: Grid Admin
-#   Roles: [platform-engineer]
+# Assigning roles...
+# ✓ Assigned role 'platform-engineer'
+# User created successfully!
+# ----------------------------------------
+# User ID: <uuid>
+# Email: admin@grid.local
+# Username: Grid Admin
+# Roles: platform-engineer
+# ----------------------------------------
 ```
 
 **Alternative: Use stdin for password (recommended for production)**:
@@ -149,7 +178,8 @@ pnpm run dev
 **Create additional test users**:
 
 ```bash
-# Viewer role user (all users are read-only in internal IdP mode - they are web users only)
+# Product engineer role user (all users are read-only in internal IdP mode - they are web users only)
+# NOTE: --role flag is REQUIRED
 ./bin/gridapi users create \
   --email editor@grid.local \
   --username "Test Product Engineer" \

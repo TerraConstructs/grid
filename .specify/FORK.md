@@ -4,7 +4,7 @@ Notes on changes made to local files compared to upstream [github/spec-kit](http
 
 ## Task Generation Updates
 
-- Updated `speckit.tasks` prompt template and `tasks.md` template to use [beads](https://github.com/steveyegge/beads) MCP for task management instead of a linear checklist.
+- Updated `speckit.tasks` prompt template and `tasks.md` template to use [beads](https://github.com/steveyegge/beads) CLI for task management instead of a linear checklist.
 - Updated `speckit.analyze` prompt to reflect new task generation approach.
 - Updated `speckit.implement` prompt to reflect new task generation approach.
 

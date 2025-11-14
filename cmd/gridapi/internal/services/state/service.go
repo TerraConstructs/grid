@@ -9,7 +9,7 @@ import (
 
 	"github.com/terraconstructs/grid/cmd/gridapi/internal/db/models"
 	"github.com/terraconstructs/grid/cmd/gridapi/internal/repository"
-	"github.com/terraconstructs/grid/cmd/gridapi/internal/tfstate"
+	"github.com/terraconstructs/grid/cmd/gridapi/internal/services/tfstate"
 )
 
 // BackendConfig represents the Terraform HTTP backend endpoints returned to clients.

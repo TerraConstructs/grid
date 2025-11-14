@@ -23,7 +23,7 @@ You **MUST** consider the user input before proceeding (if not empty).
    - Note: Not all projects have all documents. Generate tasks based on what's available.
 
 3. *** Epic Creation**: From spec.md, create an epic in Beads Tools for the feature using feature name from plan.md.
-   - Use the Beads MCP `create` tool to create one top-level issue of type `epic`
+   - Use the Beads CLI `bd create` command to create one top-level issue of type `epic`
    - Title: pulled from plan.md or feature folder name
    - Description: summarize from plan.md + top of spec.md
    - Labels:
@@ -64,7 +64,7 @@ You **MUST** consider the user input before proceeding (if not empty).
    This file does **not** list every task.
    - tasks.md acts as an index for querying Beads
    - For each phase and task described below also create corresponding use beads as shown in Phase 1 example
-   - Phase 1: Setup tasks (project initialization) create a `feature`-type issue using the MCP `create` tool
+   - Phase 1: Setup tasks (project initialization) create a `feature`-type issue using the `bd create` CLI
       - Set `--parent <epic-id>` from the epic created above
       - Labels:
          - `phase:<phase-name>` (e.g. `phase:setup`, `phase:us1`, `phase:foundational`)
@@ -91,8 +91,8 @@ You **MUST** consider the user input before proceeding (if not empty).
      - List of features (setup, foundational, stories)
      - Beads commands to filter each group:
        ```bash
-       beads - list (MCP)(label: "spec:<slug>", label: "phase:setup")
-       beads - ready (MCP)(label: "spec:<slug>")
+       beads - `bd list --label "spec:<slug>" --label: "phase:setup" --limit 5`
+       beads - `bd ready --limit 5`
        ```
      - MVP and incremental delivery summary
      - Links back to spec.md and plan.md
@@ -152,7 +152,7 @@ The tasks.md should be immediately executable - each task must be specific enoug
    - Phase 3+: User Stories in priority order (P1, P2, P3...)
      - Within each story: Tests (if requested) → Models → Services → Endpoints → Integration
    - Final Phase: Polish & Cross-Cutting Concerns
-   - **DO NOT generate a linear checklist** — use Beads MCP to build a **task graph**
+   - **DO NOT generate a linear checklist** — use Beads CLI to build a **task graph**
    - Each user story phase should be a complete, independently testable increment
 
 ## Label Conventions
@@ -166,23 +166,23 @@ The tasks.md should be immediately executable - each task must be specific enoug
 | `component:<area>`   | Mapping to plan-defined modules     |
 | `test:<type>`        | Test-related tasks                  |
 
-## Example Beads MCP Calls
+## Example Beads CLI Calls
 
 ### Epic
 
 ```bash
-beads - create (MCP)(title: "Login Feature", description: "...", issue_type: "epic", labels: ["spec:006-login-auth", "component:webapp"], priority: 1, workspace_root: "$WORKSPACE")
+bd create "Login Feature" --description "..." --type "epic" --labels "spec:006-login-auth,component:webapp" --priority 1
 ```
 
 ### Feature
 
 ```bash
-beads - create (MCP)(title: "Setup Phase", description: "...", issue_type: "feature", deps: ["parent-child:grid-epic-id"], labels: ["spec:006-login-auth", "phase:setup", "component:infra"], priority: 1, workspace_root: "$WORKSPACE")
+bd create "Setup Phase" --description "..." --type "feature" --deps "parent-child:grid-epic-id" --labels "spec:006-login-auth,phase:setup,component:infra" --priority 1
 ```
 
 ### Task
 
 ```bash
-beads - create (MCP)(title: "Add React LoginForm", description: "...", issue_type: "task", deps: ["parent-child:grid-feature-id"], labels: ["spec:006-login-auth", "story:US1", "component:webapp"], priority: 2, workspace_root: "$WORKSPACE")
+bd create "Add React LoginForm" --description "..." --type "task" --deps "parent-child:grid-feature-id" --labels "spec:006-login-auth,story:US1,component:webapp" --priority 2
 ```
 """

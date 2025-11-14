@@ -61,6 +61,25 @@ export type {
 export { normalizeConnectError } from './errors.js';
 export type { UserFriendlyError } from './errors.js';
 
+/**
+ * Authentication helpers for browser-based auth flows
+ */
+export {
+  fetchAuthConfig,
+  loginInternal,
+  loginExternal,
+  fetchWhoami,
+  logout,
+  setApiBaseUrl,
+} from './auth.js';
+export type {
+  User,
+  LoginCredentials,
+  LoginResponse,
+  WhoamiResponse,
+  AuthConfig,
+} from './types/auth.js';
+
 // ===== Low-level Connect RPC API =====
 
 /**
