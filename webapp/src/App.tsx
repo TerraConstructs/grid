@@ -29,10 +29,19 @@ function AppContent() {
   const [activeFilters, setActiveFilters] = useState<ActiveLabelFilter[]>([]);
   const filterInitializedRef = useRef(false);
 
-  // All hooks must be called before any conditional returns
+  const isAuthDisabled = authState.config?.mode === 'disabled';
+  const canLoadGridData =
+    !authState.loading &&
+    authState.config !== null &&
+    (isAuthDisabled || Boolean(authState.user));
+
+  // Only load data once authentication is ready (or disabled mode)
   useEffect(() => {
+    if (!canLoadGridData) {
+      return;
+    }
     loadData();
-  }, [loadData]);
+  }, [canLoadGridData, loadData]);
 
   const handleStateClick = useCallback(async (logicId: string) => {
     const state = await getStateInfo(logicId);
@@ -100,7 +109,7 @@ function AppContent() {
   }
 
   // Show login page if not authenticated and auth is required
-  if (!authState.user && authState.config?.mode !== 'disabled') {
+  if (!authState.user && !isAuthDisabled) {
     return <LoginPage />;
   }
 
