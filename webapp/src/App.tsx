@@ -9,7 +9,6 @@ import type { ActiveLabelFilter } from './components/LabelFilter';
 import { LoginPage } from './components/LoginPage';
 import { AuthStatus } from './components/AuthStatus';
 import { useAuth } from './context/AuthContext';
-import { AuthGuard } from './components/AuthGuard';
 
 type View = 'graph' | 'list';
 

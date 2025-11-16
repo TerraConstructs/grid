@@ -368,29 +368,41 @@ Currently, ListStates returns all states and relies on client-side filtering. Th
 
 Post refactor of gridAPI.
 
-### Integration Test Gap Discovery (2025-11-14)
+### Integration Test Gap Discovery (2025-11-14, Updated 2025-11-16)
 
-**Status**: ⚠️ Critical gap identified - Session + Connect RPC authentication is **untested**
+**Status**: ✅ Mode 2 Complete, ⚠️ Mode 1 Requires E2E Browser Tests
 
-#### The Problem
+#### Original Problem (2025-11-14)
 
-While gridapi refactor is complete and working, integration tests verify:
+While gridapi refactor was complete and working, integration tests verified:
 - ✅ Session login/logout (POST /auth/login, GET /api/auth/whoami)
 - ✅ JWT + Connect RPCs (Mode 1 tests)
 - ❌ **Session cookies + Connect RPCs** (webapp's primary usage pattern)
 
-**Webapp Usage Pattern** (currently untested):
+#### Current Status (2025-11-16)
+
+**Mode 2 (Internal IdP)** - ✅ FULLY TESTED:
 ```
 1. POST /auth/login → get grid.session cookie ✅ TESTED
-2. ListStates RPC + cookie → fetch dashboard    ❌ UNTESTED
-3. CreateState RPC + cookie → create state      ❌ UNTESTED
-4. UpdateLabels RPC + cookie → modify state     ❌ UNTESTED
+2. ListStates RPC + cookie → fetch dashboard    ✅ TESTED
+3. CreateState RPC + cookie → create state      ✅ TESTED
+4. UpdateLabels RPC + cookie → modify state     ✅ TESTED
 ```
+Test: `TestMode2_WebAuth_SessionWithConnectRPC` (auth_mode2_test.go:981-1107)
+
+**Mode 1 (External IdP/SSO)** - ❌ NOT TESTED:
+```
+1. GET /auth/sso/login → redirect to Keycloak   ❌ UNTESTED (requires browser)
+2. OAuth2 callback → get grid.session cookie    ❌ UNTESTED (requires browser)
+3. ListStates RPC + cookie → fetch dashboard    ❌ UNTESTED
+4. CreateState RPC + cookie → create state      ❌ UNTESTED
+```
+Note: A brittle test that used DB insertion was removed (2025-11-16). Proper testing requires E2E browser automation.
 
 **Impact**:
-- No contract protection for webapp's core functionality
-- Future changes could break webapp without detection
-- False confidence from passing tests
+- ✅ Mode 2 webapp contract is protected
+- ❌ Mode 1 SSO webapp flow is untested
+- Future changes could break Mode 1 SSO without detection
 
 ### Integration Test Coverage Issues (grid-5c57)
 
@@ -398,31 +410,34 @@ While gridapi refactor is complete and working, integration tests verify:
 
 **Purpose**: Protect webapp contract by testing session-based Connect RPC authentication in both auth modes.
 
+**Status**: ✅ Partially Complete - Mode 2 implemented, Mode 1 requires E2E browser tests
+
 **Child Issues**:
 
 #### 1. Mode 1: External IdP / Keycloak SSO (grid-c1cd)
 **Priority**: P1
-**File**: `tests/integration/auth_mode1_test.go`
-**Function**: `TestMode1_WebAuth_SessionWithConnectRPC`
+**File**: ❌ **REMOVED** - Previously at `tests/integration/auth_mode1_test.go:1045-1207`
+**Function**: ~~`TestMode1_WebAuth_SessionWithConnectRPC`~~ (deleted 2025-11-16)
 
-**Test Flow**:
-1. SSO login via Keycloak
-2. Extract grid.session cookie from /auth/callback
-3. Call ListStates RPC with cookie → verify 200
-4. Call CreateState RPC with cookie → verify 200
-5. Call UpdateLabels RPC with cookie → verify 200
-6. Logout
-7. Verify Connect RPCs return 401 after logout
+**Original Test Flow** (brittle implementation, now removed):
+1. ~~SSO login via Keycloak~~ Simulated with password grant
+2. ~~Extract grid.session cookie from /auth/callback~~ Direct DB insertion
+3. Manual IAM cache refresh via `/admin/cache/refresh`
+4. Call Connect RPCs with session cookie
 
-**Status**: Ready to implement
+**Why Removed**: Test bypassed the real OAuth2 callback flow (`/auth/sso/callback`) by directly inserting sessions into the database. This didn't test the actual SSO integration that the webapp relies on.
+
+**Proper Solution**: Requires E2E browser tests using Playwright (see TESTING.md lines 32-100). A new feature issue will be created to track this work.
+
+**Status**: ❌ NOT TESTED - Removed brittle test, pending E2E browser implementation
 
 ```bash
-bd show grid-c1cd
+bd show grid-c1cd  # View closure comments
 ```
 
 #### 2. Mode 2: Internal IdP / Username+Password (grid-787a)
 **Priority**: P1
-**File**: `tests/integration/auth_mode2_test.go`
+**File**: `tests/integration/auth_mode2_test.go:981-1107`
 **Function**: `TestMode2_WebAuth_SessionWithConnectRPC`
 
 **Test Flow**:
@@ -435,9 +450,7 @@ bd show grid-c1cd
 7. Logout
 8. Verify Connect RPCs return 401 after logout
 
-**Why First**: Simpler (no Keycloak), reuses existing helpers, quick win (1-2 hours)
-
-**Status**: Ready to implement (recommended starting point)
+**Status**: ✅ COMPLETE - Test implemented and passing
 
 ```bash
 bd show grid-787a
@@ -665,3 +678,281 @@ bd list --label story:US2 --label spec:007-webapp-auth
 - **Total Estimated Effort**: 2-3 weeks for full feature
 
 All task details, dependencies, and status are tracked in Beads. This file serves as a navigation index only.
+
+---
+
+## Remaining Open Tasks & Next Steps (2025-11-16)
+
+### 📊 Current Status
+
+**Feature Status:**
+- ✅ All 6 user stories (US1-US6) complete
+- ✅ Integration tests complete (Mode 2)
+- ⚠️ 5 polish/enhancement tasks remain open
+- ⚠️ E2E browser tests not yet started
+
+### 🎯 5 Remaining Open Tasks
+
+#### 1. **grid-3be6**: Component Tests (Priority: P2)
+**Type:** Implementation needed
+**Scope:** Write Vitest + React Testing Library component tests
+**Coverage Target:** >80% for auth components
+
+**Why Still Open:**
+- Component tests are separate from E2E tests (unit-level vs integration-level)
+- Provide faster feedback than E2E tests
+- Test edge cases and error states more easily
+- Don't require full docker-compose environment
+
+**Files to Test:**
+- `webapp/src/context/AuthContext.tsx`
+- `webapp/src/components/AuthGuard.tsx`
+- `webapp/src/components/LoginPage.tsx`
+- `webapp/src/components/AuthStatus.tsx`
+
+**Effort:** 4-6 hours
+
+**Query:** `bd show grid-3be6`
+
+---
+
+#### 2. **grid-5a64**: EmptyState Component (Priority: P2)
+**Type:** UI component implementation
+**Scope:** Create reusable EmptyState component for users with no accessible states
+
+**Why Still Open:**
+- Component needs to be built (not just tested)
+- Required for edge cases: users with no roles, role scope matches no states
+- Referenced in FR-009
+
+**Usage Contexts:**
+- User with no role assignments
+- User with roles but label scope matches no states
+- External IdP user with no group-to-role mappings
+
+**Effort:** 2-3 hours
+
+**Query:** `bd show grid-5a64`
+
+---
+
+#### 3. **grid-459e**: Integration Test Contract Documentation (Priority: P2)
+**Type:** Documentation deliverable
+**Scope:** Document webapp-gridapi integration test contract for future maintainers
+
+**Why Still Open:**
+- Critical for maintaining test coverage as codebase evolves
+- Not related to E2E tests (documents integration test maintenance)
+- Prevents future regressions when changing auth implementation
+
+**Content:**
+- Contract definition: "Webapp uses session cookies for Connect RPC authentication"
+- Which tests validate the contract
+- When tests must be updated
+- Links between tests and implementation files
+
+**Suggested Location:** `tests/integration/README.md` or `webapp/README.md`
+
+**Effort:** 2-3 hours
+
+**Query:** `bd show grid-459e`
+
+---
+
+#### 4. **grid-b9dd**: External IdP Roles Display Bug (Priority: P3)
+**Type:** Bug - needs investigation
+**Scope:** Fix group-derived roles not showing in AuthStatus for external IdP users
+
+**Why Still Open:**
+- Actual functionality broken (not just polish)
+- Internal IdP roles show correctly, external IdP roles don't
+- Blocks full validation of US5 (View Authentication Status)
+
+**Impact:**
+- External IdP users (Keycloak SSO) can't see their roles in UI
+- Backend authorization works, but UI feedback is missing
+- E2E tests will fail if roles don't display
+
+**Investigation Needed:**
+- Check `/api/auth/whoami` response for external IdP users
+- Verify role aggregation logic includes group-derived roles
+- Check AuthStatus.tsx role display logic
+
+**Effort:** 2-4 hours (investigation + fix)
+
+**Query:** `bd show grid-b9dd`
+
+---
+
+#### 5. **grid-f5947b22**: ListStates Server-Side Authorization (Priority: P3)
+**Type:** Technical debt / future enhancement
+**Scope:** Implement server-side label filtering in ListStates RPC
+
+**Why Still Open:**
+- Known limitation documented in tasks.md:273
+- Currently: ListStates returns ALL states, webapp filters client-side
+- Future: Server should filter states based on user's label scope
+
+**Impact:**
+- Security: Client-side filtering is less secure
+- Performance: Inefficient for large state counts
+- Not critical for MVP (client-side filtering works for now)
+
+**Approaches:**
+1. Post-filter in service layer (simpler, correct)
+2. Pre-filter with database query (faster, complex)
+
+**Effort:** 8-12 hours (design + implementation + tests)
+
+**Defer to:** Future sprint (P3 priority)
+
+**Query:** `bd show grid-f5947b22`
+
+---
+
+### ✅ Recently Closed (2025-11-16)
+
+The following 3 polish tasks were closed as **covered by E2E browser tests** (tracked in `grid-f218`):
+
+1. **grid-31bd**: User-friendly error messages
+   - **Reason:** Error validation covered by `TestE2E_GroupBasedPermission_Forbidden` (TESTING.md:92)
+   - **E2E Task:** grid-f218.5
+
+2. **grid-3034**: Connect RPC 401 interceptor
+   - **Reason:** Infrastructure complete, session expiry testing deferred to E2E enhancements
+
+3. **grid-0c07**: Auth config changes edge case
+   - **Reason:** Rare edge case documented, not critical for MVP, can add to E2E later
+
+---
+
+### 🚀 Suggested Next Steps (Post-Merge)
+
+#### **Option 1: Complete Remaining Polish Tasks (Recommended)**
+
+Close out the feature completely before starting E2E tests:
+
+```bash
+# 1. Fix external IdP roles bug (CRITICAL)
+bd show grid-b9dd
+# Investigation: Check /api/auth/whoami response, role aggregation logic
+# 2-4 hours
+
+# 2. Implement component tests (HIGH VALUE)
+bd show grid-3be6
+# Fast feedback, catches edge cases, doesn't need docker-compose
+# 4-6 hours
+
+# 3. Create EmptyState component
+bd show grid-5a64
+# Required for users with no accessible states
+# 2-3 hours
+
+# 4. Document integration test contract
+bd show grid-459e
+# Prevents future regressions
+# 2-3 hours
+
+# Total: 10-16 hours (1.5-2 days)
+```
+
+**After completion:**
+- All polish tasks done ✅
+- Feature 100% complete ✅
+- Ready to start E2E tests ✅
+
+---
+
+#### **Option 2: Start E2E Browser Tests**
+
+Begin implementing Playwright E2E tests (higher priority than polish):
+
+```bash
+# View E2E feature and child tasks
+bd show grid-f218
+bd dep tree --reverse grid-f218
+bd list --label phase:e2e --label spec:007-webapp-auth
+
+# Start with infrastructure (partially done)
+bd show grid-f218.1
+# Configure Playwright, test fixtures, global setup
+# 2-3 hours
+
+# Implement helpers
+bd show grid-f218.2
+# login(), logout(), createState(), navigation helpers
+# 3-4 hours
+
+# Implement 4 core test cases
+bd show grid-f218.3  # Login + session persistence
+bd show grid-f218.4  # Permission success
+bd show grid-f218.5  # Permission forbidden
+bd show grid-f218.6  # JIT provisioning
+```
+
+**Benefits:**
+- Validates Mode 1 (External IdP/SSO) webapp flow (currently untested)
+- Provides true black-box testing
+- Catches integration issues missed by unit tests
+
+**Prerequisites:**
+- **Must fix grid-b9dd first** (E2E tests will fail if roles don't show)
+- Playwright already initialized ✅
+- Docker compose environment ready ✅
+
+---
+
+#### **Option 3: Defer Both (Move to Next Sprint)**
+
+If other priorities are higher:
+
+1. **Close grid-baf5 epic** with notes about remaining tasks
+2. **Create new epic** for "007 Polish & E2E Tests"
+3. **Move 5 open tasks** to new epic
+4. **Schedule** for next sprint
+
+**Trade-offs:**
+- Feature is "done" but not polished
+- Mode 1 SSO webapp flow remains untested
+- Risk of regressions if changes are made
+
+---
+
+### 📋 Recommended Approach
+
+**Phase 1: Critical Fixes (This Sprint)**
+1. Fix grid-b9dd (external IdP roles bug) - **REQUIRED for E2E tests**
+2. Create grid-5a64 (EmptyState component) - **REQUIRED for complete UX**
+
+**Phase 2: Testing (Next Sprint)**
+1. Implement E2E browser tests (grid-f218 + 6 child tasks)
+2. Implement component tests (grid-3be6)
+3. Write integration test documentation (grid-459e)
+
+**Phase 3: Future Enhancement (Backlog)**
+1. Server-side ListStates filtering (grid-f5947b22) - P3 technical debt
+
+**Rationale:**
+- Fixes critical bugs before E2E implementation
+- E2E tests provide highest value (cover untested Mode 1 SSO flow)
+- Component tests complement E2E tests (faster, more granular)
+- Server-side filtering is optimization, not critical
+
+---
+
+### 🔗 Related Issues
+
+- **E2E Feature:** `bd show grid-f218`
+- **Epic:** `bd show grid-baf5`
+- **Polish Phase:** `bd show grid-a16b`
+- **All Open:** `bd list --label spec:007-webapp-auth --status open`
+
+---
+
+### 📝 Notes
+
+- This section added 2025-11-16 after cleanup of brittle Mode 1 test
+- 3 polish tasks closed as covered by E2E tests (grid-31bd, grid-3034, grid-0c07)
+- Playwright infrastructure already initialized at `tests/e2e/`
+- Mode 2 (Internal IdP) integration tests passing ✅
+- Mode 1 (External IdP/SSO) requires E2E browser tests ⚠️

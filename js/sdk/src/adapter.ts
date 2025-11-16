@@ -269,14 +269,21 @@ export class GridApiAdapter {
     policyJson: string;
     createdAt: Date;
     updatedAt: Date;
-  }> {
-    const response = await this.client.getLabelPolicy({});
-    return {
-      version: response.version,
-      policyJson: response.policyJson,
-      createdAt: response.createdAt ? new Date(timestampToISO(response.createdAt)) : new Date(),
-      updatedAt: response.updatedAt ? new Date(timestampToISO(response.updatedAt)) : new Date(),
-    };
+  } | null> {
+    try {
+      const response = await this.client.getLabelPolicy({});
+      return {
+        version: response.version,
+        policyJson: response.policyJson,
+        createdAt: response.createdAt ? new Date(timestampToISO(response.createdAt)) : new Date(),
+        updatedAt: response.updatedAt ? new Date(timestampToISO(response.updatedAt)) : new Date(),
+      };
+    } catch (error) {
+      if (error instanceof ConnectError && error.code === Code.NotFound) {
+        return null;
+      }
+      throw error;
+    }
   }
 
   /**

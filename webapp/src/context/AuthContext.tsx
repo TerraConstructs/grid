@@ -51,6 +51,9 @@ export type AuthAction =
 interface AuthContextValue {
   state: AuthState;
   dispatch: Dispatch<AuthAction>;
+  login: (credentials: LoginCredentials) => Promise<void>;
+  loginSSO: () => Promise<void>;
+  logout: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -280,10 +283,10 @@ export function AuthProvider({ children }: AuthProviderProps) {
     }
   };
 
-  const value = { state, dispatch, login, loginSSO, logout };
+  const value: AuthContextValue = { state, dispatch, login, loginSSO, logout };
 
   return (
-    <AuthContext.Provider value={value as any}>
+    <AuthContext.Provider value={value}>
       {children}
     </AuthContext.Provider>
   );

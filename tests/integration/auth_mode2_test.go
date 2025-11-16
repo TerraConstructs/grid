@@ -37,6 +37,8 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/http/cookiejar"
+	"net/url"
 	"os"
 	"os/exec"
 	"strings"
@@ -46,6 +48,7 @@ import (
 	"github.com/google/uuid"
 	_ "github.com/lib/pq"
 	"github.com/stretchr/testify/require"
+	"github.com/terraconstructs/grid/pkg/sdk"
 	"gopkg.in/square/go-jose.v2/jwt"
 )
 
@@ -176,12 +179,12 @@ func authenticateServiceAccount(t *testing.T, clientID, clientSecret string) str
 
 // JWTClaims represents the claims in a JWT token
 type JWTClaims struct {
-	Iss string        `json:"iss"`
-	Sub string        `json:"sub"`
-	Aud interface{}   `json:"aud"` // Can be string or []string
-	Jti string        `json:"jti"`
-	Exp int64         `json:"exp"`
-	Iat int64         `json:"iat"`
+	Iss string      `json:"iss"`
+	Sub string      `json:"sub"`
+	Aud interface{} `json:"aud"` // Can be string or []string
+	Jti string      `json:"jti"`
+	Exp int64       `json:"exp"`
+	Iat int64       `json:"iat"`
 }
 
 // parseJWT extracts and verifies JWT structure, returns claims
@@ -971,4 +974,134 @@ func TestMode2_WebAuth_FullFlow(t *testing.T) {
 	require.Contains(t, err.Error(), "401")
 
 	t.Log("✓ Full authentication flow completed successfully")
+}
+
+// TestMode2_WebAuth_SessionWithConnectRPC verifies webapp's contract:
+// Session cookies + Connect RPC authentication (ListStates, CreateState, UpdateLabels)
+func TestMode2_WebAuth_SessionWithConnectRPC(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping integration test in short mode")
+	}
+
+	verifyAuthEnabled(t, "Mode 2")
+
+	if !isMode2Configured(t) {
+		t.Skip("Server not configured for Mode 2 (Internal IdP)")
+	}
+
+	// Step 1: Create test user
+	t.Log("Step 1: Create test user")
+	email := fmt.Sprintf("rpc-user-%s@internal.grid", uuid.New().String()[:8])
+	createTestUser(t, "rpcuser", email, "password123")
+
+	// Step 2: Login via HTTP and get session cookie
+	t.Log("Step 2: Login via HTTP")
+	_, sessionCookie := loginWebUser(t, email, "password123")
+	require.NotEmpty(t, sessionCookie.Value)
+
+	// Step 3: Create HTTP client with cookie jar containing session cookie
+	t.Log("Step 3: Create HTTP client with session cookie")
+	jar, err := cookiejar.New(nil)
+	require.NoError(t, err)
+
+	// Add session cookie to jar for localhost:8080
+	url, err := url.Parse(serverURL)
+	require.NoError(t, err)
+	jar.SetCookies(url, []*http.Cookie{sessionCookie})
+
+	httpClient := &http.Client{
+		Jar:     jar,
+		Timeout: 10 * time.Second,
+	}
+
+	// Step 4: Create SDK client with authenticated HTTP client
+	t.Log("Step 4: Create SDK client with authenticated HTTP client")
+	client := sdk.NewClient(serverURL, sdk.WithHTTPClient(httpClient))
+	require.NotNil(t, client)
+
+	// Step 5: Call ListStates RPC with session cookie
+	t.Log("Step 5: Call ListStates RPC")
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	states, err := client.ListStates(ctx)
+	require.NoError(t, err, "ListStates should succeed with session cookie")
+	require.NotNil(t, states, "ListStates should return states")
+	t.Logf("ListStates succeeded, returned %d states", len(states))
+
+	// Step 6: Call CreateState RPC with session cookie
+	t.Log("Step 6: Call CreateState RPC")
+	logicID := fmt.Sprintf("rpc-state-%s", uuid.New().String()[:8])
+	createInput := sdk.CreateStateInput{
+		LogicID: logicID,
+		Labels: map[string]interface{}{
+			"env": "test",
+		},
+	}
+
+	createdState, err := client.CreateState(ctx, createInput)
+	require.NoError(t, err, "CreateState should succeed with session cookie")
+	require.NotNil(t, createdState, "CreateState should return state")
+	require.Equal(t, logicID, createdState.LogicID)
+	t.Logf("CreateState succeeded, created state: %s", createdState.GUID)
+
+	// Step 7: Call UpdateLabels RPC with session cookie
+	t.Log("Step 7: Call UpdateLabels RPC")
+	labelInput := sdk.UpdateStateLabelsInput{
+		StateID: createdState.GUID,
+		Adds: map[string]interface{}{
+			"team":    "platform",
+			"updated": "true",
+		},
+	}
+
+	_, err = client.UpdateStateLabels(ctx, labelInput)
+	require.NoError(t, err, "UpdateLabels should succeed with session cookie")
+	t.Logf("UpdateLabels succeeded")
+
+	// Step 8: Verify state has updated labels
+	t.Log("Step 8: Verify state labels")
+	include := true
+	statesWithLabels, err := client.ListStatesWithOptions(ctx, sdk.ListStatesOptions{IncludeLabels: &include})
+	require.NoError(t, err)
+
+	var updatedState *sdk.StateSummary
+	for i := range statesWithLabels {
+		if statesWithLabels[i].LogicID == logicID {
+			updatedState = &statesWithLabels[i]
+			break
+		}
+	}
+	require.NotNil(t, updatedState, "Updated state should be found in list")
+	require.Equal(t, "platform", updatedState.Labels["team"])
+	require.Equal(t, "true", updatedState.Labels["updated"])
+	t.Logf("State labels verified: team=platform, updated=true")
+
+	// Step 9: Logout
+	t.Log("Step 9: Logout")
+	logoutWebUser(t, sessionCookie)
+
+	// Step 10: Verify Connect RPCs return 401 after logout
+	t.Log("Step 10: Verify 401 after logout")
+
+	// Create new context for post-logout tests
+	ctx2, cancel2 := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel2()
+
+	// Try ListStates - should fail with 401
+	_, err = client.ListStates(ctx2)
+	require.Error(t, err, "ListStates should fail after logout")
+	// Check for 401 in error message
+	require.Contains(t, err.Error(), "401", "Error should be 401 Unauthorized")
+	t.Logf("ListStates correctly returned 401 after logout")
+
+	// Try CreateState - should fail with 401
+	logicID2 := fmt.Sprintf("rpc-state-2-%s", uuid.New().String()[:8])
+	createInput2 := sdk.CreateStateInput{LogicID: logicID2}
+	_, err = client.CreateState(ctx2, createInput2)
+	require.Error(t, err, "CreateState should fail after logout")
+	require.Contains(t, err.Error(), "401", "Error should be 401 Unauthorized")
+	t.Logf("CreateState correctly returned 401 after logout")
+
+	t.Log("✓ Session + Connect RPC authentication test completed successfully")
 }

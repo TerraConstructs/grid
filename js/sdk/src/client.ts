@@ -21,9 +21,20 @@ import type {
  * @param baseUrl - Base URL of the Grid API server (e.g., 'http://localhost:8080')
  * @returns Connect transport for HTTP/2 communication
  *
- * Note: httpOnly session cookies are automatically included by the browser for same-origin requests.
- * In development, the Vite proxy makes requests appear same-origin (localhost:5173 → localhost:8080).
- * In production, webapp and API must be deployed same-origin for cookies to work.
+ * ## Session Cookie Handling
+ *
+ * Session cookies (httpOnly) are sent automatically with all requests via the custom fetch override
+ * which sets `credentials: 'include'`. This ensures cookies are sent for both same-origin and
+ * cross-origin requests.
+ *
+ * **Fetch API Default**: The standard Fetch API default is `credentials: 'same-origin'`, which only
+ * sends cookies for same-origin requests. By explicitly setting `credentials: 'include'`, we ensure
+ * cookies are sent regardless of request origin.
+ *
+ * **Security Implications**:
+ * - Same-origin requests: Cookies sent automatically (CSRF protection via SameSite attribute)
+ * - Cross-origin requests: Requires server to send `Access-Control-Allow-Credentials: true` header
+ * - Server must explicitly opt-in to cross-origin cookie requests
  *
  * @example
  * ```typescript
@@ -34,6 +45,7 @@ import type {
 export function createGridTransport(baseUrl: string): Transport {
   return createConnectTransport({
     baseUrl,
+    fetch: (input, init) => fetch(input, {...init, credentials: 'include'}),
   });
 }
 

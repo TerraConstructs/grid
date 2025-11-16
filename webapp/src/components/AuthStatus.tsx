@@ -17,7 +17,7 @@ export function AuthStatus({ user, onLogout }: AuthStatusProps) {
   };
 
   const getAuthTypeLabel = (type: string) => {
-    return type === 'oidc' ? 'OIDC (KeyCloak)' : 'Basic Auth';
+    return type === 'external' ? 'OIDC' : 'Basic Auth';
   };
 
   const getRoleBadgeColor = (role: string) => {
