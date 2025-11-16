@@ -4,7 +4,7 @@ import (
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
-	statepkg "github.com/terraconstructs/grid/cmd/gridapi/internal/state"
+	statepkg "github.com/terraconstructs/grid/cmd/gridapi/internal/services/state"
 )
 
 func init() {

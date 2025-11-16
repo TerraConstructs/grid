@@ -16,11 +16,12 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/terraconstructs/grid/cmd/gridapi/internal/auth"
 	"github.com/terraconstructs/grid/cmd/gridapi/internal/db/bunx"
-	"github.com/terraconstructs/grid/cmd/gridapi/internal/dependency"
 	gridmiddleware "github.com/terraconstructs/grid/cmd/gridapi/internal/middleware"
 	"github.com/terraconstructs/grid/cmd/gridapi/internal/repository"
 	"github.com/terraconstructs/grid/cmd/gridapi/internal/server"
-	"github.com/terraconstructs/grid/cmd/gridapi/internal/state"
+	"github.com/terraconstructs/grid/cmd/gridapi/internal/services/dependency"
+	"github.com/terraconstructs/grid/cmd/gridapi/internal/services/iam"
+	"github.com/terraconstructs/grid/cmd/gridapi/internal/services/state"
 	"golang.org/x/net/http2"
 	"golang.org/x/net/http2/h2c"
 )
@@ -68,6 +69,9 @@ var serveCmd = &cobra.Command{
 		var relyingParty *auth.RelyingParty
 		var provider *auth.Provider
 
+		// Phase 6 Note: AuthnDependencies still used by auth handlers
+		// (HandleInternalLogin, HandleSSOCallback, HandleWhoAmI, HandleLogout)
+		// Phase 6 will refactor these handlers to use IAM service instead
 		authnDeps := gridmiddleware.AuthnDependencies{
 			Sessions:        sessionRepo,
 			Users:           userRepo,
@@ -76,6 +80,7 @@ var serveCmd = &cobra.Command{
 			RevokedJTIs:     revokedJTIRepo,
 			GroupRoles:      groupRoleRepo,
 			Roles:           roleRepo,
+			Enforcer:        nil, // Set below if OIDC enabled
 		}
 
 		if cfg.OIDC.ExternalIdP != nil {
@@ -103,34 +108,120 @@ var serveCmd = &cobra.Command{
 
 		oidcEnabled := cfg.OIDC.ExternalIdP != nil || cfg.OIDC.Issuer != ""
 
+		// Declare iamService outside the block so it's available for RouterOptions
+		var iamService iam.Service
+
 		if oidcEnabled {
 			enforcer, err := auth.InitEnforcer(db)
 			if err != nil {
 				return fmt.Errorf("configure casbin enforcer: %w", err)
 			}
-			enforcer.EnableAutoSave(true)
+			// Phase 4: Disable AutoSave - we no longer mutate Casbin state
+			// Authorization is now read-only (uses Principal.Roles, no AddGroupingPolicy)
+			enforcer.EnableAutoSave(false)
 			authnDeps.Enforcer = enforcer
 
-			authnMiddleware, err := gridmiddleware.NewAuthnMiddleware(cfg, authnDeps)
+			// Phase 3: Create IAM service (replaces scattered auth logic)
+			iamService, err = iam.NewIAMService(
+				iam.IAMServiceDependencies{
+					Users:           userRepo,
+					ServiceAccounts: serviceAccountRepo,
+					Sessions:        sessionRepo,
+					UserRoles:       userRoleRepo,
+					GroupRoles:      groupRoleRepo,
+					Roles:           roleRepo,
+					RevokedJTIs:     revokedJTIRepo,
+					Enforcer:        enforcer,
+				},
+				iam.IAMServiceConfig{
+					Config: cfg,
+				},
+			)
 			if err != nil {
-				return fmt.Errorf("configure authentication middleware: %w", err)
+				return fmt.Errorf("create IAM service: %w", err)
 			}
-			chiMiddleware = append(chiMiddleware, authnMiddleware)
+			log.Printf("IAM service initialized with authenticators")
 
-			// HTTP-specific authz middleware (for tfstate endpoints)
+			// Phase 7: Start background cache refresh goroutine
+			// Refreshes group→role cache periodically to pick up changes
+			// Default interval: 5 minutes (configurable via CACHE_REFRESH_INTERVAL)
+			refreshInterval := 5 * time.Minute
+			if intervalEnv := os.Getenv("CACHE_REFRESH_INTERVAL"); intervalEnv != "" {
+				if dur, err := time.ParseDuration(intervalEnv); err == nil {
+					refreshInterval = dur
+					log.Printf("Using custom cache refresh interval: %v", refreshInterval)
+				} else {
+					log.Printf("WARNING: Invalid CACHE_REFRESH_INTERVAL '%s', using default 5m", intervalEnv)
+				}
+			}
+
+			// Create context for cache refresh goroutine
+			cacheCtx, cancelCache := context.WithCancel(cmd.Context())
+			defer cancelCache() // Cancel when function exits
+			go func() {
+				// Perform immediate refresh on startup to pick up any existing mappings
+				// This ensures the cache is fresh even if bootstrap ran before server started
+				if err := iamService.RefreshGroupRoleCache(cacheCtx); err != nil {
+					log.Printf("ERROR: Initial cache refresh failed: %v", err)
+				} else {
+					snapshot := iamService.GetGroupRoleCacheSnapshot()
+					log.Printf("INFO: Initial cache refresh complete (version=%d, groups=%d)",
+						snapshot.Version, len(snapshot.Mappings))
+				}
+
+				ticker := time.NewTicker(refreshInterval)
+				defer ticker.Stop()
+
+				for {
+					select {
+					case <-ticker.C:
+						if err := iamService.RefreshGroupRoleCache(cacheCtx); err != nil {
+							log.Printf("ERROR: Background cache refresh failed: %v", err)
+						} else {
+							snapshot := iamService.GetGroupRoleCacheSnapshot()
+							log.Printf("INFO: Background cache refreshed (version=%d, groups=%d)",
+								snapshot.Version, len(snapshot.Mappings))
+						}
+					case <-cacheCtx.Done():
+						log.Printf("INFO: Stopping background cache refresh")
+						return
+					}
+				}
+			}()
+
+			// Terraform Basic Auth Shim: Convert Basic Auth to Bearer token
+			// CRITICAL: Must run BEFORE authentication middleware
+			// Terraform HTTP backend sends: Authorization: Basic base64(username:token)
+			// This shim extracts the token and converts to: Authorization: Bearer token
+			chiMiddleware = append(chiMiddleware, auth.TerraformBasicAuthShim)
+
+			// Phase 3: Unified authentication middleware (replaces 3 old middlewares)
+			// Tries authenticators in priority: Session → JWT
+			multiAuthMiddleware := gridmiddleware.MultiAuthMiddleware(iamService)
+			chiMiddleware = append(chiMiddleware, multiAuthMiddleware)
+
+			// Phase 4: Authorization middleware (read-only, uses IAM service)
 			authzMiddleware, err := gridmiddleware.NewAuthzMiddleware(gridmiddleware.AuthzDependencies{
 				Enforcer:     enforcer,
 				StateService: svc,
+				IAMService:   iamService,
 			})
 			if err != nil {
 				return fmt.Errorf("configure authorization middleware: %w", err)
 			}
 			chiMiddleware = append(chiMiddleware, authzMiddleware)
 
-			// Connect-specific authz interceptor
+			// Phase 3: Connect RPC authentication (unified, tries all authenticators)
+			// Note: Connect interceptors work differently - they see all requests
+			// We'll use the same MultiAuth pattern but adapted for Connect
+			multiAuthInterceptor := gridmiddleware.NewMultiAuthInterceptor(iamService)
+			connectInterceptors = append(connectInterceptors, multiAuthInterceptor)
+
+			// Phase 4: Connect RPC authorization (read-only, uses IAM service)
 			authzInterceptor := gridmiddleware.NewAuthzInterceptor(gridmiddleware.AuthzDependencies{
 				Enforcer:     enforcer,
 				StateService: svc,
+				IAMService:   iamService,
 			})
 			connectInterceptors = append(connectInterceptors, authzInterceptor)
 		}
@@ -150,6 +241,7 @@ var serveCmd = &cobra.Command{
 			Provider:            provider,
 			OIDCRouter:          oidcRouter,
 			RelyingParty:        relyingParty,
+			IAMService:          iamService,
 			AuthnDeps:           authnDeps,
 			Cfg:                 cfg,
 			Middleware:          chiMiddleware,

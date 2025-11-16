@@ -1,8 +1,8 @@
-description = "Execute the implementation plan by processing and executing all tasks defined in tasks.md"
+description = "Execute the implementation plan by processing and executing all tasks defined in tasks.md (Beads)"
 
 prompt = """
 ---
-description: Execute the implementation plan by processing and executing all tasks defined in tasks.md
+description: Execute the implementation plan by processing and executing all tasks defined in tasks.md (Beads)
 ---
 
 ## User Input
@@ -87,10 +87,10 @@ You **MUST** consider the user input before proceeding (if not empty).
    - **Prettier**: `node_modules/`, `dist/`, `build/`, `coverage/`, `package-lock.json`, `yarn.lock`, `pnpm-lock.yaml`
    - **Terraform**: `.terraform/`, `*.tfstate*`, `*.tfvars`, `.terraform.lock.hcl`
 
-5. Parse tasks.md structure and extract:
+5. Read tasks.md structure and use Beads to extract:
    - **Task phases**: Setup, Tests, Core, Integration, Polish
    - **Task dependencies**: Sequential vs parallel execution rules
-   - **Task details**: ID, description, file paths, parallel markers [P]
+   - **Task details**: ID, description, file paths, design + acceptance criteria
    - **Execution flow**: Order and dependency requirements
 
 6. Execute implementation following the task plan:
@@ -108,12 +108,13 @@ You **MUST** consider the user input before proceeding (if not empty).
    - **Polish and validation**: Unit tests, performance optimization, documentation
 
 8. Progress tracking and error handling:
+   - Update Beads Issues progress with Comments and Progress
    - Report progress after each completed task
-   - Halt execution if any non-parallel task fails
-   - For parallel tasks [P], continue with successful tasks, report failed ones
+   - Halt execution if any sequential task fails
+   - For ready tasks, continue with successful tasks, report failed ones
    - Provide clear error messages with context for debugging
    - Suggest next steps if implementation cannot proceed
-   - **IMPORTANT** For completed tasks, make sure to mark the task off as [X] in the tasks file.
+   - **IMPORTANT** For completed tasks, make sure to update the Beads task status to "Closed" with relevant comments
 
 9. Completion validation:
    - Verify all required tasks are completed

@@ -1,0 +1,34 @@
+#!/bin/sh
+#
+# bd (beads) post-merge hook
+#
+# This hook imports updated issues from .beads/issues.jsonl after a
+# git pull or merge, ensuring the database stays in sync with git.
+
+# Check if bd is available
+if ! command -v bd >/dev/null 2>&1; then
+    echo "Warning: bd command not found, skipping post-merge import" >&2
+    exit 0
+fi
+
+# Check if we're in a bd workspace
+if [ ! -d .beads ]; then
+    # Not a bd workspace, nothing to do
+    exit 0
+fi
+
+# Check if issues.jsonl exists and was updated
+if [ ! -f .beads/issues.jsonl ]; then
+    exit 0
+fi
+
+# Import the updated JSONL
+# The auto-import feature should handle this, but we force it here
+# to ensure immediate sync after merge
+if ! bd import -i .beads/issues.jsonl --resolve-collisions >/dev/null 2>&1; then
+    echo "Warning: Failed to import bd changes after merge" >&2
+    echo "Run 'bd import -i .beads/issues.jsonl --resolve-collisions' manually" >&2
+    # Don't fail the merge, just warn
+fi
+
+exit 0

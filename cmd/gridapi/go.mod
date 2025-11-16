@@ -11,6 +11,7 @@ require (
 	github.com/go-chi/chi/v5 v5.2.3
 	github.com/go-chi/cors v1.2.1
 	github.com/go-jose/go-jose/v4 v4.1.3
+	github.com/golang-jwt/jwt/v5 v5.3.0
 	github.com/google/uuid v1.6.0
 	github.com/hashicorp/go-bexpr v0.1.14
 	github.com/mitchellh/mapstructure v1.4.1

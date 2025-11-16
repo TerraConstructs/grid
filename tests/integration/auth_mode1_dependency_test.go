@@ -189,7 +189,7 @@ output "subnet_id" {
 	// Parse dependencies to find edge_id
 	var stateInfo struct {
 		Dependencies []struct {
-			EdgeID     int64  `json:"edge_id"`
+			EdgeID      int64  `json:"edge_id"`
 			FromLogicID string `json:"from_logic_id"`
 		} `json:"dependencies"`
 	}

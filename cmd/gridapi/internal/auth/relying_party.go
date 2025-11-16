@@ -84,14 +84,14 @@ func GenerateNonce() (string, error) {
 }
 
 // SetStateCookie sets the state nonce in a cookie.
-func SetStateCookie(w http.ResponseWriter, state string) {
+func SetStateCookie(w http.ResponseWriter, r *http.Request, state string) {
 	cookie := &http.Cookie{
 		Name:     "grid.state",
 		Value:    state,
 		Path:     "/",
 		Expires:  time.Now().Add(10 * time.Minute),
 		HttpOnly: true,
-		Secure:   true, // Set to false in local dev if not using HTTPS
+		Secure:   r.URL.Scheme == "https", // Automatically use Secure only over HTTPS
 		SameSite: http.SameSiteLaxMode,
 	}
 	http.SetCookie(w, cookie)
@@ -107,4 +107,44 @@ func VerifyStateCookie(r *http.Request, state string) error {
 		return fmt.Errorf("invalid state")
 	}
 	return nil
+}
+
+// SetRedirectURICookie stores the redirect URI in a temporary cookie for the SSO flow.
+// This cookie is short-lived (10 minutes) and used to remember where to redirect after OAuth callback.
+// Related: Beads issue grid-202d (SSO callback redirect fix)
+func SetRedirectURICookie(w http.ResponseWriter, r *http.Request, redirectURI string) {
+	cookie := &http.Cookie{
+		Name:     "grid.redirect_uri",
+		Value:    redirectURI,
+		Path:     "/",
+		Expires:  time.Now().Add(10 * time.Minute),
+		HttpOnly: true,
+		Secure:   r.URL.Scheme == "https", // Automatically use Secure only over HTTPS
+		SameSite: http.SameSiteLaxMode,
+	}
+	http.SetCookie(w, cookie)
+}
+
+// GetRedirectURICookie retrieves and clears the redirect URI cookie.
+// Returns empty string if cookie not found or expired.
+// Related: Beads issue grid-202d (SSO callback redirect fix)
+func GetRedirectURICookie(w http.ResponseWriter, r *http.Request) string {
+	cookie, err := r.Cookie("grid.redirect_uri")
+	if err != nil {
+		return ""
+	}
+
+	// Clear the cookie after reading
+	clearCookie := &http.Cookie{
+		Name:     "grid.redirect_uri",
+		Value:    "",
+		Path:     "/",
+		Expires:  time.Unix(0, 0),
+		HttpOnly: true,
+		Secure:   r.URL.Scheme == "https", // Match the original cookie's Secure flag
+		SameSite: http.SameSiteLaxMode,
+	}
+	http.SetCookie(w, clearCookie)
+
+	return cookie.Value
 }

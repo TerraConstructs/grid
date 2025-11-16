@@ -2,31 +2,133 @@
 description: "Task list template for feature implementation"
 ---
 
-# Tasks: [FEATURE NAME]
+# Tasks Index: [FEATURE NAME]
 
-**Input**: Design documents from `/specs/[###-feature-name]/`
-**Prerequisites**: plan.md (required), spec.md (required for user stories), research.md, data-model.md, contracts/
+Beads Issue Graph Index into the tasks and phases for this feature implementation.
+This index does **not contain tasks directly**—those are fully managed through Beads CLI and MCP agent APIs.
 
-**Tests**: The examples below include test tasks. Tests are OPTIONAL - only include them if explicitly requested in the feature specification.
+## Feature Tracking
 
-**Organization**: Tasks are grouped by user story to enable independent implementation and testing of each story.
+* **Beads Epic ID**: `grid-[epic-id]`
+* **User Stories Source**: `specs/[###-feature-name]/spec.md`
+* **Research Inputs**: `specs/[###-feature-name]/research.md`
+* **Planning Details**: `specs/[###-feature-name]/plan.md`
+* **Data Model**: `specs/[###-feature-name]/data-model.md`
+* **Contract Definitions**: `specs/[###-feature-name]/contracts/`
 
-## Format: `[ID] [P?] [Story] Description`
-- **[P]**: Can run in parallel (different files, no dependencies)
-- **[Story]**: Which user story this task belongs to (e.g., US1, US2, US3)
-- Include exact file paths in descriptions
+## Beads Query Hints
 
-## Path Conventions
-- **Single project**: `src/`, `tests/` at repository root
-- **Web app**: `backend/src/`, `frontend/src/`
-- **Mobile**: `api/src/`, `ios/src/` or `android/src/`
-- Paths shown below assume single project - adjust based on plan.md structure
+Use the `bd` CLI to query and manipulate the issue graph:
+
+```bash
+# Find all open tasks for this feature
+bd list --label spec:[epic-id] --status open --limit 5
+
+# Find ready tasks to implement
+bd ready --limit 5
+
+# See dependencies for issue
+bd dep tree [issue-id]
+
+# View issues by component
+bd list --label 'component:backend-services' --label 'spec:[epic-id]'
+
+# Define dependencies
+bd dep add [from-issue-id] [to-issue-id] --type [dependency-type]
+
+# valid dependency types
+# (blocks|related|parent-child|discovered-from) (default "blocks")
+
+# Show all phases
+bd list --type feature --label 'spec:[epic-id]'
+```
+
+## Tasks and Phases Structure
+
+This feature follows Beads' 2-level graph structure:
+
+* **Epic**: grid-[epic-id] → represents the whole feature
+* **Phases**: Beads issues of type `feature`, child of the epic
+  * Phase = a user story group or technical milestone (e.g., setup, auth, backend integration)
+* **Tasks**: Issues of type `task`, children of each feature issue (phase)
+
+## Convention Summary
+
+| Type    | Description                  | Labels                                 |
+| ------- | ---------------------------- | -------------------------------------- |
+| epic    | Full feature epic            | `spec:[name]`,                         |
+| feature | Implementation phase / story | `phase:[n]`, `story:[US#]`             |
+| task    | Implementation task          | `component:[x]`, `requirement:[fr-id]` |
+
+## Agent Execution Flow
+
+MCP agents and AI workflows should:
+
+1. **Assume `bd init` already done** by `specify init`
+2. **Use `bd create`** to directly generate Beads issues
+3. **Set metadata and dependencies** in the graph, not markdown
+4. **Use this markdown only as a navigational anchor**
+
+> Agents MUST NOT output tasks into this file. They MUST use Beads CLI to record all task and phase structure.
+
+## Example Queries for Agents
+
+```bash
+# Get all tasks in tree structure for the feature
+bd dep tree --reverse [epic-id]
+
+# get all tasks by label
+bd list --label spec:[feature-name] --label story:US1
+
+# Add a new task
+bd create "Implement OAuth redirect handler" -t task --parent [grid-auth-feature] --label spec:[feature-name] --label component:backend-services
+
+# Add a comment to an issue based on research
+bd comments add grid-xyz123 "Additional research identified bcrypt as best hashing algo"
+```
+
+### Exploring comments for context
+
+Use `bd comments` to add notes, research findings, or any relevant context to a task. This helps in task generation and exploration by providing additional details that might not fit into the task title, description, design or notes sections on the task directly.
+
+**Example:**
+```bash
+bd comments grid-044b
+```
+
+This will show comments associated with `grid-044b`, such as:
+
+```console
+Comments on grid-044b:
+[vincentdesmet] Research hashicorp/js-bexpr library: https://github.com/hashicorp/js-bexpr - This may provide go-bexpr compatible syntax for browser. Alternative: expr-eval or custom parser. at
+ 2025-11-04 23:49
+```
+
+# Mark task as completed with context
+bd update grid-xyz123 --status closed --notes "Completed with bcrypt, 12 rounds, <100ms"
+```
+
+## Status Tracking
+
+Status is tracked only in Beads:
+
+* **Open** → default
+* **In Progress** → task being worked on
+* **Blocked** → dependency unresolved
+* **Closed** → complete
+
+Use `bd ready`, `bd blocked`, `bd stats` to query progress.
+
+---
+
+> This file is intentionally light and index-only. Implementation data lives in Beads. Update this file only to point humans and agents to canonical query paths and feature references.
+
 
 <!-- 
   ============================================================================
   IMPORTANT: The tasks below are SAMPLE TASKS for illustration purposes only.
   
-  The /speckit.tasks command MUST replace these with actual tasks based on:
+  The /speckit.tasks command MUST use Beads to track these with actual tasks based on:
   - User stories from spec.md (with their priorities P1, P2, P3...)
   - Feature requirements from plan.md
   - Entities from data-model.md
@@ -40,6 +142,7 @@ description: "Task list template for feature implementation"
   DO NOT keep these sample tasks in the generated tasks.md file.
   ============================================================================
 -->
+
 
 ## Phase 1: Setup (Shared Infrastructure)
 
@@ -180,71 +283,3 @@ Examples of foundational tasks (adjust based on your project):
 - Services before endpoints
 - Core implementation before integration
 - Story complete before moving to next priority
-
-### Parallel Opportunities
-
-- All Setup tasks marked [P] can run in parallel
-- All Foundational tasks marked [P] can run in parallel (within Phase 2)
-- Once Foundational phase completes, all user stories can start in parallel (if team capacity allows)
-- All tests for a user story marked [P] can run in parallel
-- Models within a story marked [P] can run in parallel
-- Different user stories can be worked on in parallel by different team members
-
----
-
-## Parallel Example: User Story 1
-
-```bash
-# Launch all tests for User Story 1 together (if tests requested):
-Task: "Contract test for [endpoint] in tests/contract/test_[name].py"
-Task: "Integration test for [user journey] in tests/integration/test_[name].py"
-
-# Launch all models for User Story 1 together:
-Task: "Create [Entity1] model in src/models/[entity1].py"
-Task: "Create [Entity2] model in src/models/[entity2].py"
-```
-
----
-
-## Implementation Strategy
-
-### MVP First (User Story 1 Only)
-
-1. Complete Phase 1: Setup
-2. Complete Phase 2: Foundational (CRITICAL - blocks all stories)
-3. Complete Phase 3: User Story 1
-4. **STOP and VALIDATE**: Test User Story 1 independently
-5. Deploy/demo if ready
-
-### Incremental Delivery
-
-1. Complete Setup + Foundational → Foundation ready
-2. Add User Story 1 → Test independently → Deploy/Demo (MVP!)
-3. Add User Story 2 → Test independently → Deploy/Demo
-4. Add User Story 3 → Test independently → Deploy/Demo
-5. Each story adds value without breaking previous stories
-
-### Parallel Team Strategy
-
-With multiple developers:
-
-1. Team completes Setup + Foundational together
-2. Once Foundational is done:
-   - Developer A: User Story 1
-   - Developer B: User Story 2
-   - Developer C: User Story 3
-3. Stories complete and integrate independently
-
----
-
-## Notes
-
-- [P] tasks = different files, no dependencies
-- [Story] label maps task to specific user story for traceability
-- Each user story should be independently completable and testable
-- Verify tests fail before implementing
-- Commit after each task or logical group
-- Stop at any checkpoint to validate story independently
-- Avoid: vague tasks, same file conflicts, cross-story dependencies that break independence
-
-

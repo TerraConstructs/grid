@@ -4,6 +4,72 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **Note**: This project uses [bd (beads)](https://github.com/steveyegge/beads) for issue tracking. Use `bd` commands instead of markdown TODOs. See AGENTS.md for workflow details.
 
+## Beads (Issue Tracking) Best Practices
+
+### ⚠️ CRITICAL: Avoid Context Exhaustion with bd list
+
+**NEVER run `bd list` without rigorous filtering or limits!** This will kill your context:
+
+```bash
+# ❌ DANGER: Even CLI can consume 5k-15k tokens without filters
+bd list  # Lists ALL issues with full descriptions
+
+# ✅ SAFE: Always use specific filters
+bd list --status open --priority 1 --limit 5
+
+# ✅ BETTER: Use targeted queries
+bd ready --limit 5 # CLI: Find unblocked issues
+bd show grid-xxxx  # CLI: View one issue
+```
+
+**Why this matters:**
+- CLI output with full descriptions consumes significant tokens
+- Always filter by: `status`, `priority`, `issue_type`, `assignee`, or `limit`
+
+**Safe filtering patterns:**
+```bash
+# Find work
+bd ready --limit 5          # ✅ Only unblocked issues (best for starting work)
+bd list --status open -p 1  # ✅ High-priority open issues only
+
+# Specific queries
+bd show grid-xxxx           # ✅ One issue by ID
+bd list --status in_progress # ✅ Only active tasks
+bd list --issue-type task --limit 10  # ✅ Limited results
+
+# Stats (no descriptions)
+bd stats                    # ✅ Summary only
+```
+
+### MCP Tool Failure Handling
+When `bd update` fails, **ALWAYS** fall back to `bd comments add`:
+
+```bash
+# ❌ If bd update fails with notes parameter
+bd update "grid-xxxx" --notes "..."
+
+# ✅ Immediately use comments as fallback
+bd comments add grid-xxxx "Your context/notes here..."
+```
+
+**Lesson learned:** Never skip documentation just because the bd CLI failed. Comments are persistent and viewable with `bd show` or `bd comments`.
+
+### Workflow Pattern
+1. Create issue: `bd create` with full description
+2. Add context: `bd comments add` (more reliable than notes field)
+3. Update status: `bd update` for status/priority changes
+4. Close issue: `bd close` with reason
+
+### Common Commands
+```bash
+bd show grid-xxxx          # View issue details + comments
+bd comments grid-xxxx      # View all comments
+bd comments add grid-xxxx "..." # Add context (reliable fallback)
+bd ready --limit 5          # Find issues ready to work on (SAFE)
+bd list --status open -p 1 --limit 5 # List filtered issues (ALWAYS FILTER)
+bd stats                   # Project statistics (no descriptions)
+```
+
 ## Project Overview
 
 Grid is a Terraform/OpenTofu remote state management system consisting of:
@@ -158,3 +224,18 @@ Integration tests in `tests/integration/`:
 ├── js/sdk/gen/            # Generated TypeScript SDK
 └── specs/                 # Feature specifications and design docs
 ```
+
+## Active Technologies
+- TypeScript 5.x (webapp), React 18 (UI framework) + React, @connectrpc/connect-web (RPC client), Vite (build tool), Tailwind CSS (styling), Lucide React (icons) (007-webapp-auth)
+- Browser localStorage/sessionStorage for session management, httpOnly cookies for auth tokens (managed by gridapi) (007-webapp-auth)
+
+## Recent Changes
+- 007-webapp-auth: Added TypeScript 5.x (webapp), React 18 (UI framework) + React, @connectrpc/connect-web (RPC client), Vite (build tool), Tailwind CSS (styling), Lucide React (icons)
+- 007-webapp-auth-refactor (2025-11-13): Refactored gridapi authentication architecture
+  * Introduced IAM service layer with immutable group→role cache
+  * Eliminated race condition in authentication middleware (was causing 30% test failure rate)
+  * Implemented Authenticator pattern for pluggable authentication (JWT, Session)
+  * Removed 26 layering violations (handlers/middleware now use services → repositories)
+  * Performance: 67% faster (150ms → <50ms), 70% fewer DB queries (9 → 2-3 per request)
+  * Zero lock contention (lock-free cache reads with atomic.Value)
+  * All integration tests passing (32/32) with race detector clean

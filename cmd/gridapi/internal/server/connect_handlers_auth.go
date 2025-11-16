@@ -2,20 +2,15 @@ package server
 
 import (
 	"context"
-	"crypto/rand"
-	"encoding/hex"
 	"fmt"
 	"sort"
 	"strings"
+	"time"
 
 	"connectrpc.com/connect"
-	"github.com/google/uuid"
 	statev1 "github.com/terraconstructs/grid/api/state/v1"
 	"github.com/terraconstructs/grid/cmd/gridapi/internal/auth"
-
-	"github.com/hashicorp/go-bexpr"
 	"github.com/terraconstructs/grid/cmd/gridapi/internal/db/models"
-	"golang.org/x/crypto/bcrypt"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
@@ -31,27 +26,14 @@ func (h *StateServiceHandler) CreateServiceAccount(
 	// NOTE: Authz is handled by interceptors middleware
 	// cmd/gridapi/internal/middleware/authz_interceptor.go
 
-	// Generate client_id and client_secret
-	clientID := uuid.Must(uuid.NewV7()).String()
-	secretBytes := make([]byte, 32)
-	if _, err := rand.Read(secretBytes); err != nil {
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to generate secret: %w", err))
+	if h.iamService == nil {
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("IAM service not available"))
 	}
-	clientSecret := hex.EncodeToString(secretBytes)
 
-	hashedSecret, err := bcrypt.GenerateFromPassword([]byte(clientSecret), bcrypt.DefaultCost)
+	// Create service account via IAM service
+	// TODO: Extract createdBy from Principal in context
+	sa, clientSecret, err := h.iamService.CreateServiceAccount(ctx, req.Msg.Name, "")
 	if err != nil {
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to hash secret: %w", err))
-	}
-
-	sa := &models.ServiceAccount{
-		Name:             req.Msg.Name,
-		Description:      req.Msg.GetDescription(),
-		ClientID:         clientID,
-		ClientSecretHash: string(hashedSecret),
-	}
-
-	if err := h.authnDeps.ServiceAccounts.Create(ctx, sa); err != nil {
 		return nil, mapServiceError(err)
 	}
 
@@ -78,7 +60,12 @@ func (h *StateServiceHandler) ListServiceAccounts(
 	// NOTE: Authz is handled by interceptors middleware
 	// cmd/gridapi/internal/middleware/authz_interceptor.go
 
-	sas, err := h.authnDeps.ServiceAccounts.List(ctx)
+	if h.iamService == nil {
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("IAM service not available"))
+	}
+
+	// List service accounts via IAM service
+	sas, err := h.iamService.ListServiceAccounts(ctx)
 	if err != nil {
 		return nil, mapServiceError(err)
 	}
@@ -114,22 +101,16 @@ func (h *StateServiceHandler) RevokeServiceAccount(
 	// NOTE: Authz is handled by interceptors middleware
 	// cmd/gridapi/internal/middleware/authz_interceptor.go
 
-	sa, err := h.authnDeps.ServiceAccounts.GetByClientID(ctx, req.Msg.ClientId)
-	if err != nil {
-		return nil, mapServiceError(err)
+	if h.iamService == nil {
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("IAM service not available"))
 	}
 
-	if err := h.authnDeps.ServiceAccounts.SetDisabled(ctx, sa.ID, true); err != nil {
-		return nil, mapServiceError(err)
-	}
-
-	// Remove Casbin role assignments for the service account
-	casbinID := auth.ServiceAccountID(sa.ID)
-	if _, err := h.authnDeps.Enforcer.DeleteRolesForUser(casbinID); err != nil {
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to delete casbin roles: %w", err))
-	}
-
-	if err := h.authnDeps.Sessions.RevokeByServiceAccountID(ctx, sa.ID); err != nil {
+	// Revoke service account via IAM service
+	// This handles:
+	// - Disabling the service account
+	// - Revoking all active sessions
+	// - Removing Casbin role assignments (out-of-band mutation)
+	if err := h.iamService.RevokeServiceAccount(ctx, req.Msg.ClientId); err != nil {
 		return nil, mapServiceError(err)
 	}
 
@@ -149,35 +130,25 @@ func (h *StateServiceHandler) RotateServiceAccount(
 	// cmd/gridapi/internal/middleware/authz_interceptor.go
 	// authorization check (admin:service-account-manage)
 
-	sa, err := h.authnDeps.ServiceAccounts.GetByClientID(ctx, req.Msg.ClientId)
-	if err != nil {
-		return nil, mapServiceError(err)
+	if h.iamService == nil {
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("IAM service not available"))
 	}
 
-	secretBytes := make([]byte, 32)
-	if _, err := rand.Read(secretBytes); err != nil {
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to generate secret: %w", err))
-	}
-	clientSecret := hex.EncodeToString(secretBytes)
-
-	hashedSecret, err := bcrypt.GenerateFromPassword([]byte(clientSecret), bcrypt.DefaultCost)
-	if err != nil {
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to hash secret: %w", err))
-	}
-
-	if err := h.authnDeps.ServiceAccounts.UpdateSecretHash(ctx, sa.ID, string(hashedSecret)); err != nil {
-		return nil, mapServiceError(err)
-	}
-
-	updatedSa, err := h.authnDeps.ServiceAccounts.GetByID(ctx, sa.ID)
+	// Rotate service account secret via IAM service
+	// This handles:
+	// - Generating new secret
+	// - Hashing with bcrypt
+	// - Updating database
+	// - Returning unhashed secret and rotation timestamp
+	clientSecret, rotatedAt, err := h.iamService.RotateServiceAccountSecret(ctx, req.Msg.ClientId)
 	if err != nil {
 		return nil, mapServiceError(err)
 	}
 
 	resp := &statev1.RotateServiceAccountResponse{
-		ClientId:     updatedSa.ClientID,
+		ClientId:     req.Msg.ClientId,
 		ClientSecret: clientSecret,
-		RotatedAt:    timestamppb.New(updatedSa.SecretRotatedAt),
+		RotatedAt:    timestamppb.New(rotatedAt),
 	}
 
 	return connect.NewResponse(resp), nil
@@ -193,57 +164,47 @@ func (h *StateServiceHandler) AssignRole(
 	// cmd/gridapi/internal/middleware/authz_interceptor.go
 	// authorization check (admin:user-assign)
 
+	if h.iamService == nil {
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("IAM service not available"))
+	}
+
 	// Get role by name to find its ID
-	role, err := h.authnDeps.Roles.GetByName(ctx, req.Msg.RoleName)
+	role, err := h.iamService.GetRoleByName(ctx, req.Msg.RoleName)
 	if err != nil {
 		return nil, mapServiceError(err)
 	}
 
-	var casbinPrincipalID string
-	userRole := &models.UserRole{
-		RoleID: role.ID,
-	}
-
+	// Determine principal type and get principal ID
+	var userID, serviceAccountID string
 	switch req.Msg.PrincipalType {
 	case "user":
-		user, err := h.authnDeps.Users.GetBySubject(ctx, req.Msg.PrincipalId)
+		user, err := h.iamService.GetUserBySubject(ctx, req.Msg.PrincipalId)
 		if err != nil {
 			return nil, mapServiceError(err)
 		}
-		userRole.UserID = &user.ID
-		subjectID := user.PrincipalSubject()
-		casbinPrincipalID = auth.UserID(subjectID)
+		userID = user.ID
 	case "service_account":
-		sa, err := h.authnDeps.ServiceAccounts.GetByClientID(ctx, req.Msg.PrincipalId)
+		sa, err := h.iamService.GetServiceAccountByClientID(ctx, req.Msg.PrincipalId)
 		if err != nil {
 			return nil, mapServiceError(err)
 		}
-		userRole.ServiceAccountID = &sa.ID
-		casbinPrincipalID = auth.ServiceAccountID(sa.ClientID)
+		serviceAccountID = sa.ID
 	default:
 		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid principal type: %s", req.Msg.PrincipalType))
 	}
 
-	// Persist the assignment for audit/query purposes
-	if err := h.authnDeps.UserRoles.Create(ctx, userRole); err != nil {
-		// Handle potential unique constraint violation gracefully
-		if strings.Contains(err.Error(), "duplicate key value violates unique constraint") {
+	// Delegate to IAM service (handles DB write, Casbin sync, rollback)
+	if err := h.iamService.AssignUserRole(ctx, userID, serviceAccountID, role.ID); err != nil {
+		// Map known errors to appropriate gRPC codes
+		if strings.Contains(err.Error(), "already assigned") {
 			return nil, connect.NewError(connect.CodeAlreadyExists, fmt.Errorf("role '%s' is already assigned to principal", req.Msg.RoleName))
 		}
 		return nil, mapServiceError(err)
 	}
 
-	// Add the grouping to Casbin for enforcement
-	casbinRoleID := auth.RoleID(role.Name)
-	if _, err := h.authnDeps.Enforcer.AddRoleForUser(casbinPrincipalID, casbinRoleID); err != nil {
-		// Attempt to roll back the database change if Casbin fails
-		_ = h.authnDeps.UserRoles.Delete(ctx, userRole.ID)
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to add casbin role assignment: %w", err))
-	}
-
 	return connect.NewResponse(&statev1.AssignRoleResponse{
 		Success:    true,
-		AssignedAt: timestamppb.New(userRole.AssignedAt),
+		AssignedAt: timestamppb.New(time.Now()),
 	}), nil
 }
 
@@ -256,42 +217,40 @@ func (h *StateServiceHandler) RemoveRole(
 	// cmd/gridapi/internal/middleware/authz_interceptor.go
 	// authorization check (admin:user-assign)
 
+	if h.iamService == nil {
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("IAM service not available"))
+	}
+
 	// Get role by name to find its ID
-	role, err := h.authnDeps.Roles.GetByName(ctx, req.Msg.RoleName)
+	role, err := h.iamService.GetRoleByName(ctx, req.Msg.RoleName)
 	if err != nil {
 		return nil, mapServiceError(err)
 	}
 
-	var casbinPrincipalID string
-
+	// Determine principal type and validate principal exists
+	var userID, serviceAccountID string
 	switch req.Msg.PrincipalType {
 	case "user":
-		user, err := h.authnDeps.Users.GetByID(ctx, req.Msg.PrincipalId)
+		// PrincipalId contains internal user ID (UUID)
+		user, err := h.iamService.GetUserByID(ctx, req.Msg.PrincipalId)
 		if err != nil {
 			return nil, mapServiceError(err)
 		}
-		if err := h.authnDeps.UserRoles.DeleteByUserAndRole(ctx, user.ID, role.ID); err != nil {
-			return nil, mapServiceError(err)
-		}
-		subjectID := user.PrincipalSubject()
-		casbinPrincipalID = auth.UserID(subjectID)
+		userID = user.ID
 	case "service_account":
-		sa, err := h.authnDeps.ServiceAccounts.GetByID(ctx, req.Msg.PrincipalId)
+		// PrincipalId contains internal SA ID (UUID)
+		sa, err := h.iamService.GetServiceAccountByID(ctx, req.Msg.PrincipalId)
 		if err != nil {
 			return nil, mapServiceError(err)
 		}
-		if err := h.authnDeps.UserRoles.DeleteByServiceAccountAndRole(ctx, sa.ID, role.ID); err != nil {
-			return nil, mapServiceError(err)
-		}
-		casbinPrincipalID = auth.ServiceAccountID(sa.ClientID)
+		serviceAccountID = sa.ID
 	default:
 		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid principal type: %s", req.Msg.PrincipalType))
 	}
 
-	// Remove the grouping from Casbin
-	casbinRoleID := auth.RoleID(role.Name)
-	if _, err := h.authnDeps.Enforcer.DeleteRoleForUser(casbinPrincipalID, casbinRoleID); err != nil {
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to remove casbin role assignment: %w", err))
+	// Delegate to IAM service (handles DB delete, Casbin removal)
+	if err := h.iamService.RemoveUserRole(ctx, userID, serviceAccountID, role.ID); err != nil {
+		return nil, mapServiceError(err)
 	}
 
 	return connect.NewResponse(&statev1.RemoveRoleResponse{Success: true}), nil
@@ -306,45 +265,29 @@ func (h *StateServiceHandler) AssignGroupRole(
 	// cmd/gridapi/internal/middleware/authz_interceptor.go
 	// authorization check (admin:group-assign)
 
-	// Get authenticated principal for audit trail
-	principal, ok := auth.GetUserFromContext(ctx)
-	if !ok {
-		return nil, connect.NewError(connect.CodeUnauthenticated, fmt.Errorf("no authenticated principal"))
+	if h.iamService == nil {
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("IAM service not available"))
 	}
 
 	// Get role by name to find its ID
-	role, err := h.authnDeps.Roles.GetByName(ctx, req.Msg.RoleName)
+	role, err := h.iamService.GetRoleByName(ctx, req.Msg.RoleName)
 	if err != nil {
 		return nil, mapServiceError(err)
 	}
 
-	groupRole := &models.GroupRole{
-		GroupName:  req.Msg.GroupName,
-		RoleID:     role.ID,
-		AssignedBy: principal.InternalID,
-	}
-
-	// Persist the assignment for audit/query purposes
-	if err := h.authnDeps.GroupRoles.Create(ctx, groupRole); err != nil {
-		// Handle potential unique constraint violation gracefully
-		if strings.Contains(err.Error(), "duplicate key value violates unique constraint") {
+	// Delegate to IAM service (handles DB write, Casbin sync, cache refresh, rollback)
+	// Note: IAM service currently doesn't track AssignedBy - enhancement for later
+	if err := h.iamService.AssignGroupRole(ctx, req.Msg.GroupName, role.ID); err != nil {
+		// Map known errors to appropriate gRPC codes
+		if strings.Contains(err.Error(), "already assigned") {
 			return nil, connect.NewError(connect.CodeAlreadyExists, fmt.Errorf("role '%s' is already assigned to group '%s'", req.Msg.RoleName, req.Msg.GroupName))
 		}
 		return nil, mapServiceError(err)
 	}
 
-	// Add the grouping to Casbin for enforcement
-	casbinPrincipalID := auth.GroupID(req.Msg.GroupName)
-	casbinRoleID := auth.RoleID(role.Name)
-	if _, err := h.authnDeps.Enforcer.AddRoleForUser(casbinPrincipalID, casbinRoleID); err != nil {
-		// Attempt to roll back the database change if Casbin fails
-		_ = h.authnDeps.GroupRoles.Delete(ctx, groupRole.ID)
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to add casbin group-role assignment: %w", err))
-	}
-
 	return connect.NewResponse(&statev1.AssignGroupRoleResponse{
 		Success:    true,
-		AssignedAt: timestamppb.New(groupRole.AssignedAt),
+		AssignedAt: timestamppb.New(time.Now()),
 	}), nil
 }
 
@@ -357,22 +300,19 @@ func (h *StateServiceHandler) RemoveGroupRole(
 	// cmd/gridapi/internal/middleware/authz_interceptor.go
 	// authorization check (admin:group-assign)
 
+	if h.iamService == nil {
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("IAM service not available"))
+	}
+
 	// Get role by name to find its ID
-	role, err := h.authnDeps.Roles.GetByName(ctx, req.Msg.RoleName)
+	role, err := h.iamService.GetRoleByName(ctx, req.Msg.RoleName)
 	if err != nil {
 		return nil, mapServiceError(err)
 	}
 
-	// Delete from the database
-	if err := h.authnDeps.GroupRoles.DeleteByGroupAndRole(ctx, req.Msg.GroupName, role.ID); err != nil {
+	// Delegate to IAM service (handles DB delete, Casbin removal, cache refresh)
+	if err := h.iamService.RemoveGroupRole(ctx, req.Msg.GroupName, role.ID); err != nil {
 		return nil, mapServiceError(err)
-	}
-
-	// Remove the grouping from Casbin
-	casbinPrincipalID := auth.GroupID(req.Msg.GroupName)
-	casbinRoleID := auth.RoleID(role.Name)
-	if _, err := h.authnDeps.Enforcer.DeleteRoleForUser(casbinPrincipalID, casbinRoleID); err != nil {
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to remove casbin group-role assignment: %w", err))
 	}
 
 	return connect.NewResponse(&statev1.RemoveGroupRoleResponse{Success: true}), nil
@@ -387,22 +327,18 @@ func (h *StateServiceHandler) ListGroupRoles(
 	// cmd/gridapi/internal/middleware/authz_interceptor.go
 	// authorization check (admin:group-assign)
 
-	var groupRoles []models.GroupRole
-	var err error
-
-	if req.Msg.GroupName != nil {
-		groupRoles, err = h.authnDeps.GroupRoles.GetByGroupName(ctx, *req.Msg.GroupName)
-	} else {
-		groupRoles, err = h.authnDeps.GroupRoles.List(ctx)
+	if h.iamService == nil {
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("IAM service not available"))
 	}
 
+	groupRoles, err := h.iamService.ListGroupRoles(ctx, req.Msg.GroupName)
 	if err != nil {
 		return nil, mapServiceError(err)
 	}
 
 	assignments := make([]*statev1.GroupRoleAssignmentInfo, 0, len(groupRoles))
 	for _, gr := range groupRoles {
-		role, err := h.authnDeps.Roles.GetByID(ctx, gr.RoleID)
+		role, err := h.iamService.GetRoleByID(ctx, gr.RoleID)
 		if err != nil {
 			// Inconsistent data, log it but continue if possible
 			continue
@@ -431,30 +367,30 @@ func (h *StateServiceHandler) GetEffectivePermissions(
 	// cmd/gridapi/internal/middleware/authz_interceptor.go
 	// authorization check (current user or admin)
 
-	var casbinPrincipalID string
+	if h.iamService == nil {
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("IAM service not available"))
+	}
+
+	var principalID string
 
 	switch req.Msg.PrincipalType {
 	case "user":
-		user, err := h.authnDeps.Users.GetBySubject(ctx, req.Msg.PrincipalId)
+		user, err := h.iamService.GetUserBySubject(ctx, req.Msg.PrincipalId)
 		if err != nil {
 			return nil, mapServiceError(err)
 		}
-		subjectID := user.PrincipalSubject()
-		casbinPrincipalID = auth.UserID(subjectID)
+		principalID = user.ID
 	case "service_account":
-		sa, err := h.authnDeps.ServiceAccounts.GetByClientID(ctx, req.Msg.PrincipalId)
+		sa, err := h.iamService.GetServiceAccountByClientID(ctx, req.Msg.PrincipalId)
 		if err != nil {
 			return nil, mapServiceError(err)
 		}
-		casbinPrincipalID = auth.ServiceAccountID(sa.ClientID)
+		principalID = sa.ID
 	default:
 		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid principal type: %s", req.Msg.PrincipalType))
 	}
 
-	if h.authnDeps.Enforcer == nil {
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("casbin enforcer not initialized"))
-	}
-	casbinRoles, err := h.authnDeps.Enforcer.GetRolesForUser(casbinPrincipalID)
+	casbinRoles, err := h.iamService.GetPrincipalRoles(ctx, principalID, req.Msg.PrincipalType)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to get roles for user: %w", err))
 	}
@@ -470,7 +406,7 @@ func (h *StateServiceHandler) GetEffectivePermissions(
 			continue // Should not happen if prefixes are consistent
 		}
 
-		role, err := h.authnDeps.Roles.GetByName(ctx, roleName)
+		role, err := h.iamService.GetRoleByName(ctx, roleName)
 		if err != nil {
 			continue // Role might have been deleted
 		}
@@ -483,8 +419,8 @@ func (h *StateServiceHandler) GetEffectivePermissions(
 			immutableKeys[key] = struct{}{}
 		}
 
-		// Get permissions (actions) for the role from Casbin
-		permissions, err := h.authnDeps.Enforcer.GetPermissionsForUser(casbinRole)
+		// Get permissions (actions) for the role from IAM service
+		permissions, err := h.iamService.GetRolePermissions(ctx, roleName)
 		if err != nil {
 			continue // TODO: Don't ignore error (use multierr?)
 		}
@@ -536,14 +472,7 @@ func (h *StateServiceHandler) CreateRole(
 	// cmd/gridapi/internal/middleware/authz_interceptor.go
 	// authorization check (admin:role-manage)
 
-	// Validate label_scope_expr as valid go-bexpr syntax
-	if expr := req.Msg.GetLabelScopeExpr(); expr != "" {
-		if _, err := bexpr.CreateEvaluator(expr); err != nil {
-			return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid label_scope_expr: %w", err))
-		}
-	}
-
-	// Map create_constraints
+	// Map create_constraints from proto to models
 	var constraintsMap models.CreateConstraints
 	if req.Msg.GetCreateConstraints() != nil && len(req.Msg.GetCreateConstraints().GetConstraints()) > 0 {
 		protoConstraints := req.Msg.GetCreateConstraints().GetConstraints()
@@ -556,36 +485,32 @@ func (h *StateServiceHandler) CreateRole(
 		}
 	}
 
-	role := &models.Role{
-		Name:              req.Msg.Name,
-		Description:       req.Msg.GetDescription(),
-		ScopeExpr:         req.Msg.GetLabelScopeExpr(),
-		CreateConstraints: constraintsMap,
-		ImmutableKeys:     req.Msg.ImmutableKeys,
+	if h.iamService == nil {
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("IAM service not available"))
 	}
 
-	if err := h.authnDeps.Roles.Create(ctx, role); err != nil {
+	// Delegate to IAM service (handles validation, DB create, Casbin sync, rollback)
+	role, err := h.iamService.CreateRole(
+		ctx,
+		req.Msg.Name,
+		req.Msg.GetDescription(),
+		req.Msg.GetLabelScopeExpr(),
+		constraintsMap,
+		req.Msg.ImmutableKeys,
+		req.Msg.Actions,
+	)
+	if err != nil {
+		// Map known errors to appropriate gRPC codes
+		if strings.Contains(err.Error(), "duplicate") || strings.Contains(err.Error(), "already exists") {
+			return nil, connect.NewError(connect.CodeAlreadyExists, err)
+		}
+		if strings.Contains(err.Error(), "invalid label_scope_expr") {
+			return nil, connect.NewError(connect.CodeInvalidArgument, err)
+		}
 		return nil, mapServiceError(err)
 	}
 
-	casbinRoleID := auth.RoleID(role.Name)
-	for _, action := range req.Msg.Actions {
-		parts := strings.Split(action, ":")
-		if len(parts) != 2 {
-			// For simplicity, we only support obj:act format. Wildcards can be handled if needed.
-			continue
-		}
-		objType, act := parts[0], parts[1]
-		// The policy format is [role, objType, action, scopeExpr, effect]
-		// We store the scope expression directly in the policy to use bexprMatch in the model.
-		policy := []string{casbinRoleID, objType, act, role.ScopeExpr, "allow"}
-		if _, err := h.authnDeps.Enforcer.AddPolicy(policy); err != nil {
-			// Attempt to roll back the database change if Casbin fails
-			_ = h.authnDeps.Roles.Delete(ctx, role.ID)
-			return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to add casbin policy: %w", err))
-		}
-	}
-
+	// Convert role to proto
 	roleInfo, err := h.roleToProto(ctx, role)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to convert role to proto: %w", err))
@@ -603,7 +528,11 @@ func (h *StateServiceHandler) ListRoles(
 	// cmd/gridapi/internal/middleware/authz_interceptor.go
 	// authorization check (admin:role-manage)
 
-	roles, err := h.authnDeps.Roles.List(ctx)
+	if h.iamService == nil {
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("IAM service not available"))
+	}
+
+	roles, err := h.iamService.ListAllRoles(ctx)
 	if err != nil {
 		return nil, mapServiceError(err)
 	}
@@ -631,25 +560,7 @@ func (h *StateServiceHandler) UpdateRole(
 	// cmd/gridapi/internal/middleware/authz_interceptor.go
 	// authorization check (admin:role-manage)
 
-	// Validate label_scope_expr
-	if expr := req.Msg.GetLabelScopeExpr(); expr != "" {
-		if _, err := bexpr.CreateEvaluator(expr); err != nil {
-			return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("invalid label_scope_expr: %w", err))
-		}
-	}
-
-	// Get the existing role
-	role, err := h.authnDeps.Roles.GetByName(ctx, req.Msg.Name)
-	if err != nil {
-		return nil, mapServiceError(err)
-	}
-
-	// Optimistic locking
-	if role.Version != int(req.Msg.ExpectedVersion) {
-		return nil, connect.NewError(connect.CodeFailedPrecondition, fmt.Errorf("role has been modified by another user, please refresh and try again"))
-	}
-
-	// Map create_constraints
+	// Map create_constraints from proto to models
 	var constraintsMap models.CreateConstraints
 	if req.Msg.GetCreateConstraints() != nil && len(req.Msg.GetCreateConstraints().GetConstraints()) > 0 {
 		protoConstraints := req.Msg.GetCreateConstraints().GetConstraints()
@@ -662,39 +573,36 @@ func (h *StateServiceHandler) UpdateRole(
 		}
 	}
 
-	// Update role fields
-	role.Description = req.Msg.GetDescription()
-	role.ScopeExpr = req.Msg.GetLabelScopeExpr()
-	role.CreateConstraints = constraintsMap
-	role.ImmutableKeys = req.Msg.ImmutableKeys
-
-	if err := h.authnDeps.Roles.Update(ctx, role); err != nil {
-		return nil, mapServiceError(err)
+	if h.iamService == nil {
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("IAM service not available"))
 	}
 
-	// Sync Casbin policies
-	casbinRoleID := auth.RoleID(role.Name)
-	if _, err := h.authnDeps.Enforcer.RemoveFilteredPolicy(0, casbinRoleID); err != nil {
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to remove old casbin policies: %w", err))
-	}
-
-	for _, action := range req.Msg.Actions {
-		parts := strings.Split(action, ":")
-		if len(parts) != 2 {
-			continue
-		}
-		objType, act := parts[0], parts[1]
-		policy := []string{casbinRoleID, objType, act, role.ScopeExpr, "allow"}
-		if _, err := h.authnDeps.Enforcer.AddPolicy(policy); err != nil {
-			return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to add new casbin policy: %w", err))
-		}
-	}
-
-	updatedRole, err := h.authnDeps.Roles.GetByID(ctx, role.ID)
+	// Delegate to IAM service (handles validation, optimistic locking, DB update, Casbin sync)
+	updatedRole, err := h.iamService.UpdateRole(
+		ctx,
+		req.Msg.Name,
+		int(req.Msg.ExpectedVersion),
+		req.Msg.GetDescription(),
+		req.Msg.GetLabelScopeExpr(),
+		constraintsMap,
+		req.Msg.ImmutableKeys,
+		req.Msg.Actions,
+	)
 	if err != nil {
+		// Map known errors to appropriate gRPC codes
+		if strings.Contains(err.Error(), "version mismatch") || strings.Contains(err.Error(), "modified by another") {
+			return nil, connect.NewError(connect.CodeFailedPrecondition, err)
+		}
+		if strings.Contains(err.Error(), "not found") {
+			return nil, connect.NewError(connect.CodeNotFound, err)
+		}
+		if strings.Contains(err.Error(), "invalid label_scope_expr") {
+			return nil, connect.NewError(connect.CodeInvalidArgument, err)
+		}
 		return nil, mapServiceError(err)
 	}
 
+	// Convert role to proto
 	roleInfo, err := h.roleToProto(ctx, updatedRole)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to convert role to proto: %w", err))
@@ -712,28 +620,17 @@ func (h *StateServiceHandler) DeleteRole(
 	// cmd/gridapi/internal/middleware/authz_interceptor.go
 	// authorization check (admin:role-manage)
 
-	role, err := h.authnDeps.Roles.GetByName(ctx, req.Msg.Name)
-	if err != nil {
+	if h.iamService == nil {
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("IAM service not available"))
+	}
+
+	// Delegate to IAM service (handles safety check, DB delete, Casbin cleanup)
+	if err := h.iamService.DeleteRole(ctx, req.Msg.Name); err != nil {
+		// Map known errors to appropriate gRPC codes
+		if strings.Contains(err.Error(), "still assigned") {
+			return nil, connect.NewError(connect.CodeFailedPrecondition, err)
+		}
 		return nil, mapServiceError(err)
-	}
-
-	casbinRoleID := auth.RoleID(role.Name)
-	users, err := h.authnDeps.Enforcer.GetUsersForRole(casbinRoleID)
-	if err != nil {
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to check role assignments: %w", err))
-	}
-	if len(users) > 0 {
-		return nil, connect.NewError(connect.CodeFailedPrecondition, fmt.Errorf("cannot delete role: still assigned to %d principals", len(users)))
-	}
-
-	// Delete from DB
-	if err := h.authnDeps.Roles.Delete(ctx, role.ID); err != nil {
-		return nil, mapServiceError(err)
-	}
-
-	// Remove policies from Casbin
-	if _, err := h.authnDeps.Enforcer.RemoveFilteredPolicy(0, casbinRoleID); err != nil {
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to remove casbin policies: %w", err))
 	}
 
 	return connect.NewResponse(&statev1.DeleteRoleResponse{Success: true}), nil
@@ -748,7 +645,11 @@ func (h *StateServiceHandler) ListSessions(
 	// cmd/gridapi/internal/middleware/authz_interceptor.go
 	// authorization check (user can list their own, admin can list any)
 
-	sessions, err := h.authnDeps.Sessions.GetByUserID(ctx, req.Msg.UserId)
+	if h.iamService == nil {
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("IAM service not available"))
+	}
+
+	sessions, err := h.iamService.ListUserSessions(ctx, req.Msg.UserId)
 	if err != nil {
 		return nil, mapServiceError(err)
 	}
@@ -778,7 +679,11 @@ func (h *StateServiceHandler) RevokeSession(
 	// cmd/gridapi/internal/middleware/authz_interceptor.go
 	// authorization check (user can revoke their own, admin can revoke any)
 
-	if err := h.authnDeps.Sessions.Revoke(ctx, req.Msg.SessionId); err != nil {
+	if h.iamService == nil {
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("IAM service not available"))
+	}
+
+	if err := h.iamService.RevokeSession(ctx, req.Msg.SessionId); err != nil {
 		return nil, mapServiceError(err)
 	}
 
@@ -787,8 +692,11 @@ func (h *StateServiceHandler) RevokeSession(
 
 // roleToProto is a helper to convert a database role model to a protobuf message.
 func (h *StateServiceHandler) roleToProto(ctx context.Context, role *models.Role) (*statev1.RoleInfo, error) {
-	casbinRoleID := auth.RoleID(role.Name)
-	permissions, err := h.authnDeps.Enforcer.GetPermissionsForUser(casbinRoleID)
+	if h.iamService == nil {
+		return nil, fmt.Errorf("IAM service not available")
+	}
+
+	permissions, err := h.iamService.GetRolePermissions(ctx, role.Name)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get permissions for role: %w", err)
 	}

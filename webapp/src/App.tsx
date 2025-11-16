@@ -6,10 +6,14 @@ import { ListView } from './components/ListView';
 import { DetailView } from './components/DetailView';
 import { Network, List, Loader2, RefreshCw, AlertCircle } from 'lucide-react';
 import type { ActiveLabelFilter } from './components/LabelFilter';
+import { LoginPage } from './components/LoginPage';
+import { AuthStatus } from './components/AuthStatus';
+import { useAuth } from './context/AuthContext';
 
 type View = 'graph' | 'list';
 
-function App() {
+function AppContent() {
+  const { state: authState, logout: authLogout } = useAuth();
   const [view, setView] = useState<View>('graph');
   const [selectedState, setSelectedState] = useState<StateInfo | null>(null);
   const {
@@ -24,29 +28,44 @@ function App() {
   const [activeFilters, setActiveFilters] = useState<ActiveLabelFilter[]>([]);
   const filterInitializedRef = useRef(false);
 
+  const isAuthDisabled = authState.config?.mode === 'disabled';
+  const canLoadGridData =
+    !authState.loading &&
+    authState.config !== null &&
+    (isAuthDisabled || Boolean(authState.user));
+
+  // Only load data once authentication is ready (or disabled mode)
   useEffect(() => {
+    if (!canLoadGridData) {
+      return;
+    }
     loadData();
-  }, [loadData]);
+  }, [canLoadGridData, loadData]);
 
-  const handleStateClick = async (logicId: string) => {
+  const handleStateClick = useCallback(async (logicId: string) => {
     const state = await getStateInfo(logicId);
     if (state) {
       setSelectedState(state);
     }
-  };
+  }, [getStateInfo]);
 
-  const handleEdgeClick = (edge: DependencyEdge) => {
+  const handleEdgeClick = useCallback((edge: DependencyEdge) => {
     console.log('Edge clicked:', edge);
-  };
+  }, []);
 
-  const handleNavigate = async (logicId: string) => {
+  const handleNavigate = useCallback(async (logicId: string) => {
     const state = await getStateInfo(logicId);
     if (state) {
       setSelectedState(state);
     }
-  };
+  }, [getStateInfo]);
 
-  const handleRefresh = async () => {
+  const handleLogout = useCallback(async () => {
+    await authLogout();
+    setSelectedState(null);
+  }, [authLogout]);
+
+  const handleRefresh = useCallback(async () => {
     const currentSelectedLogicId = selectedState?.logic_id;
     await loadData({ filter });
 
@@ -59,7 +78,7 @@ function App() {
         setSelectedState(null);
       }
     }
-  };
+  }, [selectedState, filter, loadData, getStateInfo]);
 
   const handleFilterChange = useCallback((expression: string, filtersList: ActiveLabelFilter[]) => {
     setActiveFilters(filtersList);
@@ -75,6 +94,23 @@ function App() {
 
     void loadData({ filter: expression });
   }, [filter, loadData]);
+
+  // Show loading spinner while checking authentication
+  if (authState.loading) {
+    return (
+      <div className="min-h-screen bg-gray-900 flex items-center justify-center">
+        <div className="flex items-center gap-3">
+          <Loader2 className="w-8 h-8 text-purple-600 animate-spin" />
+          <span className="text-white text-lg">Loading...</span>
+        </div>
+      </div>
+    );
+  }
+
+  // Show login page if not authenticated and auth is required
+  if (!authState.user && !isAuthDisabled) {
+    return <LoginPage />;
+  }
 
   if (loading) {
     return (
@@ -126,7 +162,7 @@ function App() {
             </button>
           </div>
 
-          <div className="flex items-center gap-4 text-sm">
+          <div className="hidden md:flex items-center gap-4 text-sm">
             <div className="text-gray-400">
               <span className="text-white font-semibold">{states.length}</span> states
             </div>
@@ -142,6 +178,11 @@ function App() {
               <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
               Refresh
             </button>
+            {authState.user && (
+              <div className="pl-2 border-l border-gray-600">
+                <AuthStatus user={authState.user} onLogout={handleLogout} />
+              </div>
+            )}
           </div>
         </div>
       </header>
@@ -194,6 +235,10 @@ function App() {
       )}
     </div>
   );
+}
+
+function App() {
+  return <AppContent />;
 }
 
 export default App;

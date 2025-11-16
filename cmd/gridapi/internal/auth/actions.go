@@ -87,6 +87,9 @@ const (
 
 	// AdminSessionRevoke allows revoking sessions
 	AdminSessionRevoke = "admin:session-revoke"
+
+	// AdminCacheRefresh allows manually refreshing the group→role cache
+	AdminCacheRefresh = "admin:cache-refresh"
 )
 
 // Ownership Actions (self-service access)
@@ -168,6 +171,7 @@ func ValidateAction(action string) bool {
 		AdminGroupAssign:          true,
 		AdminServiceAccountManage: true,
 		AdminSessionRevoke:        true,
+		AdminCacheRefresh:         true,
 		// Ownership
 		ReadSelf: true,
 		// Wildcards
@@ -198,7 +202,7 @@ func ExpandWildcard(action string) []string {
 	case PolicyWildcard:
 		return []string{PolicyRead, PolicyWrite}
 	case AdminWildcard:
-		return []string{AdminRoleManage, AdminUserAssign, AdminGroupAssign, AdminServiceAccountManage, AdminSessionRevoke}
+		return []string{AdminRoleManage, AdminUserAssign, AdminGroupAssign, AdminServiceAccountManage, AdminSessionRevoke, AdminCacheRefresh}
 	case AllWildcard:
 		// Return all concrete actions
 		var all []string

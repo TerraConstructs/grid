@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import type { GridApiAdapter } from '@tcons/grid';
 import { useGrid } from '../context/GridContext';
 
 /**
@@ -11,6 +12,32 @@ export interface PolicyDefinition {
   reserved_prefixes?: string[];
   max_keys: number;
   max_value_len: number;
+}
+
+const DEFAULT_POLICY: PolicyDefinition = {
+  max_keys: 32,
+  max_value_len: 256,
+};
+
+interface CachedPolicyState {
+  policy: PolicyDefinition;
+  version: number;
+}
+
+let cachedPolicyState: CachedPolicyState | null = null;
+let policyRequest: Promise<CachedPolicyState> | null = null;
+
+async function fetchPolicy(api: GridApiAdapter): Promise<CachedPolicyState> {
+  const response = await api.getLabelPolicy();
+  if (!response) {
+    return { policy: DEFAULT_POLICY, version: 0 };
+  }
+
+  const parsed: PolicyDefinition = JSON.parse(response.policyJson);
+  return {
+    policy: parsed,
+    version: response.version,
+  };
 }
 
 /**
@@ -55,35 +82,47 @@ export function useLabelPolicy(): UseLabelPolicyReturn {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const loadPolicy = useCallback(async () => {
+  const loadPolicy = useCallback(async (options?: { force?: boolean }) => {
     setLoading(true);
     setError(null);
 
+    const force = options?.force === true;
+    let request: Promise<CachedPolicyState> | null = null;
+
     try {
-      const response = await api.getLabelPolicy();
-
-      // Parse the JSON policy
-      const parsed: PolicyDefinition = JSON.parse(response.policyJson);
-
-      setPolicy(parsed);
-      setVersion(response.version);
-    } catch (err) {
-      // Policy may not exist yet - this is not necessarily an error
-      if (err instanceof Error && err.message.includes('not found')) {
-        // Set default policy when none exists
-        setPolicy({
-          max_keys: 32,
-          max_value_len: 256,
-        });
-        setVersion(0);
-      } else {
-        const errorMessage = err instanceof Error
-          ? err.message
-          : 'Failed to load label policy';
-        setError(errorMessage);
-        console.error('Failed to load label policy:', err);
+      if (!force && cachedPolicyState) {
+        setPolicy(cachedPolicyState.policy);
+        setVersion(cachedPolicyState.version);
+        return;
       }
+
+      if (!force && policyRequest) {
+        const cached = await policyRequest;
+        setPolicy(cached.policy);
+        setVersion(cached.version);
+        return;
+      }
+
+      if (force) {
+        cachedPolicyState = null;
+      }
+
+      request = fetchPolicy(api);
+      policyRequest = request;
+      const result = await request;
+      cachedPolicyState = result;
+      setPolicy(result.policy);
+      setVersion(result.version);
+    } catch (err) {
+      const errorMessage = err instanceof Error
+        ? err.message
+        : 'Failed to load label policy';
+      setError(errorMessage);
+      console.error('Failed to load label policy:', err);
     } finally {
+      if (request && policyRequest === request) {
+        policyRequest = null;
+      }
       setLoading(false);
     }
   }, [api]);
@@ -114,6 +153,6 @@ export function useLabelPolicy(): UseLabelPolicyReturn {
     error,
     getAllowedValues,
     getAllowedKeys,
-    refresh: loadPolicy,
+    refresh: () => loadPolicy({ force: true }),
   };
 }

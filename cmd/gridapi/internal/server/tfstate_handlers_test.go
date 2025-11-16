@@ -14,7 +14,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/terraconstructs/grid/cmd/gridapi/internal/auth"
 	"github.com/terraconstructs/grid/cmd/gridapi/internal/db/models"
-	statepkg "github.com/terraconstructs/grid/cmd/gridapi/internal/state"
+	statepkg "github.com/terraconstructs/grid/cmd/gridapi/internal/services/state"
 )
 
 // mockStateService is a mock implementation of the state service for testing

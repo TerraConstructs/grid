@@ -8,9 +8,9 @@ import (
 	"github.com/terraconstructs/grid/api/state/v1/statev1connect"
 	"github.com/terraconstructs/grid/cmd/gridapi/internal/auth"
 	"github.com/terraconstructs/grid/cmd/gridapi/internal/config"
-	"github.com/terraconstructs/grid/cmd/gridapi/internal/dependency"
 	gridmiddleware "github.com/terraconstructs/grid/cmd/gridapi/internal/middleware"
-	statepkg "github.com/terraconstructs/grid/cmd/gridapi/internal/state"
+	"github.com/terraconstructs/grid/cmd/gridapi/internal/services/dependency"
+	statepkg "github.com/terraconstructs/grid/cmd/gridapi/internal/services/state"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
@@ -28,6 +28,7 @@ type RouterOptions struct {
 	PolicyService       *statepkg.PolicyService
 	Provider            *auth.Provider
 	RelyingParty        *auth.RelyingParty
+	IAMService          iamAdminService // Compile-time verified IAM service contract
 	AuthnDeps           gridmiddleware.AuthnDependencies
 	Cfg                 *config.Config
 	OIDCRouter          chi.Router
@@ -44,6 +45,8 @@ func DefaultCORSOptions() cors.Options {
 		AllowedOrigins: []string{
 			"http://localhost:5173",
 			"http://127.0.0.1:5173",
+			"http://localhost:5174",
+			"http://127.0.0.1:5174",
 		},
 		AllowedMethods: []string{http.MethodGet, http.MethodPost, http.MethodOptions},
 		AllowedHeaders: []string{
@@ -100,15 +103,38 @@ func NewRouter(opts RouterOptions) chi.Router {
 		}
 	}
 
+	// Internal IdP mode: Mount OIDC provider and internal login endpoint
 	if opts.OIDCRouter != nil {
 		log.Println("Mounting OIDC router")
 		r.Mount("/", opts.OIDCRouter)
+		if opts.IAMService != nil {
+			r.Post("/auth/login", HandleInternalLogin(opts.IAMService))
+		} else {
+			log.Println("WARNING: Skipping /auth/login - IAMService not available")
+		}
 	}
 
+	// External IdP mode: Mount SSO endpoints
 	if opts.RelyingParty != nil {
 		r.Get("/auth/sso/login", HandleSSOLogin(opts.RelyingParty))
-		r.Get("/auth/sso/callback", HandleSSOCallback(opts.RelyingParty, &opts.AuthnDeps))
-		r.Post("/auth/logout", HandleLogout(&opts.AuthnDeps))
+		if opts.IAMService != nil {
+			r.Get("/auth/sso/callback", HandleSSOCallback(opts.RelyingParty, opts.IAMService))
+		} else {
+			log.Println("WARNING: Skipping /auth/sso/callback - IAMService not available")
+		}
+	}
+
+	// Common auth endpoints: Available in both internal and external IdP modes
+	if opts.OIDCRouter != nil || opts.RelyingParty != nil {
+		if opts.IAMService != nil {
+			r.Get("/api/auth/whoami", HandleWhoAmI(opts.IAMService))
+			r.Post("/auth/logout", HandleLogout(opts.IAMService))
+
+			// Admin endpoints (requires appropriate permissions)
+			r.Post("/admin/cache/refresh", HandleCacheRefresh(opts.IAMService))
+		} else {
+			log.Println("WARNING: Skipping /api/auth/whoami and /auth/logout - IAMService not available")
+		}
 	}
 
 	if opts.Service != nil {
@@ -155,6 +181,9 @@ func MountConnectHandlers(r chi.Router, opts RouterOptions) {
 	stateHandler.depService = opts.DependencyService
 	if opts.PolicyService != nil {
 		stateHandler.WithPolicyService(opts.PolicyService)
+	}
+	if opts.IAMService != nil {
+		stateHandler.WithIAMService(opts.IAMService)
 	}
 	path, handler := statev1connect.NewStateServiceHandler(
 		stateHandler,

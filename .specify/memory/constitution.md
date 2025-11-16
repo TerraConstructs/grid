@@ -1,27 +1,27 @@
 # Grid Constitution
 
 <!--
-SYNC IMPACT REPORT - 2025-10-01
+SYNC IMPACT REPORT - 2025-11-04
 
-Version Change: 1.1.2 → 2.0.0
+Version Change: 2.0.0 → 2.1.0
 
 Modified Principles:
- - II. SDK-First Development → II. Contract-Centric SDKs
- - III. Dependency Flow Discipline (updated dependency graph and enforcement language)
+ - None
 
 Added Sections:
- - None
+ - IX. API Server Internal Layering (incorporated from cmd/gridapi/layering.md)
 
 Removed Sections:
  - None
 
 Templates requiring updates:
- ✅ .specify/templates/plan-template.md (updated for server/SDK separation)
- ✅ .specify/templates/tasks-template.md (updated for server/SDK separation)
- ✅ .specify/templates/spec-template.md (reviewed; no wording changes required)
+ - .specify/templates/plan-template.md (should reference layering discipline for API server changes)
+ - .specify/templates/tasks-template.md (should enforce layer boundaries in implementation tasks)
 
 Follow-up TODOs:
- - None
+ - Audit existing API server code for layering violations (handlers importing repositories directly)
+ - Refactor edge update job from internal/server to a service
+ - Create IAM service to encapsulate auth workflows currently in handlers
 -->
 
 ## Core Principles
@@ -215,6 +215,72 @@ Complexity gates:
 
 **Rationale**: Prevents inadvertent exposure of privileged RPCs, ensures fine-grained authorization lives with the business logic, and keeps alternative transports from silently bypassing critical security middleware.
 
+### IX. API Server Internal Layering
+
+**The API server (`cmd/gridapi`) MUST enforce strict layering to separate transport, business logic, and persistence concerns.**
+
+This principle applies exclusively to the API server module and defines internal architectural boundaries that complement workspace-level dependency rules.
+
+**Layer Hierarchy** (strict unidirectional dependencies, top to bottom):
+
+1. **Data Models** (`internal/db/models`)
+   - Purpose: DB entities, value objects, constants. No business logic.
+   - Allowed deps: Standard library only.
+
+2. **DB Providers & Migrations** (`internal/db/bunx`, `internal/migrations`)
+   - Purpose: DB connections, dialect specifics, schema migrations.
+   - Allowed deps: Models, ORM libraries (Bun).
+   - Not allowed: Domain logic, HTTP/Connect types.
+
+3. **Repositories (Data Access Layer)** (`internal/repository`)
+   - Purpose: CRUD operations, query composition, dialect abstraction.
+   - Allowed deps: Models, DB providers.
+   - Not allowed: HTTP/Connect handlers, server types, services, middleware.
+
+4. **Services (Domain Logic)** (`internal/state`, `internal/dependency`, `internal/tfstate`, `internal/graph`)
+   - Purpose: Business rules, validation, orchestration across repositories.
+   - Allowed deps: Repositories (via interfaces), Models, other services, pure utilities.
+   - Not allowed: HTTP/Connect transport specifics, handlers, middleware.
+
+5. **Auth** (`internal/auth`)
+   - Purpose: OIDC/JWT verification, claims parsing, Casbin policy enforcement.
+   - Recommendation: Create `iam` service to encapsulate user/session/role workflows.
+   - Allowed deps: Auth libraries, configuration, services (not repositories directly).
+
+6. **Middleware** (`internal/middleware`)
+   - Purpose: Request-scoped concerns (authn, authz, logging, metrics).
+   - Resource attribute extraction MUST use Services, not Repositories.
+   - Allowed deps: Auth (verifier/enforcer), Services, Config.
+   - Not allowed: Direct repository access for business state.
+
+7. **Server (Handlers)** (`internal/server`)
+   - Purpose: HTTP/Connect transport layer, request validation, proto↔domain mapping.
+   - Handlers MUST NOT import `internal/repository`. Use Services exclusively.
+   - Allowed deps: Services, Auth (identity extraction), Middleware types (for wiring).
+
+8. **Commands (CLI)** (`cmd/gridapi/cmd/*`)
+   - Purpose: Dependency injection, wiring, server lifecycle.
+   - Admin commands MUST use Services, not Repositories directly.
+   - Allowed deps: Config, DB provider (wiring), Repositories (wiring), Services, Server router.
+
+**Enforcement Rules**:
+
+- **Handlers → Services**: HTTP/Connect handlers MUST call services for all business operations. Direct repository imports in handlers constitute a violation.
+- **Middleware → Services**: Middleware extracting resource attributes (e.g., state ownership checks) MUST delegate to services, not query repositories.
+- **CLI → Services**: Admin commands (e.g., `gridapi db seed`) MUST use services for domain operations, not implement business logic inline or access repositories directly.
+- **Services are Façades**: Services encapsulate all business workflows: validation, multi-repository orchestration, domain invariant enforcement, auth/IAM flows.
+
+**Known Violations (Technical Debt)**:
+
+The following violations are documented for remediation:
+
+- **Edge Update Job**: Lives in `internal/server` and updates repositories directly. Must be extracted to a service in `internal/dependency` (or new `edgeupdater` service) and injected into handlers via interface.
+- **Auth Handlers**: Connect auth handlers and SSO HTTP handlers manipulate repositories and Casbin directly. Must introduce `iam` service and route all user/session/role operations through it.
+
+
+
+**Rationale**: Clear layering prevents business logic leakage into transport code, enables safe refactoring (swap repository implementations), simplifies testing (mock service boundaries instead of DB interactions), and ensures handlers remain thin orchestration layers. This complements workspace-level dependency discipline (Principle III) by enforcing separation *within* the API server module.
+
 ## Development Workflow
 
 **Code review requirements**:
@@ -236,6 +302,7 @@ Complexity gates:
 - Dependency graph analysis fails on circular dependencies or violations of Principle III
 - Proto changes trigger regeneration check (`buf generate --dry-run` must match committed files)
 - Builds MUST fail if the API server imports client SDK modules (enforced via dependency checks)
+- Static analysis MUST detect API server layer violations (Principle IX)
 
 **Protobuf workflow**:
 1. Edit `.proto` files in `./proto/<service>/vX/`
@@ -266,4 +333,4 @@ Complexity gates:
 - New code introducing violations MUST justify in PR description and add to Complexity Tracking
 - Unapproved violations block PR merge
 
-**Version**: 2.0.0 | **Ratified**: 2025-09-30 | **Last Amended**: 2025-10-01
+**Version**: 2.1.0 | **Ratified**: 2025-09-30 | **Last Amended**: 2025-11-04

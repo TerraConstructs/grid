@@ -68,26 +68,6 @@ bd automatically syncs with git:
 - Imports from JSONL when newer (e.g., after `git pull`)
 - No manual export/import needed!
 
-### MCP Server (Recommended)
-
-If using Claude or MCP-compatible clients, install the beads MCP server:
-
-```bash
-pip install beads-mcp
-```
-
-Add to MCP config (e.g., `~/.config/claude/config.json`):
-```json
-{
-  "beads": {
-    "command": "beads-mcp",
-    "args": []
-  }
-}
-```
-
-Then use `mcp__beads__*` functions instead of CLI commands.
-
 ### Important Rules
 
 - ✅ Use bd for ALL task tracking
