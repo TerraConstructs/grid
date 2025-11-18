@@ -13,9 +13,6 @@ jobs:
   publish-npm:
     name: Publish to npm
     runs-on: ubuntu-24.04
-    defaults:
-      run:
-        working-directory: ./js/sdk
     steps:
       - uses: actions/checkout@v4
 
@@ -25,19 +22,22 @@ jobs:
         with:
           node-version: 20
           cache: 'pnpm'
-          cache-dependency-path: 'js/sdk/pnpm-lock.yaml'
+          cache-dependency-path: 'pnpm-lock.yaml'
           registry-url: 'https://registry.npmjs.org'
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
       - name: Build package
+        working-directory: ./js/sdk
         run: pnpm run build
 
       - name: Verify package contents (dry run)
+        working-directory: ./js/sdk
         run: pnpm pack --dry-run
 
       - name: Publish to npm
+        working-directory: ./js/sdk
         run: pnpm publish --access public --provenance --no-git-checks
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
