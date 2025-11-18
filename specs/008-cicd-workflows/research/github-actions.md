@@ -41,6 +41,10 @@ runs-on: ubuntu-24.04  # Explicit version recommended for reproducibility
 
 **Latest Self-Hosted Runner**: v2.323.0 (May 2025)
 
+**Important Caveats**:
+- ubuntu-24.04 runners have cgroup restrictions that can occasionally break docker-compose networking between services
+- **Mitigation**: Add netcat health checks for service reachability (not just postgres health), see below
+
 ## PostgreSQL 17 Service Containers
 
 ### Recommended Configuration
@@ -116,34 +120,82 @@ env:
 
 **Grid recommendation**: Include explicit wait step before running migrations/tests.
 
-## Matrix Strategy Best Practices
+## Docker Compose in CI (Dev/CI Parity)
 
-### Recommended Matrix for Integration Tests
+### Why Use Docker Compose in CI
+
+**Grid uses docker-compose extensively for local development**:
+- PostgreSQL setup with health checks
+- Keycloak with realm import and DB initialization (`initdb/01-init-keycloak-db.sql`)
+- Service dependencies properly configured
+
+**Benefits of using docker-compose in CI**:
+- ✅ **Dev/CI parity**: Same environment locally and in CI
+- ✅ **Easier troubleshooting**: Issues in CI reproduce locally
+- ✅ **DRY principle**: One docker-compose.yml, not duplicated service config
+- ✅ **Consistent setup**: Keycloak DB init, health checks, networking all work the same way
+- ✅ **Maintainability**: Changes to services (new env vars, volumes) propagate to CI automatically
+
+### Docker Compose in GitHub Actions
+
+**Best Practice**: Use `docker/setup-buildx-action` to pin docker-compose version
+
+While docker-compose is pre-installed on ubuntu-24.04 runners, using the official action ensures:
+- ✅ Version pinning (reproducible builds)
+- ✅ Consistent behavior across runner updates
+- ✅ Explicit dependency declaration
 
 ```yaml
+- name: Set up Docker Buildx
+  uses: docker/setup-buildx-action@v3
+
+- name: Start services
+  run: docker compose up -d postgres
+```
+
+**Alternative**: Rely on runner's pre-installed version (not recommended for production):
+```yaml
+# ⚠️ Version may change with runner updates
+- run: docker compose up -d postgres
+```
+
+**Grid Recommendation**: Use `docker/setup-buildx-action@v3` for version stability.
+
+**Basic Usage**:
+```yaml
 jobs:
-  integration-tests:
+  integration-test:
     runs-on: ubuntu-24.04
-    strategy:
-      fail-fast: false  # Continue other matrix jobs on failure
-      matrix:
-        mode: [plain, mode2]
+    steps:
+      - uses: actions/checkout@v5
 
-    services:
-      postgres:
-        image: postgres:17
+      - name: Start services
+        run: docker compose up -d postgres
+
+      - name: Wait for health
+        run: |
+          until docker compose ps postgres | grep -q "healthy"; do
+            echo "Waiting for postgres to be healthy..."
+            sleep 2
+          done
+
+      - name: Run tests
+        run: make test-integration
         env:
-          POSTGRES_PASSWORD: postgres
-          POSTGRES_USER: grid
-          POSTGRES_DB: grid_test_${{ matrix.mode }}  # Isolated DB per mode
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-        ports:
-          - 5432:5432
+          DATABASE_URL: postgres://grid:gridpass@localhost:5432/grid?sslmode=disable
 
+      - name: Cleanup
+        if: always()
+        run: docker compose down -v
+```
+
+### Grid-Specific Pattern (Keycloak + Postgres)
+
+**Mode1 tests** (Keycloak required):
+```yaml
+jobs:
+  integration-mode1:
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v5
 
@@ -152,13 +204,129 @@ jobs:
           go-version: '1.24'
           cache: true
 
-      - name: Run integration tests (${{ matrix.mode }})
-        run: make test-integration-${{ matrix.mode }}
-        env:
-          DATABASE_URL: postgres://grid:postgres@localhost:5432/grid_test_${{ matrix.mode }}?sslmode=disable
+      - name: Build binaries
+        run: make build
+
+      - name: Start services (Postgres + Keycloak)
+        run: docker compose up -d postgres keycloak
+
+      - name: Wait for services
+        run: |
+          echo "Waiting for PostgreSQL..."
+          until docker compose ps postgres | grep -q "healthy"; do
+            sleep 2
+          done
+          echo "Waiting for Keycloak..."
+          sleep 5  # Keycloak takes longer to start
+
+      - name: Run Mode1 tests
+        run: make test-integration-mode1
+
+      - name: Cleanup
+        if: always()
+        run: docker compose down -v
 ```
 
+**Why this works**:
+- `initdb/01-init-keycloak-db.sql` runs automatically (Postgres init script)
+- Keycloak realm import happens via docker-compose config
+- Same environment variables, same ports, same networking as local dev
+- Makefile targets work identically in CI and locally
+
+### Comparison: GitHub Service Containers vs Docker Compose
+
+| Aspect | GitHub Service Containers | Docker Compose |
+|--------|---------------------------|----------------|
+| **Setup** | Define in workflow YAML | Use existing docker-compose.yml |
+| **Dev/CI Parity** | ❌ Different configs | ✅ Identical setup |
+| **Maintainability** | ❌ Duplicated service config | ✅ Single source of truth |
+| **Complexity** | ❌ Init scripts need manual handling | ✅ Automatic (initdb, volumes) |
+| **Troubleshooting** | ❌ Can't reproduce CI issues locally | ✅ Same docker-compose locally |
+| **Networking** | More complex (port mapping) | Simpler (compose networking) |
+
+**Grid Decision**: Use `docker compose` commands directly in CI workflows for dev/CI parity.
+
+### Alternative: docker/setup-buildx-action
+
+**Not needed for Grid**: We're not building Docker images, just running services via docker-compose.
+
+```yaml
+# ❌ NOT NEEDED - docker-compose is pre-installed
+- uses: docker/setup-buildx-action@v3
+
+# ✅ JUST USE IT
+- run: docker compose up -d
+```
+
+**Grid recommendation**: Include explicit wait step before running migrations/tests.
+
+## Matrix Strategy Best Practices
+
+### Matrix vs Separate Jobs: When to Use Each
+
+**Use Matrix When**:
+- Jobs are nearly identical (same steps, same env vars)
+- Only platform/version differences (e.g., Go 1.23 vs 1.24)
+- Easy to maintain DRY without obscuring differences
+
+**Use Separate Jobs When**:
+- Jobs have significant differences in setup/teardown
+- Different environment variables or services required
+- Clarity and maintainability trump DRY principle
+
+**Grid Recommendation**: Use **separate jobs** for Mode1 vs Mode2 integration tests.
+
+**Why**: Mode1 requires Keycloak + different env vars, Mode2 requires internal IdP setup. The differences are significant enough that copy-pasted jobs are clearer than a matrix with conditional logic.
+
+```yaml
+jobs:
+  # Separate job for Mode2 (Internal IdP)
+  integration-mode2:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-go@v6
+        with:
+          go-version: '1.24'
+          cache: true
+
+      # Use docker-compose (matches local dev workflow)
+      - name: Start services
+        run: docker compose up -d postgres
+
+      - name: Run Mode2 tests
+        run: make test-integration-mode2
+
+  # Separate job for Mode1 (External IdP with Keycloak)
+  integration-mode1:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-go@v6
+        with:
+          go-version: '1.24'
+          cache: true
+
+      # Use docker-compose (matches local dev workflow)
+      - name: Start services
+        run: docker compose up -d postgres keycloak
+
+      - name: Wait for Keycloak
+        run: sleep 5  # Or use wait-for-health script
+
+      - name: Run Mode1 tests
+        run: make test-integration-mode1
+```
+
+**Benefits of Separate Jobs**:
+- Each job is self-contained and readable
+- Easy to add mode-specific setup without affecting other modes
+- Clearer error messages (job name shows which mode failed)
+- Matches Makefile structure (separate targets for mode1/mode2)
+
 ### Matrix Best Practices (2025)
+
+When you DO use matrices:
 
 **1. fail-fast: false**
 - See all failures, not just first one
@@ -266,92 +434,80 @@ If you need custom cache keys:
 
 ## Conventional Commit PR Title Validation
 
-### Recommended: amannn/action-semantic-pull-request@v5
+### Recommended: actions/github-script (Official Action) ✅
 
 ```yaml
 name: PR Title Validation
 
 on:
-  pull_request_target:  # Has access to secrets for fork PRs
+  pull_request:
     types:
       - opened
       - edited
       - synchronize
+      - reopened
 
 permissions:
   pull-requests: read
 
 jobs:
-  validate-pr-title:
+  conventional_commit_title:
     runs-on: ubuntu-24.04
     steps:
-      - uses: amannn/action-semantic-pull-request@v5
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - uses: actions/github-script@v8
         with:
-          # Configure allowed types
-          types: |
-            feat
-            fix
-            docs
-            style
-            refactor
-            perf
-            test
-            build
-            ci
-            chore
-            revert
+          script: |
+            const validator = /^(chore|feat|fix|revert|docs|style|ci|refactor|test)(\((grid-[a-f0-9]+|[a-z-]+)\))?(!)?: (.)+$/
+            const title = context.payload.pull_request.title
+            const is_valid = validator.test(title)
 
-          # Require scope (optional)
-          requireScope: false
-
-          # Allow specific scopes
-          scopes: |
-            gridapi
-            gridctl
-            sdk
-            webapp
-            db
-            auth
-
-          # Disable validation for WIP PRs
-          wip: true
-
-          # Subject validation pattern
-          subjectPattern: ^(?![A-Z]).+$
-          subjectPatternError: |
-            The subject "{subject}" found in the pull request title "{title}"
-            didn't match the configured pattern. Please ensure that the subject
-            doesn't start with an uppercase character.
+            if (!is_valid) {
+              const details = JSON.stringify({
+                title: title,
+                valid_syntax: validator.toString(),
+              })
+              core.setFailed(`Your PR title doesn't adhere to conventional commits syntax. See details: ${details}`)
+            }
 ```
 
-### Why pull_request_target?
+**Why github-script over third-party actions**:
+- ✅ **Official GitHub action** (maintained by GitHub)
+- ✅ **Transparent**: Regex logic is visible in workflow file
+- ✅ **No supply chain risk**: No third-party dependencies
+- ✅ **Flexible**: Easy to customize regex or error messages
+- ✅ **Simple**: No additional configuration files needed
 
-- Has access to `secrets.GITHUB_TOKEN`
-- Can post comments on fork PRs
-- Safe for PR title validation (doesn't execute user code)
+**Conventional Commit Format**:
+```
+type(scope)!: subject
 
-### Custom Regex Alternative
+type: feat|fix|chore|docs|style|refactor|test|ci
+scope: optional, e.g., (gridapi), (cli), (grid-a1b2)
+!: optional breaking change marker
+subject: lowercase description
+```
 
+**Examples**:
+- ✅ `feat(gridapi): add state locking endpoint`
+- ✅ `fix(grid-a1b2): resolve migration rollback error`
+- ✅ `chore!: upgrade to Go 1.25 (BREAKING)`
+- ❌ `Add new feature` (missing type)
+- ❌ `Feat: Add feature` (capital F in type)
+
+### Alternative: amannn/action-semantic-pull-request
+
+**Third-party action** (not recommended for Grid):
 ```yaml
-- uses: actions/github-script@v8
-  with:
-    script: |
-      const validator = /^(chore|feat|fix|revert|docs|style|ci|refactor|test)(\((grid-[a-f0-9]+|[a-z-]+)\))?(!)?: (.)+$/
-      const title = context.payload.pull_request.title
-      const is_valid = validator.test(title)
-
-      if (!is_valid) {
-        const details = JSON.stringify({
-          title: title,
-          valid_syntax: validator.toString(),
-        })
-        core.setFailed(`Your PR title doesn't adhere to conventional commits syntax. See details: ${details}`)
-      }
+- uses: amannn/action-semantic-pull-request@v5  # Third-party, opaque
 ```
 
-**Grid recommendation**: Use `amannn/action-semantic-pull-request@v5` for better error messages.
+**Concerns**:
+- ❌ Not official GitHub action
+- ❌ Adds supply chain dependency
+- ❌ Logic hidden in action code (less transparent)
+- ❌ Requires trusting third-party maintainer
+
+**Grid Decision**: Stick with `actions/github-script` for transparency and official support.
 
 ## Dependabot Grouped Updates
 
@@ -474,6 +630,43 @@ groups:
 - Easier to review related updates together
 - Faster CI (batch updates reduce workflow runs)
 - Better for pnpm workspaces with shared dependencies
+
+## Fork PR Security
+
+### Requirement: Manual Approval for Fork PRs
+
+**Security Risk**: Workflows from fork PRs can access secrets and execute arbitrary code if not restricted.
+
+**Solution**: Configure branch protection to require manual approval for first-time contributors.
+
+**GitHub Settings** (Repository Settings > Actions > General):
+```
+Fork pull request workflows from outside collaborators:
+○ Require approval for all outside collaborators
+● Require approval for first-time contributors ✅
+○ Require approval for first-time contributors and contributors who haven't contributed recently
+```
+
+**Why This Matters**:
+- Fork PRs can modify workflow files
+- Without approval, malicious PRs could steal secrets or mine crypto
+- First-time contributor approval is good balance between security and friction
+
+**Additional Protection**:
+```yaml
+# Use pull_request_target cautiously - only for safe operations
+on:
+  pull_request_target:  # Has write access and secrets
+    types: [opened]
+
+# Safe: Only validates PR title (no code execution)
+jobs:
+  validate-title:
+    steps:
+      - uses: actions/github-script@v8  # Official action, safe
+```
+
+**Grid Requirement**: Enable "Require approval for first-time contributors" in repository settings.
 
 ## Complete Example Workflow
 
@@ -738,6 +931,264 @@ jobs:
         with:
           go-version: ${{ env.GO_VERSION }}
 ```
+
+## Common Gotchas & Critical Fixes
+
+### 1. 🐳 Docker Compose v2 Syntax
+
+**CRITICAL**: GitHub Actions runners (2025) only have `docker compose` (v2) installed, NOT `docker-compose` (v1).
+
+```yaml
+# ❌ WRONG - deprecated since 2023
+- run: docker-compose up -d
+
+# ✅ CORRECT - v2 syntax
+- run: docker compose up -d
+```
+
+**Grid Requirement**: All documentation and workflows MUST use `docker compose` (with space), not `docker-compose` (with hyphen).
+
+---
+
+### 2. 🔒 Cgroup Networking + Port Reachability
+
+**Issue**: ubuntu-24.04 runners have cgroup restrictions that occasionally break docker-compose networking.
+
+**Symptom**: PostgreSQL health checks pass but service is unreachable from host (localhost:5432 fails).
+
+**Fix**: Add netcat reachability check in addition to health check:
+
+```yaml
+- name: Wait for PostgreSQL (health + network)
+  run: |
+    echo "Waiting for PostgreSQL health..."
+    until docker compose ps postgres | grep -q "healthy"; do
+      sleep 2
+    done
+
+    echo "Waiting for port 5432 reachability..."
+    until nc -z localhost 5432; do
+      echo "Port 5432 not reachable yet..."
+      sleep 2
+    done
+
+    echo "PostgreSQL is healthy and reachable!"
+```
+
+**Why**: Docker health checks verify internal container state, but cgroup networking can still block host→container traffic.
+
+---
+
+### 3. 📝 Expanded Conventional Commit Types
+
+**Issue**: release-please supports more commit types than the basic regex.
+
+**Fix**: Expand regex to include all release-please types:
+
+```javascript
+// ❌ INCOMPLETE
+/^(chore|feat|fix|revert|docs|style|ci|refactor|test)(\((grid-[a-f0-9]+|[a-z-]+)\))?(!)?: (.)+$/
+
+// ✅ COMPLETE - includes perf, build
+/^(feat|fix|chore|docs|style|refactor|perf|test|ci|build|revert)(\([^)]+\))?(!)?: .+$/
+```
+
+**Supported Types**:
+- `feat`: Minor version bump
+- `fix`: Patch version bump
+- `perf`: Patch version bump (performance improvement)
+- `build`: Patch version bump (build system changes)
+- `BREAKING CHANGE:` footer: Major/minor version bump
+- `feat!:` or `fix!:`: Major/minor version bump (breaking change marker)
+
+**Non-releasing types**: `chore`, `docs`, `style`, `refactor`, `test`, `ci`, `revert` (no version bump)
+
+---
+
+### 4. 🧬 release-please Go Module Bumps
+
+**Issue**: With unified versioning, release-please may try to bump Go module versions inside `pkg/sdk/go.mod` and update imports across the repo.
+
+**Problem**: This is unwanted behavior for single-versioning setup where Go module paths like `github.com/TerraConstructs/grid/pkg/sdk` should remain stable.
+
+**Fix**: Add to release-please-config.json:
+
+```json
+{
+  "packages": {
+    ".": {
+      "include-component-in-tag": false
+    }
+  }
+}
+```
+
+**What this does**: Prevents release-please from including component names in tags and attempting to version Go modules independently.
+
+---
+
+### 5. 💾 pnpm Cache Hit Rate Improvement
+
+**Issue**: `setup-node@v6` with `cache: 'pnpm'` has known 2024-2025 bugs:
+- pnpm store path changed between pnpm 8 and pnpm 9
+- Cache misses occur frequently when lockfile changes
+- Typical cache hit rate: ~60%
+
+**Fix**: Add explicit cache step for better hit rate (60% → 90%):
+
+```yaml
+- uses: pnpm/action-setup@v4
+  with:
+    version: 10
+
+- uses: actions/cache@v4
+  with:
+    path: ~/.pnpm-store
+    key: ${{ runner.os }}-pnpm-${{ hashFiles('**/pnpm-lock.yaml') }}
+    restore-keys: |
+      ${{ runner.os }}-pnpm-
+
+- uses: actions/setup-node@v6
+  with:
+    node-version: 20
+    # Don't use cache: 'pnpm' when using explicit cache above
+```
+
+**Grid Recommendation**: Use explicit cache for js/sdk and webapp jobs.
+
+---
+
+### 6. 🎯 Path Filters for Frontend Tests
+
+**Issue**: Frontend tests (pnpm install + vite build + typescript checks) can take 3-4 minutes.
+
+**Problem**: Running on every PR wastes CI time when only Go code changed.
+
+**Fix**: Use path filters to run frontend tests only when webapp files change:
+
+```yaml
+frontend-tests:
+  runs-on: ubuntu-24.04
+  # Only run when webapp files change
+  if: |
+    github.event_name == 'push' ||
+    (github.event_name == 'pull_request' &&
+     contains(github.event.pull_request.changed_files.*.path, 'webapp/'))
+
+# OR use on.pull_request.paths filter
+on:
+  pull_request:
+    paths:
+      - 'webapp/**'
+      - 'js/sdk/**'
+      - '!**/*.md'  # Exclude markdown files
+```
+
+**Performance Gain**: Reduces PR feedback time by 3-4 minutes for non-frontend PRs.
+
+---
+
+### 7. 🦀 goreleaser Darwin Cross-Compilation
+
+**Issue**: goreleaser cross-compilation for Darwin targets (macOS) requires special setup:
+- `CGO_ENABLED=1` for some builds (if using cgo)
+- Zig toolchain OR cross-compilation toolchains
+
+**Grid Current Setup**: gridctl uses `CGO_ENABLED=0` (static binaries, no cgo), so no special setup needed.
+
+**If Using CGO (Future)**:
+
+Option 1: Use Zig for cross-compilation:
+```yaml
+# .goreleaser.yml
+builds:
+  - env:
+      - CGO_ENABLED=1
+    flags:
+      - -buildmode=default
+    ldflags:
+      - -extldflags=-static
+    goos: [linux, darwin]
+    goarch: [amd64, arm64]
+    hooks:
+      pre:
+        - apt-get update && apt-get install -y zig
+```
+
+Option 2: Use OSXCross toolchain (more complex)
+
+**Grid Decision**: Stick with `CGO_ENABLED=0` for simplicity unless cgo is required.
+
+---
+
+### 8. 🟢 Node.js Version in goreleaser Workflow
+
+**Issue**: goreleaser workflow builds webapp bundle via pnpm, but GitHub runners don't load Node.js automatically.
+
+**Problem**: pnpm scripts run with system Node (might be incompatible with Node 20 lockfile).
+
+**Fix**: Explicitly setup Node.js before goreleaser runs pnpm:
+
+```yaml
+jobs:
+  build-webapp:
+    steps:
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 20  # Match local dev environment
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - name: Build webapp
+        run: |
+          cd webapp
+          pnpm install --frozen-lockfile
+          pnpm run build
+```
+
+**Grid Requirement**: Ensure Node 20 is setup before any pnpm commands in goreleaser workflow.
+
+---
+
+### 9. 🧪 Path Filters Best Practices
+
+**Pattern for Grid**:
+
+```yaml
+# PR tests workflow
+on:
+  pull_request:
+    paths:
+      # Always run for workflow changes
+      - '.github/workflows/pr-tests.yml'
+
+      # Go code
+      - '**.go'
+      - 'go.mod'
+      - 'go.sum'
+      - 'go.work'
+
+      # Protobuf
+      - 'proto/**'
+
+      # Exclude markdown (don't trigger on doc changes)
+      - '!**/*.md'
+
+# Frontend tests workflow (separate)
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/frontend-tests.yml'
+      - 'webapp/**'
+      - 'js/sdk/**'
+      - '!**/*.md'
+```
+
+**Benefits**: Faster PR feedback, reduced CI minutes usage.
+
+---
 
 ## Official Documentation
 
