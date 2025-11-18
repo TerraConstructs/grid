@@ -1,0 +1,76 @@
+version: 2
+
+before:
+  hooks:
+    # Build webapp bundle before goreleaser runs
+    - bash -c "cd webapp && pnpm install --frozen-lockfile && pnpm run build && tar -czf ../dist/webapp.tar.gz dist/"
+
+builds:
+  - id: gridapi
+    main: ./cmd/gridapi
+    binary: gridapi
+    goos:
+      - linux
+    goarch:
+      - amd64
+      - arm64
+    ldflags:
+      - -s -w
+      - -X main.version={{.Version}}
+      - -X main.commit={{.Commit}}
+      - -X main.date={{.Date}}
+      - -X main.builtBy=goreleaser
+    env:
+      - CGO_ENABLED=0
+
+  - id: gridctl
+    main: ./cmd/gridctl
+    binary: gridctl
+    goos:
+      - linux
+      - darwin
+    goarch:
+      - amd64
+      - arm64
+    ldflags:
+      - -s -w
+      - -X main.version={{.Version}}
+      - -X main.commit={{.Commit}}
+      - -X main.date={{.Date}}
+      - -X main.builtBy=goreleaser
+    env:
+      - CGO_ENABLED=0
+
+archives:
+  - id: binaries
+    format: tar.gz
+    name_template: >-
+      {{ .ProjectName }}_
+      {{- .Version }}_
+      {{- .Os }}_
+      {{- .Arch }}
+    files:
+      - LICENSE
+      - README.md
+
+  - id: webapp
+    format: tar.gz
+    name_template: "webapp_{{ .Version }}"
+    builds: []  # No binaries, custom archive only
+    files:
+      - src: dist/webapp.tar.gz
+        dst: .
+        strip_parent: true
+
+checksum:
+  name_template: "checksums.txt"
+
+changelog:
+  use: github-native
+
+release:
+  github:
+    owner: TerraConstructs
+    name: grid
+  draft: false
+  prerelease: auto

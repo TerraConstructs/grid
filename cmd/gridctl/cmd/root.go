@@ -21,6 +21,14 @@ var (
 	clientProvider *internalclient.Provider
 )
 
+// Version information (set by main package via SetVersion)
+var (
+	version = "dev"
+	commit  = "none"
+	date    = "unknown"
+	builtBy = "unknown"
+)
+
 var rootCmd = &cobra.Command{
 	Use:   "gridctl",
 	Short: "Grid CLI - Terraform state management client",
@@ -86,4 +94,24 @@ func init() {
 	rootCmd.AddCommand(auth.AuthCmd)
 	rootCmd.AddCommand(role.RoleCmd)
 	rootCmd.AddCommand(tf.TfCmd)
+	rootCmd.AddCommand(versionCmd)
+}
+
+// SetVersion sets version information from the main package
+func SetVersion(v, c, d, b string) {
+	version = v
+	commit = c
+	date = d
+	builtBy = b
+}
+
+var versionCmd = &cobra.Command{
+	Use:   "version",
+	Short: "Print version information",
+	Run: func(cmd *cobra.Command, args []string) {
+		fmt.Printf("gridctl version %s\n", version)
+		fmt.Printf("  commit: %s\n", commit)
+		fmt.Printf("  built: %s\n", date)
+		fmt.Printf("  by: %s\n", builtBy)
+	},
 }
