@@ -88,8 +88,9 @@ function GraphViewContent({
           onFilterChange={onFilterChange}
           initialFilters={activeFilters}
         />
-        <div className="bg-white rounded-lg shadow flex-1 min-h-0">
-          <ReactFlow
+        <div className="bg-white rounded-lg shadow flex-1 min-h-0 relative">
+          <div className="absolute inset-0">
+            <ReactFlow
             nodes={nodes}
             edges={rfEdges}
             onNodesChange={onNodesChange}
@@ -134,6 +135,7 @@ function GraphViewContent({
               </div>
             </Panel>
           </ReactFlow>
+          </div>
         </div>
       </div>
     </div>
