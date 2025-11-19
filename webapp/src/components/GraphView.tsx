@@ -46,7 +46,7 @@ function GraphViewContent({
     const positionMap = computeLayout(states);
     return {
       reactFlowNodes: toReactFlowNodes(states, positionMap),
-      reactFlowEdges: toReactFlowEdges(edges),
+      reactFlowEdges: toReactFlowEdges(edges, positionMap),
     };
   }, [states, edges]);
 
@@ -83,12 +83,12 @@ function GraphViewContent({
 
   return (
     <div className="w-full h-full bg-gray-50">
-      <div className="max-w-7xl mx-auto p-4 space-y-4">
+      <div className="max-w-7xl mx-auto p-4 h-full flex flex-col gap-4">
         <LabelFilter
           onFilterChange={onFilterChange}
           initialFilters={activeFilters}
         />
-        <div className="bg-white rounded-lg shadow h-[800px]">
+        <div className="bg-white rounded-lg shadow flex-1 min-h-0">
           <ReactFlow
             nodes={nodes}
             edges={rfEdges}

@@ -4,6 +4,9 @@ import { BaseEdge, EdgeLabelRenderer, getSmoothStepPath } from '@xyflow/react';
 import type { GridEdgeData } from './utils';
 import { getEdgeColor } from './utils';
 
+const NODE_WIDTH = 200;
+const HORIZONTAL_MARGIN = 28;
+
 export const GridEdge = memo(({
   id,
   sourceX,
@@ -17,11 +20,33 @@ export const GridEdge = memo(({
   const [isHovered, setIsHovered] = useState(false);
   const edgeData = data as GridEdgeData | undefined;
 
+  // Calculate custom source and target X positions based on slot positions
+  let customSourceX = sourceX;
+  let customTargetX = targetX;
+
+  if (edgeData) {
+    // Calculate source anchor X based on slot position
+    if (edgeData.sourceSlotCount && edgeData.sourceSlotCount > 1) {
+      const availableWidth = Math.max(NODE_WIDTH - HORIZONTAL_MARGIN * 2, 0);
+      const slotSpacing = availableWidth / (edgeData.sourceSlotCount - 1);
+      const slotPosition = edgeData.sourceSlot ?? 0;
+      customSourceX = sourceX - NODE_WIDTH / 2 + HORIZONTAL_MARGIN + slotPosition * slotSpacing;
+    }
+
+    // Calculate target anchor X based on slot position
+    if (edgeData.targetSlotCount && edgeData.targetSlotCount > 1) {
+      const availableWidth = Math.max(NODE_WIDTH - HORIZONTAL_MARGIN * 2, 0);
+      const slotSpacing = availableWidth / (edgeData.targetSlotCount - 1);
+      const slotPosition = edgeData.targetSlot ?? 0;
+      customTargetX = targetX - NODE_WIDTH / 2 + HORIZONTAL_MARGIN + slotPosition * slotSpacing;
+    }
+  }
+
   const [edgePath, labelX, labelY] = getSmoothStepPath({
-    sourceX,
+    sourceX: customSourceX,
     sourceY,
     sourcePosition,
-    targetX,
+    targetX: customTargetX,
     targetY,
     targetPosition,
   });

@@ -12,6 +12,10 @@ export interface GridNodeData extends Record<string, unknown> {
 export interface GridEdgeData extends Record<string, unknown> {
   fromOutput: string;
   status: string;
+  sourceSlot?: number;
+  sourceSlotCount?: number;
+  targetSlot?: number;
+  targetSlotCount?: number;
 }
 
 /**
@@ -107,19 +111,70 @@ export function toReactFlowNodes(
 }
 
 /**
- * Convert DependencyEdge array to React Flow edges
+ * Convert DependencyEdge array to React Flow edges with slot positions
  */
-export function toReactFlowEdges(edges: DependencyEdge[]): Edge<GridEdgeData>[] {
-  return edges.map((edge) => ({
-    id: `${edge.id}`,
-    source: edge.from_guid,
-    target: edge.to_guid,
-    data: {
-      fromOutput: edge.from_output,
-      status: edge.status,
-    },
-    type: 'gridEdge',
-  }));
+export function toReactFlowEdges(
+  edges: DependencyEdge[],
+  positionMap: Map<string, { x: number; y: number; layer: number }>
+): Edge<GridEdgeData>[] {
+  // Group edges by source node
+  const edgesBySource = new Map<string, DependencyEdge[]>();
+  const edgesByTarget = new Map<string, DependencyEdge[]>();
+
+  edges.forEach((edge) => {
+    // Group by source
+    if (!edgesBySource.has(edge.from_guid)) {
+      edgesBySource.set(edge.from_guid, []);
+    }
+    edgesBySource.get(edge.from_guid)!.push(edge);
+
+    // Group by target
+    if (!edgesByTarget.has(edge.to_guid)) {
+      edgesByTarget.set(edge.to_guid, []);
+    }
+    edgesByTarget.get(edge.to_guid)!.push(edge);
+  });
+
+  // Sort source groups by target X position
+  edgesBySource.forEach((edgeGroup) => {
+    edgeGroup.sort((a, b) => {
+      const posA = positionMap.get(a.to_guid);
+      const posB = positionMap.get(b.to_guid);
+      return (posA?.x ?? 0) - (posB?.x ?? 0);
+    });
+  });
+
+  // Sort target groups by source X position
+  edgesByTarget.forEach((edgeGroup) => {
+    edgeGroup.sort((a, b) => {
+      const posA = positionMap.get(a.from_guid);
+      const posB = positionMap.get(b.from_guid);
+      return (posA?.x ?? 0) - (posB?.x ?? 0);
+    });
+  });
+
+  return edges.map((edge) => {
+    const sourceGroup = edgesBySource.get(edge.from_guid) ?? [];
+    const targetGroup = edgesByTarget.get(edge.to_guid) ?? [];
+
+    const sourceSlot = sourceGroup.findIndex((e) => e.id === edge.id);
+    const targetSlot = targetGroup.findIndex((e) => e.id === edge.id);
+
+    return {
+      id: `${edge.id}`,
+      source: edge.from_guid,
+      target: edge.to_guid,
+      data: {
+        fromOutput: edge.from_output,
+        status: edge.status,
+        sourceSlot: sourceSlot >= 0 ? sourceSlot : 0,
+        sourceSlotCount: sourceGroup.length,
+        targetSlot: targetSlot >= 0 ? targetSlot : 0,
+        targetSlotCount: targetGroup.length,
+      },
+      type: 'gridEdge',
+    };
+  });
 }
 
 /**
