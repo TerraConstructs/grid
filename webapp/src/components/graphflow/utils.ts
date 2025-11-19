@@ -164,6 +164,10 @@ export function toReactFlowEdges(
       id: `${edge.id}`,
       source: edge.from_guid,
       target: edge.to_guid,
+      markerEnd: {
+        type: 'arrowclosed',
+        color: getEdgeColor(edge.status),
+      },
       data: {
         fromOutput: edge.from_output,
         status: edge.status,

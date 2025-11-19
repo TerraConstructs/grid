@@ -109,23 +109,6 @@ function GraphViewContent({
             minZoom={0.1}
             maxZoom={2}
           >
-            {/* SVG Marker Definitions for Arrows */}
-            <svg style={{ position: 'absolute', width: 0, height: 0 }}>
-              <defs>
-                <marker
-                  id="arrowhead"
-                  markerWidth="10"
-                  markerHeight="10"
-                  refX="9"
-                  refY="3"
-                  orient="auto"
-                  markerUnits="strokeWidth"
-                >
-                  <polygon points="0 0, 10 3, 0 6" fill="context-stroke" />
-                </marker>
-              </defs>
-            </svg>
-
             <Background color="#e5e7eb" gap={16} />
             <Controls />
             <MiniMap

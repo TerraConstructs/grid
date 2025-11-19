@@ -63,7 +63,6 @@ export const GridEdge = memo(({
           strokeWidth: isHovered ? 3 : 2,
           opacity: isHovered ? 1 : 0.7,
         }}
-        markerEnd="url(#arrowhead)"
       />
 
       {/* Invisible wider path for easier hover detection */}
