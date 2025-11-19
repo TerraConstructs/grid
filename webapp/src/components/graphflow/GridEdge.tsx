@@ -16,6 +16,7 @@ export const GridEdge = memo(({
   sourcePosition,
   targetPosition,
   data,
+  markerEnd,
 }: EdgeProps) => {
   const [isHovered, setIsHovered] = useState(false);
   const edgeData = data as GridEdgeData | undefined;
@@ -58,6 +59,7 @@ export const GridEdge = memo(({
       <BaseEdge
         id={id}
         path={edgePath}
+        markerEnd={markerEnd}
         style={{
           stroke: edgeColor,
           strokeWidth: isHovered ? 3 : 2,
