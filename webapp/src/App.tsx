@@ -205,7 +205,7 @@ function AppContent() {
         </div>
       )}
 
-      <main className="flex-1 overflow-hidden">
+      <main className="flex-1 overflow-hidden flex">
         {view === 'graph' ? (
           <GraphView
             states={states}
