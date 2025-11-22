@@ -32,7 +32,7 @@ REALM="grid"
 # Function: Execute kcadm command inside Keycloak container
 #
 kcadm() {
-    docker-compose exec -T keycloak /opt/keycloak/bin/kcadm.sh "$@"
+    docker compose exec -T keycloak /opt/keycloak/bin/kcadm.sh "$@"
 }
 
 #

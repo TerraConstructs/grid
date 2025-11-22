@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 #
 # Start all services required for E2E tests:
-# - PostgreSQL (docker-compose)
-# - Keycloak (docker-compose)
+# - PostgreSQL (docker compose)
+# - Keycloak (docker compose)
 # - gridapi server
 # - webapp dev server (Vite)
 #
@@ -66,15 +66,15 @@ cleanup() {
 trap cleanup EXIT INT TERM
 
 #
-# Step 1: Start docker-compose (PostgreSQL + Keycloak)
+# Step 1: Start docker compose (PostgreSQL + Keycloak)
 #
-log_info "Starting docker-compose services (postgres + keycloak)..."
-docker-compose up -d
+log_info "Starting docker compose services (postgres + keycloak)..."
+docker compose up -d
 
 # Wait for postgres to be healthy
 log_info "Waiting for PostgreSQL to be ready..."
 for i in {1..30}; do
-    if docker-compose exec -T postgres pg_isready -U grid >/dev/null 2>&1; then
+    if docker compose exec -T postgres pg_isready -U grid >/dev/null 2>&1; then
         log_info "PostgreSQL is ready"
         break
     fi
