@@ -88,13 +88,26 @@ done
 # Wait for Keycloak to be healthy
 log_info "Waiting for Keycloak to be ready..."
 for i in {1..60}; do
-    if curl -f http://localhost:8443/health/ready >/dev/null 2>&1; then
-        log_info "Keycloak is ready"
-        break
+    # Curl returns:
+    # - 7: Connection refused (Keycloak not started yet)
+    # - 52: Empty reply (Keycloak starting but not ready)
+    # - 0: Success with JSON response {"status":"UP"}
+    if response=$(curl -s http://localhost:8443/health/ready 2>&1); then
+        # Check if response contains "UP" status
+        if echo "$response" | grep -q '"status".*"UP"'; then
+            log_info "Keycloak is ready"
+            break
+        fi
     fi
     if [[ $i -eq 60 ]]; then
-        log_error "Keycloak failed to become ready"
+        log_error "Keycloak failed to become ready after 120 seconds"
+        log_error "Last response: $response"
+        log_error "Check container with: docker compose logs keycloak"
         exit 1
+    fi
+    # Show progress every 10 attempts
+    if [[ $((i % 10)) -eq 0 ]]; then
+        log_info "Still waiting for Keycloak... (${i}/60)"
     fi
     sleep 2
 done
