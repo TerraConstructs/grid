@@ -160,10 +160,21 @@ log_info "Bootstrapping group-to-role mappings..."
 #
 log_info "Starting gridapi server..."
 
+# Extract client secret from realm-export.json (same pattern as Makefile test-integration-mode1)
+log_info "Extracting grid-api client secret from realm-export.json..."
+GRIDAPI_SECRET=$(jq -r '.clients[] | select(.clientId=="grid-api") | .secret' "${PROJECT_ROOT}/tests/fixtures/realm-export.json")
+
+if [[ -z "${GRIDAPI_SECRET}" ]]; then
+    log_error "Failed to extract grid-api client secret from realm-export.json"
+    exit 1
+fi
+
+log_info "✓ Client secret extracted from realm-export.json"
+
 # Export environment variables for Mode 1 (External IdP with Keycloak)
 export EXTERNAL_IDP_ISSUER="http://localhost:8443/realms/grid"
 export EXTERNAL_IDP_CLIENT_ID="grid-api"
-export EXTERNAL_IDP_CLIENT_SECRET="tsREgTe21npWljPNsYf6qzenc2AWF9e9"
+export EXTERNAL_IDP_CLIENT_SECRET="${GRIDAPI_SECRET}"
 export EXTERNAL_IDP_REDIRECT_URI="http://localhost:8080/auth/sso/callback"
 
 # Start gridapi in background
