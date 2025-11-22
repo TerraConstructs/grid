@@ -1,35 +1,36 @@
-# E2E Testing TODOs
+# E2E Testing Notes
 
-## Cache Refresh Signal Handling (Priority: Medium)
+## ✅ Cache Refresh Signal Handling (IMPLEMENTED)
 
 **Context:**
 E2E tests may need to update group-to-role mappings during test execution. The gridapi IAM service has a cache for these mappings that refreshes every 5 minutes.
 
-Currently, tests would need to either:
-1. Wait 5 minutes for automatic refresh
-2. Hit the `/auth/cache/refresh` endpoint (requires credentials)
-
-**Proposed Solution:**
-Add Unix signal handling to `gridapi serve` command to trigger IAM cache refresh on demand.
+**Solution:**
+The `gridapi serve` command now listens for SIGHUP and triggers an immediate IAM cache refresh.
 
 **Implementation:**
-1. In `cmd/gridapi/cmd/serve.go`, set up signal channel for SIGHUP
-2. When SIGHUP received, call the IAM service's cache refresh method (same logic as the HTTP endpoint handler)
-3. Log the cache refresh event
+- `cmd/gridapi/cmd/serve.go`: Added SIGHUP signal handler alongside existing shutdown signals
+- When SIGHUP received, calls `iamService.RefreshGroupRoleCache(ctx)`
+- Logs the cache refresh event with version and group count
 
 **Usage in E2E Tests:**
 ```bash
 # Test helpers that modify group-to-role mappings can send SIGHUP to gridapi
 kill -HUP $(cat /tmp/grid-e2e-gridapi.pid)
+
+# Or use the helper function (to be created in tests/e2e/helpers/keycloak.helpers.ts)
 ```
 
-**Related Files:**
-- IAM service cache: `cmd/gridapi/internal/services/iam/group_role_cache.go`
-- HTTP refresh endpoint: `cmd/gridapi/internal/server/handlers/auth.go` (CacheRefreshHandler)
-- E2E setup: `tests/e2e/setup/start-services.sh` (stores PID in `/tmp/grid-e2e-gridapi.pid`)
+**Example Scenario:**
+1. Test starts with alice@example.com in product-engineers group (env=dev access)
+2. Test needs to verify permission change
+3. Helper function adds alice to platform-engineers group via Keycloak API
+4. Helper sends `kill -HUP` to gridapi PID
+5. Cache refreshes immediately (logs show version increment)
+6. Test continues with new permissions active
 
-**Workaround Until Implemented:**
-For e2e tests that need to change permissions, either:
-- Set up all permission variations before starting gridapi
-- Accept 5-minute cache TTL and design tests accordingly
-- Use the HTTP refresh endpoint with test credentials
+**Related Files:**
+- Signal handler: `cmd/gridapi/cmd/serve.go:277-300`
+- IAM service cache: `cmd/gridapi/internal/services/iam/group_role_cache.go`
+- HTTP refresh endpoint: `cmd/gridapi/internal/server/handlers/auth.go`
+- E2E setup: `tests/e2e/setup/start-services.sh` (stores PID in `/tmp/grid-e2e-gridapi.pid`)
