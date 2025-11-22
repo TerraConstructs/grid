@@ -4,7 +4,9 @@ import { useGridData } from './hooks/useGridData';
 import { GraphView } from './components/GraphView';
 import { ListView } from './components/ListView';
 import { DetailView } from './components/DetailView';
-import { Network, List, Loader2, RefreshCw, AlertCircle } from 'lucide-react';
+import { CreateStatePage } from './components/CreateStatePage';
+import { NotificationContainer, type Notification } from './components/Notification';
+import { Network, List, Loader2, RefreshCw, AlertCircle, Plus } from 'lucide-react';
 import type { ActiveLabelFilter } from './components/LabelFilter';
 import { LoginPage } from './components/LoginPage';
 import { AuthStatus } from './components/AuthStatus';
@@ -16,6 +18,8 @@ function AppContent() {
   const { state: authState, logout: authLogout } = useAuth();
   const [view, setView] = useState<View>('graph');
   const [selectedState, setSelectedState] = useState<StateInfo | null>(null);
+  const [showCreateState, setShowCreateState] = useState(false);
+  const [notifications, setNotifications] = useState<Notification[]>([]);
   const {
     states,
     edges,
@@ -95,6 +99,28 @@ function AppContent() {
     void loadData({ filter: expression });
   }, [filter, loadData]);
 
+  const addNotification = useCallback((type: 'success' | 'error', message: string) => {
+    const notification: Notification = {
+      id: `${Date.now()}-${Math.random()}`,
+      type,
+      message,
+    };
+    setNotifications((prev) => [...prev, notification]);
+  }, []);
+
+  const dismissNotification = useCallback((id: string) => {
+    setNotifications((prev) => prev.filter((n) => n.id !== id));
+  }, []);
+
+  const handleCreateSuccess = useCallback((message: string) => {
+    addNotification('success', message);
+    void loadData({ filter });
+  }, [addNotification, loadData, filter]);
+
+  const handleCreateError = useCallback((message: string) => {
+    addNotification('error', message);
+  }, [addNotification]);
+
   // Show loading spinner while checking authentication
   if (authState.loading) {
     return (
@@ -170,6 +196,13 @@ function AppContent() {
               <span className="text-white font-semibold">{edges.length}</span> edges
             </div>
             <button
+              onClick={() => setShowCreateState(true)}
+              className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium bg-purple-600 text-white hover:bg-purple-700 transition-colors"
+            >
+              <Plus className="w-4 h-4" />
+              Create State
+            </button>
+            <button
               onClick={handleRefresh}
               disabled={loading}
               className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium bg-gray-700 text-gray-300 hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
@@ -233,6 +266,19 @@ function AppContent() {
           onNavigate={handleNavigate}
         />
       )}
+
+      {showCreateState && (
+        <CreateStatePage
+          onClose={() => setShowCreateState(false)}
+          onSuccess={handleCreateSuccess}
+          onError={handleCreateError}
+        />
+      )}
+
+      <NotificationContainer
+        notifications={notifications}
+        onDismiss={dismissNotification}
+      />
     </div>
   );
 }
