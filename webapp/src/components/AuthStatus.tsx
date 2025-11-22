@@ -131,7 +131,7 @@ export function AuthStatus({ user, onLogout }: AuthStatusProps) {
                 className="w-full flex items-center justify-center gap-2 px-3 py-2 bg-red-50 hover:bg-red-100 text-red-700 rounded-lg text-sm font-medium transition-colors"
               >
                 <LogOut className="w-4 h-4" />
-                Log Out
+                Sign Out
               </button>
             </div>
           </div>

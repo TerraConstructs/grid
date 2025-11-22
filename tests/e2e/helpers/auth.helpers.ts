@@ -49,10 +49,9 @@ export async function loginViaKeycloak(
   // Wait for redirect back to webapp
   await page.waitForURL(/.*localhost:5173.*/, { timeout: 10000 });
 
-  // Verify we're logged in by checking for user info or logout button
-  // Adjust based on actual webapp implementation
+  // Verify we're logged in by checking for user info or sign out button
   await expect(
-    page.getByRole('button', { name: /logout/i }).or(page.getByText(email))
+    page.getByRole('button', { name: /sign out/i }).or(page.getByText(email))
   ).toBeVisible({ timeout: 10000 });
 }
 
@@ -64,8 +63,8 @@ export async function loginViaKeycloak(
  * @param page Playwright page object
  */
 export async function logout(page: Page): Promise<void> {
-  // Click logout button
-  const logoutButton = page.getByRole('button', { name: /logout/i });
+  // Click "Sign Out" button
+  const logoutButton = page.getByRole('button', { name: /sign out/i });
   await expect(logoutButton).toBeVisible({ timeout: 10000 });
   await logoutButton.click();
 
@@ -84,9 +83,9 @@ export async function logout(page: Page): Promise<void> {
  */
 export async function isLoggedIn(page: Page): Promise<boolean> {
   try {
-    // Check for logout button or user email
-    const logoutButton = page.getByRole('button', { name: /logout/i });
-    await logoutButton.waitFor({ state: 'visible', timeout: 5000 });
+    // Check for "Sign Out" button or user email
+    const signOutButton = page.getByRole('button', { name: /sign out/i });
+    await signOutButton.waitFor({ state: 'visible', timeout: 5000 });
     return true;
   } catch {
     return false;
