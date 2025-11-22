@@ -53,17 +53,33 @@ export async function createState(
   await logicIdInput.fill(stateData.logicId);
 
   // Fill labels if provided
+  // CreateStatePage has aria-label="Label key 1", "Label value 1", etc.
+  // By default there's one empty label pair already present
   if (stateData.labels) {
-    for (const [key, value] of Object.entries(stateData.labels)) {
-      // Adjust selector based on actual webapp implementation
-      // This might be a key-value pair input or a JSON textarea
-      await page.getByLabel(new RegExp(`label.*${key}`, 'i')).fill(value);
+    const labelEntries = Object.entries(stateData.labels);
+
+    for (let i = 0; i < labelEntries.length; i++) {
+      const [key, value] = labelEntries[i];
+      const labelIndex = i + 1; // aria-labels are 1-indexed
+
+      // If not the first label, click "Add Label" button to create new input pair
+      if (i > 0) {
+        const addLabelButton = page.getByRole('button', { name: /add label/i });
+        await addLabelButton.click();
+      }
+
+      // Fill key and value using aria-label attributes
+      await page.getByLabel(`Label key ${labelIndex}`).fill(key);
+      await page.getByLabel(`Label value ${labelIndex}`).fill(value);
     }
   }
 
-  // Fill description if provided
+  // Fill description if provided (CreateStatePage doesn't have description field yet)
   if (stateData.description) {
-    await page.getByLabel(/description/i).fill(stateData.description);
+    const descInput = page.getByLabel(/description/i);
+    if (await descInput.isVisible().catch(() => false)) {
+      await descInput.fill(stateData.description);
+    }
   }
 
   // Submit the form

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { User, LogOut, ChevronDown } from 'lucide-react';
 import { logout } from '../../../js/sdk/src/auth';
 import type { User as UserType } from '../types/auth';
@@ -15,6 +15,20 @@ export function AuthStatus({ user, onLogout }: AuthStatusProps) {
     await logout();
     onLogout();
   };
+
+  // Handle Escape key to close dropdown
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && isOpen) {
+        setIsOpen(false);
+      }
+    };
+
+    if (isOpen) {
+      document.addEventListener('keydown', handleKeyDown);
+      return () => document.removeEventListener('keydown', handleKeyDown);
+    }
+  }, [isOpen]);
 
   const getAuthTypeLabel = (type: string) => {
     return type === 'external' ? 'OIDC' : 'Basic Auth';
