@@ -30,9 +30,9 @@ export async function loginViaKeycloak(
   // Navigate to webapp
   await page.goto('/');
 
-  // Click "Login" or "Login with SSO" button
-  // Adjust selector based on actual webapp implementation
-  const loginButton = page.getByRole('button', { name: /login/i });
+  // Click "Sign In with SSO" button (external IdP mode)
+  // Button text is "Sign In with SSO" from LoginPage.tsx
+  const loginButton = page.getByRole('button', { name: /sign in/i });
   await expect(loginButton).toBeVisible({ timeout: 10000 });
   await loginButton.click();
 
@@ -70,9 +70,9 @@ export async function logout(page: Page): Promise<void> {
   await logoutButton.click();
 
   // Wait for redirect or UI update indicating logout
-  // Should see login button again
+  // Should see "Sign In with SSO" button again
   await expect(
-    page.getByRole('button', { name: /login/i })
+    page.getByRole('button', { name: /sign in/i })
   ).toBeVisible({ timeout: 10000 });
 }
 
