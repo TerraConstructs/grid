@@ -49,10 +49,10 @@ export async function loginViaKeycloak(
   // Wait for redirect back to webapp
   await page.waitForURL(/.*localhost:5173.*/, { timeout: 10000 });
 
-  // Verify we're logged in by checking for user info or sign out button
-  await expect(
-    page.getByRole('button', { name: /sign out/i }).or(page.getByText(email))
-  ).toBeVisible({ timeout: 10000 });
+  // Verify we're logged in by checking for the user profile button (with username)
+  // The AuthStatus component shows a button with User icon + username + chevron
+  // The Sign Out button is hidden in a dropdown until the profile button is clicked
+  await expect(page.getByText(email)).toBeVisible({ timeout: 10000 });
 }
 
 /**
@@ -63,7 +63,13 @@ export async function loginViaKeycloak(
  * @param page Playwright page object
  */
 export async function logout(page: Page): Promise<void> {
-  // Click "Sign Out" button
+  // First, open the AuthStatus dropdown by clicking the user profile button
+  // This button contains the User icon and ChevronDown icon
+  const profileButton = page.locator('button').filter({ has: page.locator('svg.lucide-chevron-down') });
+  await expect(profileButton).toBeVisible({ timeout: 10000 });
+  await profileButton.click();
+
+  // Now the dropdown is open, click "Sign Out" button
   const logoutButton = page.getByRole('button', { name: /sign out/i });
   await expect(logoutButton).toBeVisible({ timeout: 10000 });
   await logoutButton.click();
@@ -83,9 +89,10 @@ export async function logout(page: Page): Promise<void> {
  */
 export async function isLoggedIn(page: Page): Promise<boolean> {
   try {
-    // Check for "Sign Out" button or user email
-    const signOutButton = page.getByRole('button', { name: /sign out/i });
-    await signOutButton.waitFor({ state: 'visible', timeout: 5000 });
+    // Check for the user profile button (with ChevronDown icon)
+    // This is visible when logged in, but Sign Out button is hidden until dropdown opens
+    const profileButton = page.locator('button').filter({ has: page.locator('svg.lucide-chevron-down') });
+    await profileButton.waitFor({ state: 'visible', timeout: 5000 });
     return true;
   } catch {
     return false;
