@@ -106,12 +106,12 @@ export async function isLoggedIn(page: Page): Promise<boolean> {
  * Get the session cookie value
  *
  * @param page Playwright page object
- * @param cookieName Name of the session cookie (default: 'grid_session')
+ * @param cookieName Name of the session cookie (default: 'grid.session')
  * @returns Cookie value or null if not found
  */
 export async function getSessionCookie(
   page: Page,
-  cookieName: string = 'grid_session'
+  cookieName: string = 'grid.session'
 ): Promise<string | null> {
   const cookies = await page.context().cookies();
   const sessionCookie = cookies.find((c) => c.name === cookieName);
