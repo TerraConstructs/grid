@@ -25,7 +25,9 @@ log_warn() {
 # Keycloak admin credentials (from docker-compose.yml)
 KEYCLOAK_ADMIN="admin"
 KEYCLOAK_ADMIN_PASSWORD="admin"
-KEYCLOAK_URL="http://localhost:8443"
+# Use internal port 8080 when running kcadm.sh inside the container
+# The 8443 is the external mapped port, but inside the container Keycloak listens on 8080
+KEYCLOAK_URL="http://localhost:8080"
 REALM="grid"
 
 #

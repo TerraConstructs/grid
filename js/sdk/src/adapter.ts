@@ -167,6 +167,29 @@ export class GridApiAdapter {
   }
 
   /**
+   * Create a new state with client-generated GUID and logic ID.
+   *
+   * @param request - State creation parameters (guid, logicId, labels)
+   * @returns CreateStateResponse with backend config
+   */
+  async createState(request: {
+    guid: string;
+    logicId: string;
+    labels?: Record<string, string>;
+  }): Promise<{
+    guid: string;
+    logicId: string;
+    backendConfig: BackendConfig;
+  }> {
+    const response = await this.client.createState(request);
+    return {
+      guid: response.guid,
+      logicId: response.logicId,
+      backendConfig: convertProtoBackendConfig(response.backendConfig),
+    };
+  }
+
+  /**
    * List all states with comprehensive information.
    * Performs N queries to fetch full state info for each state.
    *

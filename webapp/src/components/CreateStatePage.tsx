@@ -7,6 +7,8 @@
 
 import { useState } from 'react';
 import { X, Plus, Trash2 } from 'lucide-react';
+import { gridApi } from '../services/gridApi';
+import { ConnectError } from '@connectrpc/connect';
 
 interface CreateStatePageProps {
   onClose: () => void;
@@ -58,40 +60,30 @@ export function CreateStatePage({
         }
       });
 
-      const request = {
+      // Use Grid SDK to create state
+      const response = await gridApi.createState({
         guid,
         logicId,
         labels: labelsMap,
-      };
-
-      const response = await fetch('/state.v1.StateService/CreateState', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        credentials: 'include',
-        body: JSON.stringify(request),
       });
 
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        const errorMessage =
-          errorData.message || errorData.error || `Failed to create state: ${response.statusText}`;
-
-        // Check for permission denied
-        if (response.status === 403 || errorMessage.toLowerCase().includes('permission')) {
-          throw new Error(`Permission denied: ${errorMessage}`);
-        }
-
-        throw new Error(errorMessage);
-      }
-
-      const data = await response.json();
-      onSuccess(`State "${data.logicId || logicId}" created successfully`);
+      onSuccess(`State "${response.logicId}" created successfully`);
       onClose();
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Failed to create state';
-      onError(message);
+      // Handle Connect errors (including permission denied)
+      if (error instanceof ConnectError) {
+        const errorMessage = error.message || 'Failed to create state';
+
+        // Check for permission denied (code 7 = PERMISSION_DENIED)
+        if (error.code === 7 || errorMessage.toLowerCase().includes('permission')) {
+          onError(`Permission denied: ${errorMessage}`);
+        } else {
+          onError(errorMessage);
+        }
+      } else {
+        const message = error instanceof Error ? error.message : 'Failed to create state';
+        onError(message);
+      }
     } finally {
       setSubmitting(false);
     }
