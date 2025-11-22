@@ -49,10 +49,13 @@ export async function loginViaKeycloak(
   // Wait for redirect back to webapp
   await page.waitForURL(/.*localhost:5173.*/, { timeout: 10000 });
 
-  // Verify we're logged in by checking for the user profile button (with username)
-  // The AuthStatus component shows a button with User icon + username + chevron
-  // The Sign Out button is hidden in a dropdown until the profile button is clicked
-  await expect(page.getByText(email)).toBeVisible({ timeout: 10000 });
+  // Verify we're logged in by checking for the user profile button
+  // The AuthStatus component shows a button with User icon + ChevronDown icon
+  // The username text has "hidden sm:inline" so might not be visible
+  // The email is inside the dropdown, only visible when clicked
+  // So we check for the profile button itself (same as isLoggedIn helper)
+  const profileButton = page.locator('button').filter({ has: page.locator('svg.lucide-chevron-down') });
+  await expect(profileButton).toBeVisible({ timeout: 10000 });
 }
 
 /**
@@ -157,6 +160,11 @@ export async function verifySessionPersistence(
   const cookieAfter = await getSessionCookie(page);
   expect(cookieAfter).toBe(cookieBefore);
 
-  // Verify user info displayed
+  // Verify user info is accessible by opening the dropdown
+  // The email is inside the dropdown, only visible when clicked
+  const profileButton = page.locator('button').filter({ has: page.locator('svg.lucide-chevron-down') });
+  await profileButton.click();
   await expect(page.getByText(email)).toBeVisible({ timeout: 5000 });
+  // Close dropdown by clicking outside or pressing Escape
+  await page.keyboard.press('Escape');
 }
