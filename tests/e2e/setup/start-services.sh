@@ -130,36 +130,30 @@ log_info "Running database migrations..."
 #
 # Step 5: Bootstrap group-to-role mappings
 #
+# Note: Roles are already seeded by migration 20251013140501_seed_auth_data.go
+# - platform-engineer: Full admin access (wildcard permissions)
+# - product-engineer: Label-scoped access (env=dev only)
+# - service-account: Automation/CI-CD access
+#
 log_info "Bootstrapping group-to-role mappings..."
-# Create test-admins -> admin role
-"${PROJECT_ROOT}/bin/gridapi" role create \
-    --name "admin" \
-    --description "Full admin access" || log_warn "admin role may already exist"
 
-"${PROJECT_ROOT}/bin/gridapi" role map-group \
-    --role-name "admin" \
+# Map test-admins (Keycloak group) → platform-engineer (full admin)
+"${PROJECT_ROOT}/bin/gridapi" iam bootstrap \
     --group "test-admins" \
-    --db-url="postgres://grid:gridpass@localhost:5432/grid?sslmode=disable" || true
+    --role "platform-engineer" \
+    --db-url="postgres://grid:gridpass@localhost:5432/grid?sslmode=disable" || log_warn "test-admins mapping may already exist"
 
-# Create product-engineers -> product-engineer role
-"${PROJECT_ROOT}/bin/gridapi" role create \
-    --name "product-engineer" \
-    --description "Product engineer with env=dev access" || log_warn "product-engineer role may already exist"
-
-"${PROJECT_ROOT}/bin/gridapi" role map-group \
-    --role-name "product-engineer" \
+# Map product-engineers (Keycloak group) → product-engineer (env=dev only)
+"${PROJECT_ROOT}/bin/gridapi" iam bootstrap \
     --group "product-engineers" \
-    --db-url="postgres://grid:gridpass@localhost:5432/grid?sslmode=disable" || true
+    --role "product-engineer" \
+    --db-url="postgres://grid:gridpass@localhost:5432/grid?sslmode=disable" || log_warn "product-engineers mapping may already exist"
 
-# Create platform-engineers -> platform-engineer role
-"${PROJECT_ROOT}/bin/gridapi" role create \
-    --name "platform-engineer" \
-    --description "Platform engineer with env=prod access" || log_warn "platform-engineer role may already exist"
-
-"${PROJECT_ROOT}/bin/gridapi" role map-group \
-    --role-name "platform-engineer" \
+# Map platform-engineers (Keycloak group) → platform-engineer (full admin)
+"${PROJECT_ROOT}/bin/gridapi" iam bootstrap \
     --group "platform-engineers" \
-    --db-url="postgres://grid:gridpass@localhost:5432/grid?sslmode=disable" || true
+    --role "platform-engineer" \
+    --db-url="postgres://grid:gridpass@localhost:5432/grid?sslmode=disable" || log_warn "platform-engineers mapping may already exist"
 
 #
 # Step 6: Start gridapi server (Mode 1 - External IdP)
