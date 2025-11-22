@@ -1,5 +1,9 @@
 # Grid
 
+[![PR Tests](https://github.com/TerraConstructs/grid/actions/workflows/pr-tests.yml/badge.svg)](https://github.com/TerraConstructs/grid/actions/workflows/pr-tests.yml)
+[![Release](https://github.com/TerraConstructs/grid/actions/workflows/release-please.yml/badge.svg)](https://github.com/TerraConstructs/grid/actions/workflows/release-please.yml)
+[![Go Report Card](https://goreportcard.com/badge/github.com/TerraConstructs/grid/cmd/gridapi)](https://goreportcard.com/report/github.com/TerraConstructs/grid/cmd/gridapi)
+
 Grid is a remote Terraform/OpenTofu state service paired with a friendly CLI that automates backend configuration, dependency wiring, and collaborative workflows.
 
 ## Highlights
@@ -45,6 +49,37 @@ pnpm dev
 ```
 
 Grid CLI commands read `.grid/` context in your working directory so repeated calls automatically target the same state. Override with explicit flags whenever needed.
+
+## Installation
+
+### Pre-built Binaries
+
+Download the latest release for your platform from the [Releases page](https://github.com/TerraConstructs/grid/releases):
+
+- **gridapi**: `linux/amd64`, `linux/arm64`
+- **gridctl**: `linux/amd64`, `linux/arm64`, `darwin/amd64`, `darwin/arm64`
+- **webapp**: Single `.tar.gz` bundle
+
+### npm Package
+
+Install the JavaScript SDK:
+
+```bash
+npm install @tcons/grid
+# or
+pnpm add @tcons/grid
+```
+
+### Build from Source
+
+```bash
+# Build CLI and API binaries
+make build
+
+# Binaries will be in ./bin/
+./bin/gridapi --help
+./bin/gridctl --help
+```
 
 ## Repository Layout
 

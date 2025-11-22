@@ -1,0 +1,43 @@
+name: Publish npm Package
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: read
+  id-token: write  # Required for provenance
+
+jobs:
+  publish-npm:
+    name: Publish to npm
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'pnpm'
+          cache-dependency-path: 'pnpm-lock.yaml'
+          registry-url: 'https://registry.npmjs.org'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build package
+        working-directory: ./js/sdk
+        run: pnpm run build
+
+      - name: Verify package contents (dry run)
+        working-directory: ./js/sdk
+        run: pnpm pack --dry-run
+
+      - name: Publish to npm
+        working-directory: ./js/sdk
+        run: pnpm publish --access public --provenance --no-git-checks
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

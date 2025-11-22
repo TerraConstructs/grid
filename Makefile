@@ -79,9 +79,11 @@ test-unit: ## Run unit tests (no external dependencies)
 	@go test -v -short -race \
 		./cmd/gridapi/internal/config/... \
 		./cmd/gridapi/internal/server/... \
-		./cmd/gridapi/internal/state/... \
-		./cmd/gridapi/internal/tfstate/... \
-		./cmd/gridapi/internal/graph/... \
+		./cmd/gridapi/internal/services/state/... \
+		./cmd/gridapi/internal/services/tfstate/... \
+		./cmd/gridapi/internal/services/graph/... \
+		./cmd/gridapi/internal/services/dependency/... \
+		./cmd/gridapi/internal/services/iam/... \
 		./pkg/sdk/... \
 		./cmd/gridctl/...
 

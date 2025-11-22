@@ -183,6 +183,11 @@ Release coordination:
 - **Breaking proto changes**: New version directory + coordinated SDK releases with migration guide
 - **API server releases**: Include minimum SDK version and proto version requirements
 
+**Allowed Exceptions**:
+- **Unified CI/CD Versioning (Temporary)**: For the initial implementation of the CI/CD workflows (Feature `008-cicd-workflows`), a unified versioning scheme managed by a single `release-please` configuration at the repository root is permitted. All modules (gridapi, gridctl, pkg/sdk, js/sdk, webapp) will share a single version for releases.
+  - **Justification**: This approach dramatically simplifies the initial CI/CD setup, aligning with Principle VII (Simplicity & Pragmatism) by avoiding premature complexity. The operational cost of managing independent versioning workflows has not yet been demonstrated.
+  - **Constraint**: This exception is considered temporary. The decision will be revisited when the first evidence emerges that unified versioning is blocking legitimate independent release cadences for different modules. At that point, a migration to `release-please`'s monorepo mode with per-package manifests will be planned.
+
 **Rationale**: Independent versioning allows rapid iteration on applications without SDK churn. Coordinated releases for breaking changes ensure ecosystem coherence. Protobuf's multi-version support enables gradual migration paths.
 
 ### VII. Simplicity & Pragmatism

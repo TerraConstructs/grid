@@ -63,7 +63,7 @@ func checkForLeftoverServers() error {
 	}
 
 	// Check for gridapi processes
-	cmd := exec.Command("pgrep", "-fl", "gridapi")
+	cmd := exec.Command("pgrep", "-fl", "gridapi serve")
 	output, err := cmd.Output()
 	if err == nil && len(output) > 0 {
 		return fmt.Errorf("found existing gridapi processes:\n%s", string(output))

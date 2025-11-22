@@ -13,6 +13,25 @@ This index does **not contain tasks directly**—those are fully managed through
 * **Data Model**: `specs/007-webapp-auth/data-model.md`
 * **Contract Definitions**: `specs/007-webapp-auth/contracts/`
 
+## 📊 Feature Status Summary (Updated 2025-11-18)
+
+| Component | Status | Notes |
+|-----------|--------|-------|
+| **Phase 1: Setup** | ✅ COMPLETE | TypeScript types, context scaffolding, SDK stubs |
+| **Phase 2: Foundational** | ✅ COMPLETE | Backend auth handlers (login, whoami, role aggregation) |
+| **US1: Non-Auth Mode** | ✅ COMPLETE | Dashboard works without authentication |
+| **US2: Internal IdP** | ✅ COMPLETE | Username/password login (MVP) |
+| **US3: External IdP/SSO** | ✅ COMPLETE | OAuth2 redirect + Keycloak integration |
+| **US4: Role-Based Filtering** | ✅ COMPLETE | Client-side state filtering by role scope |
+| **US5: Auth Status UI** | ✅ COMPLETE | User menu showing role/group info |
+| **US6: Logout** | ✅ COMPLETE | Session termination and redirect to login |
+| **Integration Tests** | ✅ COMPLETE (Mode2) | Session + Connect RPC tested (Mode 1 requires E2E) |
+| **Polish & Enhancements** | ⚠️ PARTIAL | 5 tasks remaining (see below) |
+
+**Summary**: All 6 user stories fully implemented. 5 enhancement/test tasks remain open (component tests, E2E tests, bug fix, documentation, technical debt).
+
+**Next Steps**: See "Remaining Open Tasks & Next Steps" section below for prioritized action items.
+
 ## Beads Query Hints
 
 Use the `bd` CLI or MCP toolchain to query and manipulate the issue graph:
@@ -180,11 +199,11 @@ This feature follows Beads' 2-level graph structure:
 - Integrate config loading in AuthProvider
 
 **Acceptance Scenarios** (from spec.md):
-1. gridapi without auth → dashboard displays immediately without login prompt
-2. Dashboard displays → all states visible
-3. Dashboard displays → no login button or user menu visible
+1. ✅ gridapi without auth → dashboard displays immediately without login prompt
+2. ✅ Dashboard displays → all states visible
+3. ✅ Dashboard displays → no login button or user menu visible
 
-**Status**: Depends on Phase 1 (Setup) and Phase 2 (Foundational)
+**Status**: ✅ COMPLETE - Non-authenticated mode fully implemented
 
 ---
 
@@ -198,25 +217,25 @@ This feature follows Beads' 2-level graph structure:
 **Independent Test**: Run gridapi with internal IdP enabled, attempt to access dashboard, enter valid username/password credentials, verify successful login with role assignment displayed.
 
 **Key Tasks** (query with `bd list --label story:US2`):
-- Implement loginInternal in js/sdk/auth.ts (POST /auth/login)
-- Adapt LoginPage for internal IdP mode (webapp/src/components/LoginPage.tsx)
-- Implement fetchWhoami in js/sdk/auth.ts (GET /api/auth/whoami)
-- Implement session restoration in AuthProvider (useEffect calling fetchWhoami)
-- Create AuthGuard component (webapp/src/components/AuthGuard.tsx)
+- ✅ Implement loginInternal in js/sdk/auth.ts (POST /auth/login)
+- ✅ Adapt LoginPage for internal IdP mode (webapp/src/components/LoginPage.tsx)
+- ✅ Implement fetchWhoami in js/sdk/auth.ts (GET /api/auth/whoami)
+- ✅ Implement session restoration in AuthProvider (useEffect calling fetchWhoami)
+- ✅ Create AuthGuard component (webapp/src/components/AuthGuard.tsx)
 
 **Acceptance Scenarios** (from spec.md):
-1. gridapi requires auth + user not logged in → see login form with username/password fields
-2. User enters valid credentials and submits → authenticated and see dashboard
-3. User has active session → dashboard displays immediately without login prompt
-4. User views auth status → displays username, email, assigned roles, auth type (Basic Auth - Internal IdP)
-5. User enters invalid credentials → error message without revealing username/password specifics
+1. ✅ gridapi requires auth + user not logged in → see login form with username/password fields
+2. ✅ User enters valid credentials and submits → authenticated and see dashboard
+3. ✅ User has active session → dashboard displays immediately without login prompt
+4. ✅ User views auth status → displays username, email, assigned roles, auth type (Basic Auth - Internal IdP)
+5. ✅ User enters invalid credentials → error message without revealing username/password specifics
 
 **Backend Dependencies**:
-- grid-87f5: POST /auth/login implementation
-- grid-6b5a: GET /api/auth/whoami implementation
-- grid-8f1a: gridapi users create command (for test users)
+- ✅ grid-87f5: POST /auth/login implementation
+- ✅ grid-6b5a: GET /api/auth/whoami implementation
+- ✅ grid-8f1a: gridapi users create command (for test users)
 
-**Status**: Depends on Phase 1 (Setup) and Phase 2 (Foundational) - **HIGHEST PRIORITY FOR MVP**
+**Status**: ✅ COMPLETE - Internal IdP login flow fully implemented
 
 ---
 
@@ -243,7 +262,7 @@ This feature follows Beads' 2-level graph structure:
 
 **Note**: Backend OAuth2 handlers already exist (from 006-authz-authn-rbac). Webapp just needs to trigger redirect and handle post-callback session restoration.
 
-**Status**: Depends on Phase 1 (Setup) and Phase 2 (Foundational)
+**Status**: ✅ COMPLETE - External IdP / SSO login flow fully implemented
 
 ---
 
@@ -272,7 +291,7 @@ This feature follows Beads' 2-level graph structure:
 **Future Enhancement** (noted in contracts/README.md:414):
 Currently, ListStates returns all states and relies on client-side filtering. This is tracked in issue `grid-f5947b22`. Future server-side label filtering will improve security and performance.
 
-**Status**: Depends on Phase 1 (Setup), Phase 2 (Foundational), and either US2 or US3 (authentication working)
+**Status**: ✅ COMPLETE - Client-side role-based state filtering fully implemented
 
 ---
 
@@ -299,7 +318,7 @@ Currently, ListStates returns all states and relies on client-side filtering. Th
 
 **Note**: Existing AuthStatus.tsx mockup provides UI foundation. Task is to wire it to real AuthContext data.
 
-**Status**: Depends on Phase 1 (Setup), Phase 2 (Foundational), and either US2 or US3 (authentication working)
+**Status**: ✅ COMPLETE - User authentication status and role information display implemented
 
 ---
 
@@ -325,7 +344,7 @@ Currently, ListStates returns all states and relies on client-side filtering. Th
 
 **Note**: Backend POST /auth/logout already exists (from 006-authz-authn-rbac). Webapp just needs to call it and clear local state.
 
-**Status**: Depends on Phase 1 (Setup), Phase 2 (Foundational), and US5 (AuthStatus UI with logout button)
+**Status**: ✅ COMPLETE - Logout functionality fully implemented
 
 ---
 
@@ -362,7 +381,7 @@ Currently, ListStates returns all states and relies on client-side filtering. Th
 - Auth flow tests: Mock both Connect RPC and /auth/* HTTP endpoints
 - Coverage target: >80% for new components
 
-**Status**: Depends on all desired user stories being complete
+**Status**: ⚠️ IN PROGRESS - Core features complete, 5 enhancement/test tasks remaining (see "Remaining Open Tasks" section below)
 
 ## GridAPI Integration Test Coverage
 
