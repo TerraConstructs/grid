@@ -53,7 +53,7 @@ var listCmd = &cobra.Command{
 		}
 
 		w := tabwriter.NewWriter(os.Stdout, 0, 4, 2, ' ', 0)
-		fmt.Fprintln(w, "LOGIC_ID\tGUID\tLABELS\tCOMPUTED_STATUS\tDEPENDENCIES")
+		_, _ = fmt.Fprintln(w, "LOGIC_ID\tGUID\tLABELS\tCOMPUTED_STATUS\tDEPENDENCIES")
 
 		for _, state := range states {
 			status := "-"
@@ -68,10 +68,10 @@ var listCmd = &cobra.Command{
 				deps = strings.Join(logicIDs, ", ")
 			}
 
-			fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\n", state.LogicID, state.GUID, formatLabelPreview(state.Labels), status, deps)
+			_, _ = fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\n", state.LogicID, state.GUID, formatLabelPreview(state.Labels), status, deps)
 		}
 
-		w.Flush()
+		_ = w.Flush()
 
 		return nil
 	},

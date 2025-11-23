@@ -43,7 +43,7 @@ var searchCmd = &cobra.Command{
 		sort.Slice(edges, func(i, j int) bool { return edges[i].ID < edges[j].ID })
 
 		w := tabwriter.NewWriter(os.Stdout, 0, 4, 2, ' ', 0)
-		fmt.Fprintf(w, "EDGE_ID\tFROM_STATE\tFROM_OUTPUT\tTO_STATE\tTO_INPUT_NAME\tSTATUS\tUPDATED_AT\n")
+		_, _ = fmt.Fprintf(w, "EDGE_ID\tFROM_STATE\tFROM_OUTPUT\tTO_STATE\tTO_INPUT_NAME\tSTATUS\tUPDATED_AT\n")
 		for _, edge := range edges {
 			inputName := "-"
 			if edge.ToInputName != "" {
@@ -53,7 +53,7 @@ var searchCmd = &cobra.Command{
 			if !edge.UpdatedAt.IsZero() {
 				updated = edge.UpdatedAt.UTC().Format(time.RFC3339)
 			}
-			fmt.Fprintf(w, "%d\t%s\t%s\t%s\t%s\t%s\t%s\n",
+			_, _ = fmt.Fprintf(w, "%d\t%s\t%s\t%s\t%s\t%s\t%s\n",
 				edge.ID,
 				edge.From.LogicID,
 				edge.FromOutput,
@@ -63,7 +63,7 @@ var searchCmd = &cobra.Command{
 				updated,
 			)
 		}
-		w.Flush()
+		_ = w.Flush()
 		return nil
 	},
 }

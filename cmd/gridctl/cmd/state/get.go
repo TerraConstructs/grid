@@ -110,7 +110,7 @@ func linkDirectory(info *sdk.StateInfo, path string, force bool) error {
 	if err != nil {
 		return fmt.Errorf("failed to get current directory: %w", err)
 	}
-	defer os.Chdir(originalDir)
+	defer func() { _ = os.Chdir(originalDir) }()
 
 	if err := os.Chdir(absPath); err != nil {
 		return fmt.Errorf("failed to change to directory %s: %w", absPath, err)

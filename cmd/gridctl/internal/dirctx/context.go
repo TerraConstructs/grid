@@ -97,7 +97,7 @@ func WriteGridContext(ctx *DirectoryContext) error {
 	// Atomic rename
 	if err := os.Rename(tmpPath, GridFileName); err != nil {
 		// Clean up temp file on failure
-		os.Remove(tmpPath)
+		_ = os.Remove(tmpPath)
 		return fmt.Errorf("failed to rename .grid.tmp to .grid: %w", err)
 	}
 

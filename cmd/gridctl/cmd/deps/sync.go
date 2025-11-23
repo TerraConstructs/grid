@@ -170,14 +170,14 @@ If --state is not specified, the .grid context will be used (if available).`,
 			return fmt.Errorf("failed to create temporary file: %w", err)
 		}
 		tmpName := tmpFile.Name()
-		defer os.Remove(tmpName)
+		defer func() { _ = os.Remove(tmpName) }()
 
 		if _, err := tmpFile.Write(buf.Bytes()); err != nil {
-			tmpFile.Close()
+			_ = tmpFile.Close()
 			return fmt.Errorf("failed to write temporary file: %w", err)
 		}
 		if err := tmpFile.Sync(); err != nil {
-			tmpFile.Close()
+			_ = tmpFile.Close()
 			return fmt.Errorf("failed to flush temporary file: %w", err)
 		}
 		if err := tmpFile.Close(); err != nil {

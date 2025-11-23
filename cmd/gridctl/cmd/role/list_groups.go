@@ -33,11 +33,11 @@ var listGroupsCmd = &cobra.Command{
 		}
 
 		w := tabwriter.NewWriter(os.Stdout, 0, 4, 2, ' ', 0)
-		fmt.Fprintln(w, "GROUP\tROLE\tASSIGNED AT\tASSIGNED BY")
+		_, _ = fmt.Fprintln(w, "GROUP\tROLE\tASSIGNED AT\tASSIGNED BY")
 		for _, a := range result.Assignments {
-			fmt.Fprintf(w, "%s\t%s\t%s\t%s\n", a.GroupName, a.RoleName, a.AssignedAt.Format(time.RFC3339), a.AssignedByUserID)
+			_, _ = fmt.Fprintf(w, "%s\t%s\t%s\t%s\n", a.GroupName, a.RoleName, a.AssignedAt.Format(time.RFC3339), a.AssignedByUserID)
 		}
-		w.Flush()
+		_ = w.Flush()
 
 		return nil
 	},

@@ -10,8 +10,8 @@ import (
 )
 
 var (
-	serverURL      string
-	nonInteractive bool
+	serverURL      string //nolint:unused // Used by SetServerURL for external configuration
+	nonInteractive bool   //nolint:unused // Used by SetNonInteractive for external configuration
 	clientProvider *client.Provider
 )
 

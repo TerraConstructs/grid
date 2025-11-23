@@ -84,7 +84,7 @@ If neither flag is provided, .grid context will be used for --state (if availabl
 
 		fmt.Println(header)
 		w := tabwriter.NewWriter(os.Stdout, 0, 4, 2, ' ', 0)
-		fmt.Fprintln(w, "EDGE_ID\tFROM_STATE\tFROM_OUTPUT\tTO_STATE\tTO_INPUT_NAME\tSTATUS\tLAST_UPDATED")
+		_, _ = fmt.Fprintln(w, "EDGE_ID\tFROM_STATE\tFROM_OUTPUT\tTO_STATE\tTO_INPUT_NAME\tSTATUS\tLAST_UPDATED")
 		for _, edge := range edges {
 			inputName := "-"
 			if edge.ToInputName != "" {
@@ -94,7 +94,7 @@ If neither flag is provided, .grid context will be used for --state (if availabl
 			if !edge.UpdatedAt.IsZero() {
 				updated = edge.UpdatedAt.UTC().Format(time.RFC3339)
 			}
-			fmt.Fprintf(w, "%d\t%s\t%s\t%s\t%s\t%s\t%s\n",
+			_, _ = fmt.Fprintf(w, "%d\t%s\t%s\t%s\t%s\t%s\t%s\n",
 				edge.ID,
 				edge.From.LogicID,
 				edge.FromOutput,
@@ -104,7 +104,7 @@ If neither flag is provided, .grid context will be used for --state (if availabl
 				updated,
 			)
 		}
-		w.Flush()
+		_ = w.Flush()
 		return nil
 	},
 }
