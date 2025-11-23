@@ -151,6 +151,10 @@ type ListStatesRequest struct {
 	Filter *string `protobuf:"bytes,1,opt,name=filter,proto3,oneof" json:"filter,omitempty"`
 	// Whether to include labels in response (default: true)
 	IncludeLabels *bool `protobuf:"varint,2,opt,name=include_labels,json=includeLabels,proto3,oneof" json:"include_labels,omitempty"`
+	// Whether to compute and include dependency status for each state (default: true for backward compatibility)
+	// WARNING: This requires computing status for EVERY state which can be expensive (N+1 pattern).
+	// Set to false if you don't need real-time status to improve performance significantly.
+	IncludeStatus *bool `protobuf:"varint,3,opt,name=include_status,json=includeStatus,proto3,oneof" json:"include_status,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -195,6 +199,13 @@ func (x *ListStatesRequest) GetFilter() string {
 func (x *ListStatesRequest) GetIncludeLabels() bool {
 	if x != nil && x.IncludeLabels != nil {
 		return *x.IncludeLabels
+	}
+	return false
+}
+
+func (x *ListStatesRequest) GetIncludeStatus() bool {
+	if x != nil && x.IncludeStatus != nil {
+		return *x.IncludeStatus
 	}
 	return false
 }
@@ -257,9 +268,14 @@ type StateInfo struct {
 	ComputedStatus     *string  `protobuf:"bytes,7,opt,name=computed_status,json=computedStatus,proto3,oneof" json:"computed_status,omitempty"`         // "clean", "stale", "potentially-stale"
 	DependencyLogicIds []string `protobuf:"bytes,8,rep,name=dependency_logic_ids,json=dependencyLogicIds,proto3" json:"dependency_logic_ids,omitempty"` // Unique set of producer logic_ids (incoming edges)
 	// State labels (key-value pairs with typed values)
-	Labels        map[string]*LabelValue `protobuf:"bytes,9,rep,name=labels,proto3" json:"labels,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	Labels map[string]*LabelValue `protobuf:"bytes,9,rep,name=labels,proto3" json:"labels,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	// Relationship counts for efficient list rendering (eliminates N+1 pattern in frontend)
+	// These counts are populated from database relationships without fetching full edge/output data
+	DependenciesCount int32 `protobuf:"varint,10,opt,name=dependencies_count,json=dependenciesCount,proto3" json:"dependencies_count,omitempty"` // Number of incoming dependency edges
+	DependentsCount   int32 `protobuf:"varint,11,opt,name=dependents_count,json=dependentsCount,proto3" json:"dependents_count,omitempty"`       // Number of outgoing dependency edges
+	OutputsCount      int32 `protobuf:"varint,12,opt,name=outputs_count,json=outputsCount,proto3" json:"outputs_count,omitempty"`                // Number of outputs available from this state
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
 }
 
 func (x *StateInfo) Reset() {
@@ -353,6 +369,27 @@ func (x *StateInfo) GetLabels() map[string]*LabelValue {
 		return x.Labels
 	}
 	return nil
+}
+
+func (x *StateInfo) GetDependenciesCount() int32 {
+	if x != nil {
+		return x.DependenciesCount
+	}
+	return 0
+}
+
+func (x *StateInfo) GetDependentsCount() int32 {
+	if x != nil {
+		return x.DependentsCount
+	}
+	return 0
+}
+
+func (x *StateInfo) GetOutputsCount() int32 {
+	if x != nil {
+		return x.OutputsCount
+	}
+	return 0
 }
 
 // BackendConfig contains Terraform backend configuration URLs.
@@ -5735,14 +5772,16 @@ const file_state_v1_state_proto_rawDesc = "" +
 	"\x13CreateStateResponse\x12\x12\n" +
 	"\x04guid\x18\x01 \x01(\tR\x04guid\x12\x19\n" +
 	"\blogic_id\x18\x02 \x01(\tR\alogicId\x12>\n" +
-	"\x0ebackend_config\x18\x03 \x01(\v2\x17.state.v1.BackendConfigR\rbackendConfig\"z\n" +
+	"\x0ebackend_config\x18\x03 \x01(\v2\x17.state.v1.BackendConfigR\rbackendConfig\"\xb9\x01\n" +
 	"\x11ListStatesRequest\x12\x1b\n" +
 	"\x06filter\x18\x01 \x01(\tH\x00R\x06filter\x88\x01\x01\x12*\n" +
-	"\x0einclude_labels\x18\x02 \x01(\bH\x01R\rincludeLabels\x88\x01\x01B\t\n" +
+	"\x0einclude_labels\x18\x02 \x01(\bH\x01R\rincludeLabels\x88\x01\x01\x12*\n" +
+	"\x0einclude_status\x18\x03 \x01(\bH\x02R\rincludeStatus\x88\x01\x01B\t\n" +
 	"\a_filterB\x11\n" +
-	"\x0f_include_labels\"A\n" +
+	"\x0f_include_labelsB\x11\n" +
+	"\x0f_include_status\"A\n" +
 	"\x12ListStatesResponse\x12+\n" +
-	"\x06states\x18\x01 \x03(\v2\x13.state.v1.StateInfoR\x06states\"\xe5\x03\n" +
+	"\x06states\x18\x01 \x03(\v2\x13.state.v1.StateInfoR\x06states\"\xe4\x04\n" +
 	"\tStateInfo\x12\x12\n" +
 	"\x04guid\x18\x01 \x01(\tR\x04guid\x12\x19\n" +
 	"\blogic_id\x18\x02 \x01(\tR\alogicId\x12\x16\n" +
@@ -5755,7 +5794,11 @@ const file_state_v1_state_proto_rawDesc = "" +
 	"size_bytes\x18\x06 \x01(\x03R\tsizeBytes\x12,\n" +
 	"\x0fcomputed_status\x18\a \x01(\tH\x00R\x0ecomputedStatus\x88\x01\x01\x120\n" +
 	"\x14dependency_logic_ids\x18\b \x03(\tR\x12dependencyLogicIds\x127\n" +
-	"\x06labels\x18\t \x03(\v2\x1f.state.v1.StateInfo.LabelsEntryR\x06labels\x1aO\n" +
+	"\x06labels\x18\t \x03(\v2\x1f.state.v1.StateInfo.LabelsEntryR\x06labels\x12-\n" +
+	"\x12dependencies_count\x18\n" +
+	" \x01(\x05R\x11dependenciesCount\x12)\n" +
+	"\x10dependents_count\x18\v \x01(\x05R\x0fdependentsCount\x12#\n" +
+	"\routputs_count\x18\f \x01(\x05R\foutputsCount\x1aO\n" +
 	"\vLabelsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12*\n" +
 	"\x05value\x18\x02 \x01(\v2\x14.state.v1.LabelValueR\x05value:\x028\x01B\x12\n" +
