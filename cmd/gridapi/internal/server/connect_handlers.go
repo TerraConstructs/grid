@@ -390,13 +390,14 @@ func (h *StateServiceHandler) SetLabelPolicy(
 // For each state, it checks if the state's labels match ANY of the user's role scopes.
 // Platform engineers (with no label scope constraints) see all states.
 // Product engineers (with env=="dev" scope) only see states with env=dev labels.
+// In no-auth mode (no principal), all states are returned.
 func (h *StateServiceHandler) filterStatesByRoleScopes(ctx context.Context, summaries []statepkg.StateSummary) ([]statepkg.StateSummary, error) {
 	// Get principal from context
 	principal, ok := auth.GetUserFromContext(ctx)
 	if !ok {
-		// No principal - this shouldn't happen since authz interceptor runs first
-		// But handle gracefully by returning empty list
-		return []statepkg.StateSummary{}, nil
+		// No principal - this means auth is disabled (no-auth mode)
+		// Return all states without filtering
+		return summaries, nil
 	}
 
 	// If IAM service not available, return all states (backwards compatibility)
@@ -421,9 +422,10 @@ func (h *StateServiceHandler) filterStatesByRoleScopes(ctx context.Context, summ
 		roleScopes = append(roleScopes, role.ScopeExpr)
 	}
 
-	// If user has no roles, return empty list
+	// If user has no roles or couldn't fetch any, return all states
+	// This handles edge cases where role lookup fails
 	if len(roleScopes) == 0 {
-		return []statepkg.StateSummary{}, nil
+		return summaries, nil
 	}
 
 	// Filter states based on role scopes
