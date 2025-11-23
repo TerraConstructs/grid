@@ -31,6 +31,7 @@ services:
       KC_HOSTNAME_PORT: 8443
       KC_HOSTNAME_STRICT_HTTPS: "false"
       KC_HTTP_ENABLED: "true"
+      KC_HEALTH_ENABLED: true
     ports:
       - "8443:8080"
     volumes:

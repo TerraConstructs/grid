@@ -1,4 +1,4 @@
-.PHONY: help build db-up db-down db-reset db-migrate oidc-dev-keys keycloak-up keycloak-down keycloak-logs keycloak-reset test test-unit test-unit-db test-contract test-integration test-integration-mode1 test-integration-mode2 test-integration-all test-all ci-test test-integration-setup test-integration-teardown test-clean clean
+.PHONY: help build db-up db-down db-reset db-migrate oidc-dev-keys keycloak-up keycloak-down keycloak-logs keycloak-reset test test-unit test-unit-db test-contract test-integration test-integration-mode1 test-integration-mode2 test-integration-all test-e2e test-e2e-ui test-e2e-headed test-e2e-debug test-e2e-report test-all ci-test test-integration-setup test-integration-teardown test-clean clean
 
 help: ## Display available targets
 	@echo "Grid Terraform State Management - Makefile"
@@ -15,6 +15,10 @@ GRIDCTL_SRCS := $(shell find cmd/gridctl -name '*.go' -o -name '*.tmpl')
 bin/gridctl: $(GRIDCTL_SRCS)
 	@echo "Building gridctl..."
 	@cd cmd/gridctl && go build -o ../../bin/gridctl .
+
+JS_SDK_SRCS := $(shell find js/sdk \( -path '*/node_modules' -o -path '*/dist' -o -path '*/build' -o -path '*/lib' \) -prune -o \( -name '*.ts' \) -print)
+js/sdk/lib: $(JS_SDK_SRCS)
+	@cd js/sdk && pnpm run build
 
 build: ## Build gridapi and gridctl to bin/ directory
 	@$(MAKE) bin/gridapi
@@ -183,6 +187,27 @@ test-integration-all: build ## Run full integration suite (Mode 1 + Mode 2 with 
 	@echo "=========================================="
 	@echo "✓ Full integration suite completed!"
 	@echo "=========================================="
+
+test-e2e: build js/sdk/lib ## Run E2E tests (webapp authentication flows with Playwright)
+	@echo "Running E2E tests..."
+	@echo "Note: This will start all required services (postgres, keycloak, gridapi, webapp)"
+	@pnpm test:e2e
+
+test-e2e-ui: build js/sdk/lib ## Run E2E tests in interactive UI mode
+	@echo "Starting E2E tests in UI mode..."
+	@pnpm test:e2e:ui
+
+test-e2e-headed: build js/sdk/lib ## Run E2E tests in headed mode (visible browser)
+	@echo "Running E2E tests in headed mode..."
+	@pnpm test:e2e:headed
+
+test-e2e-debug: build js/sdk/lib ## Run E2E tests in debug mode
+	@echo "Running E2E tests in debug mode..."
+	@pnpm test:e2e:debug
+
+test-e2e-report: ## Show E2E test report
+	@echo "Opening E2E test report..."
+	@pnpm test:e2e:report
 
 test-all: ## Run all test suites
 	@echo "Running all test suites..."

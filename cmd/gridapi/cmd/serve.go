@@ -270,29 +270,51 @@ var serveCmd = &cobra.Command{
 			serverErrors <- srv.ListenAndServe()
 		}()
 
-		// Wait for interrupt signal
+		// Wait for interrupt signal or cache refresh signal
 		shutdown := make(chan os.Signal, 1)
 		signal.Notify(shutdown, os.Interrupt, syscall.SIGTERM)
 
-		select {
-		case err := <-serverErrors:
-			return fmt.Errorf("server error: %w", err)
-		case sig := <-shutdown:
-			log.Printf("Received signal %v, shutting down gracefully", sig)
+		// SIGHUP triggers IAM cache refresh (for E2E tests and manual cache updates)
+		cacheRefresh := make(chan os.Signal, 1)
+		signal.Notify(cacheRefresh, syscall.SIGHUP)
 
-			// Graceful shutdown with timeout
-			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-			defer cancel()
+		for {
+			select {
+			case err := <-serverErrors:
+				return fmt.Errorf("server error: %w", err)
 
-			if err := srv.Shutdown(ctx); err != nil {
-				srv.Close()
-				return fmt.Errorf("graceful shutdown failed: %w", err)
+			case sig := <-cacheRefresh:
+				log.Printf("Received signal %v, refreshing IAM cache", sig)
+				if iamService != nil {
+					ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+					if err := iamService.RefreshGroupRoleCache(ctx); err != nil {
+						log.Printf("ERROR: Manual cache refresh failed: %v", err)
+					} else {
+						snapshot := iamService.GetGroupRoleCacheSnapshot()
+						log.Printf("INFO: Manual cache refresh complete via %v (version=%d, groups=%d)",
+							sig, snapshot.Version, len(snapshot.Mappings))
+					}
+					cancel()
+				} else {
+					log.Printf("WARNING: Received %v but IAM service not initialized (OIDC disabled)", sig)
+				}
+
+			case sig := <-shutdown:
+				log.Printf("Received signal %v, shutting down gracefully", sig)
+
+				// Graceful shutdown with timeout
+				ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+				defer cancel()
+
+				if err := srv.Shutdown(ctx); err != nil {
+					srv.Close()
+					return fmt.Errorf("graceful shutdown failed: %w", err)
+				}
+
+				log.Printf("Server stopped")
+				return nil
 			}
-
-			log.Printf("Server stopped")
 		}
-
-		return nil
 	},
 }
 

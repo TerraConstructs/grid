@@ -7,5 +7,12 @@
     "@types/node": "^24.10.1",
     "prettier": "^3.6.2"
   },
-  "scripts": {}
+  "scripts": {
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui",
+    "test:e2e:debug": "playwright test --debug",
+    "test:e2e:headed": "playwright test --headed",
+    "test:e2e:report": "playwright show-report",
+    "test:e2e:codegen": "playwright codegen http://localhost:5173"
+  }
 }

@@ -50,6 +50,7 @@ Thumbs.db
 # Environment/config overrides
 .env
 .env.local
+.env.e2e
 
 # Docker/Postgres volumes
 postgres_data/
@@ -63,3 +64,7 @@ postgres_data/
 /blob-report/
 /playwright/.cache/
 /playwright/.auth/
+
+# E2E test logs
+/tmp/grid-e2e-*.log
+/tmp/grid-e2e-*.pid

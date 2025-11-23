@@ -3,6 +3,8 @@ import type { DescService } from '@bufbuild/protobuf';
 import { createConnectTransport } from '@connectrpc/connect-web';
 import { StateService } from '../gen/state/v1/state_pb.js';
 import type {
+  CreateStateRequest,
+  CreateStateResponse,
   ListStatesRequest,
   ListStatesResponse,
   GetStateInfoRequest,
@@ -66,6 +68,9 @@ export function createGridTransport(baseUrl: string): Transport {
  * ```
  */
 export interface StateServiceClient {
+  createState(
+    request: CreateStateRequest | Record<string, unknown>
+  ): Promise<CreateStateResponse>;
   listStates(request?: ListStatesRequest | Record<string, unknown>): Promise<ListStatesResponse>;
   getStateInfo(
     request: GetStateInfoRequest | Record<string, unknown>
