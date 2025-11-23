@@ -99,15 +99,6 @@ func setupMode2Environment(t *testing.T) {
 	t.Logf("Mode 2 environment configured: OIDC_ISSUER=http://localhost:8080, OIDC_SIGNING_KEY_PATH=%s", mode2SigningKeyPath)
 }
 
-// cleanupSigningKeys removes any existing signing keys to force regeneration
-func cleanupSigningKeys(t *testing.T) {
-	t.Helper()
-	if err := os.RemoveAll(mode2SigningKeyDir); err != nil && !os.IsNotExist(err) {
-		t.Fatalf("Failed to clean up signing keys: %v", err)
-	}
-	t.Logf("Cleaned up signing keys directory: %s", mode2SigningKeyDir)
-}
-
 // createServiceAccountBootstrap uses the gridapi sa create command (bootstrap pattern)
 // Returns client_id and client_secret from command output
 func createServiceAccountBootstrap(t *testing.T, name string, role string) (clientID, clientSecret string) {

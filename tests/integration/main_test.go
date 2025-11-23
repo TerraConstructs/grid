@@ -112,7 +112,7 @@ func stopServer() {
 	if err := serverCmd.Process.Signal(syscall.SIGTERM); err != nil {
 		fmt.Fprintf(os.Stderr, "Failed to send SIGTERM: %v\n", err)
 		// Force kill if graceful shutdown fails
-		serverCmd.Process.Kill()
+		_ = serverCmd.Process.Kill()
 	}
 
 	// Wait for process to exit (with timeout)
@@ -126,7 +126,7 @@ func stopServer() {
 		fmt.Println("Server stopped gracefully")
 	case <-time.After(5 * time.Second):
 		fmt.Println("Server shutdown timeout, forcing kill")
-		serverCmd.Process.Kill()
+		_ = serverCmd.Process.Kill()
 	}
 }
 
