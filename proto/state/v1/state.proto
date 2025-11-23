@@ -133,9 +133,9 @@ message ListStatesRequest {
   // Whether to include labels in response (default: true)
   optional bool include_labels = 2;
 
-  // Whether to compute and include dependency status for each state (default: false)
-  // WARNING: When true, this requires computing status for EVERY state which can be expensive.
-  // Only enable if you need real-time status for all states in the list.
+  // Whether to compute and include dependency status for each state (default: true for backward compatibility)
+  // WARNING: This requires computing status for EVERY state which can be expensive (N+1 pattern).
+  // Set to false if you don't need real-time status to improve performance significantly.
   optional bool include_status = 3;
 }
 

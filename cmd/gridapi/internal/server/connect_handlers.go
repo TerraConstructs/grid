@@ -98,8 +98,9 @@ func (h *StateServiceHandler) ListStates(
 	}
 
 	// TODO: After regenerating proto with buf generate, uncomment this
-	// Determine if status should be computed (default: false to avoid N+1 queries)
-	includeStatus := false
+	// Determine if status should be computed (default: true for backward compatibility)
+	// WARNING: This causes N+1 queries when enabled, but preserving old behavior
+	includeStatus := true
 	// if req.Msg.IncludeStatus != nil {
 	// 	includeStatus = *req.Msg.IncludeStatus
 	// }
