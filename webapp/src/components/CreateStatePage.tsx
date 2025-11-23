@@ -106,8 +106,9 @@ export function CreateStatePage({
         </div>
 
         {/* Form */}
-        <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-6">
-          <div className="space-y-6">
+        <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto flex flex-col">
+          <div className="flex-1 overflow-y-auto p-6">
+            <div className="space-y-6">
             {/* Logic ID */}
             <div>
               <label
@@ -188,7 +189,7 @@ export function CreateStatePage({
               </p>
             </div>
           </div>
-        </form>
+        </div>
 
         {/* Footer */}
         <div className="flex items-center justify-end gap-3 p-6 border-t border-gray-200">
@@ -202,13 +203,13 @@ export function CreateStatePage({
           </button>
           <button
             type="submit"
-            onClick={handleSubmit}
             disabled={!canSubmit}
             className="px-4 py-2 text-sm font-medium text-white bg-gradient-to-r from-purple-600 to-purple-700 rounded-lg hover:from-purple-700 hover:to-purple-800 disabled:from-gray-400 disabled:to-gray-500 transition-all"
           >
             {submitting ? 'Creating...' : 'Create State'}
           </button>
         </div>
+      </form>
       </div>
     </div>
   );

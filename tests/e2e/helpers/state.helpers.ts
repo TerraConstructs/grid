@@ -82,8 +82,11 @@ export async function createState(
     }
   }
 
-  // Submit the form
-  const submitButton = page.getByRole('button', { name: /create|submit/i });
+  // Submit the form by clicking the submit button
+  // Use type="submit" selector to distinguish from "Create State" button in header
+  const submitButton = page.locator('button[type="submit"]').filter({
+    hasText: /create state|submit/i
+  });
   await submitButton.click();
 }
 
