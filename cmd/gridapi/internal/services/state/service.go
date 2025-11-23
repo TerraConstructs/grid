@@ -29,6 +29,11 @@ type StateSummary struct {
 	UpdatedAt time.Time
 	LockInfo  *models.LockInfo
 	Labels    models.LabelMap
+
+	// Relationship counts (populated from repository COUNT subqueries)
+	DependenciesCount int
+	DependentsCount   int
+	OutputsCount      int
 }
 
 // StateInfo provides comprehensive state information including dependencies, dependents, and outputs.
@@ -294,14 +299,17 @@ func toSummary(record *models.State) StateSummary {
 	}
 
 	return StateSummary{
-		GUID:      record.GUID,
-		LogicID:   record.LogicID,
-		Locked:    record.Locked,
-		LockInfo:  record.LockInfo,
-		SizeBytes: size,
-		CreatedAt: record.CreatedAt,
-		UpdatedAt: record.UpdatedAt,
-		Labels:    labels,
+		GUID:              record.GUID,
+		LogicID:           record.LogicID,
+		Locked:            record.Locked,
+		LockInfo:          record.LockInfo,
+		SizeBytes:         size,
+		CreatedAt:         record.CreatedAt,
+		UpdatedAt:         record.UpdatedAt,
+		Labels:            labels,
+		DependenciesCount: record.DependenciesCount,
+		DependentsCount:   record.DependentsCount,
+		OutputsCount:      record.OutputsCount,
 	}
 }
 

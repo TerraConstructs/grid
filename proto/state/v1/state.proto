@@ -157,6 +157,12 @@ message StateInfo {
   repeated string dependency_logic_ids = 8; // Unique set of producer logic_ids (incoming edges)
   // State labels (key-value pairs with typed values)
   map<string, LabelValue> labels = 9;
+
+  // Relationship counts for efficient list rendering (eliminates N+1 pattern in frontend)
+  // These counts are populated from database relationships without fetching full edge/output data
+  int32 dependencies_count = 10;  // Number of incoming dependency edges
+  int32 dependents_count = 11;    // Number of outgoing dependency edges
+  int32 outputs_count = 12;        // Number of outputs available from this state
 }
 
 // BackendConfig contains Terraform backend configuration URLs.

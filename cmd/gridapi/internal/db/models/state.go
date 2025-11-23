@@ -61,6 +61,12 @@ type State struct {
 	Outputs        []*StateOutput `bun:"rel:has-many,join:guid=state_guid"`
 	OutgoingEdges  []*Edge        `bun:"rel:has-many,join:guid=from_state"`
 	IncomingEdges  []*Edge        `bun:"rel:has-many,join:guid=to_state"`
+
+	// Computed counts (populated via subqueries for efficient StateInfo rendering)
+	// These are scanonly fields populated by COUNT subqueries in SELECT statements
+	DependenciesCount int `bun:"dependencies_count,scanonly"`
+	DependentsCount   int `bun:"dependents_count,scanonly"`
+	OutputsCount      int `bun:"outputs_count,scanonly"`
 }
 
 // LockInfo captures Terraform lock metadata stored with the state.

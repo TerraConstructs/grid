@@ -61,6 +61,13 @@ type EdgeRepository interface {
 	// The ToStateRel field will be populated for each edge.
 	GetOutgoingEdgesWithConsumers(ctx context.Context, fromStateGUID string) ([]*models.Edge, error)
 
+	// Count operations (efficient for populating StateInfo counts without fetching full data)
+	// CountIncomingEdges returns the number of incoming edges for a state (dependencies).
+	CountIncomingEdges(ctx context.Context, toStateGUID string) (int, error)
+
+	// CountOutgoingEdges returns the number of outgoing edges for a state (dependents).
+	CountOutgoingEdges(ctx context.Context, fromStateGUID string) (int, error)
+
 	// Cycle detection (application-layer pre-check, DB trigger is safety net)
 	WouldCreateCycle(ctx context.Context, fromState, toState string) (bool, error)
 }
@@ -189,6 +196,10 @@ type StateOutputRepository interface {
 	// SearchOutputsByKey finds all states with output matching key (exact match)
 	// Used for cross-state dependency discovery
 	SearchOutputsByKey(ctx context.Context, outputKey string) ([]StateOutputRef, error)
+
+	// CountOutputsByState returns the number of outputs for a state (efficient count query).
+	// Returns 0 if no outputs exist (not an error).
+	CountOutputsByState(ctx context.Context, stateGUID string) (int, error)
 
 	// DeleteOutputsByState removes all cached outputs for a state
 	// Cascade handles this on state deletion, but explicit method useful for testing

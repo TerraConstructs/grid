@@ -229,6 +229,10 @@ func summaryToProto(summary statepkg.StateSummary) *statev1.StateInfo {
 		LogicId:   summary.LogicID,
 		Locked:    summary.Locked,
 		SizeBytes: summary.SizeBytes,
+		// TODO: Uncomment after running buf generate to regenerate proto with count fields
+		// DependenciesCount: int32(summary.DependenciesCount),
+		// DependentsCount:   int32(summary.DependentsCount),
+		// OutputsCount:      int32(summary.OutputsCount),
 	}
 	if !summary.CreatedAt.IsZero() {
 		info.CreatedAt = timestamppb.New(summary.CreatedAt)

@@ -174,13 +174,19 @@ func (r *BunStateRepository) UpdateContentAndUpsertOutputs(ctx context.Context, 
 	})
 }
 
-// List returns all states ordered from newest to oldest.
+// List returns all states ordered from newest to oldest with relationship counts.
+// Uses efficient COUNT subqueries to populate dependencies_count, dependents_count, outputs_count
+// without fetching full relationship data (eliminates N+1 pattern for StateInfo rendering).
 func (r *BunStateRepository) List(ctx context.Context) ([]models.State, error) {
 	var states []models.State
 	if err := r.db.NewSelect().
 		Model(&states).
 		Column("guid", "logic_id", "locked", "created_at", "updated_at", "labels").
 		ColumnExpr("length(state_content) AS size_bytes").
+		// Efficient COUNT subqueries using correlated subqueries
+		ColumnExpr("(SELECT COUNT(*) FROM edges WHERE to_state = s.guid) AS dependencies_count").
+		ColumnExpr("(SELECT COUNT(*) FROM edges WHERE from_state = s.guid) AS dependents_count").
+		ColumnExpr("(SELECT COUNT(*) FROM state_outputs WHERE state_guid = s.guid) AS outputs_count").
 		Order("created_at DESC").
 		Scan(ctx); err != nil {
 		return nil, fmt.Errorf("list states: %w", err)
@@ -254,8 +260,9 @@ func (r *BunStateRepository) Unlock(ctx context.Context, guid string, lockID str
 	return nil
 }
 
-// ListWithFilter returns states matching bexpr filter with deterministic label ordering.
+// ListWithFilter returns states matching bexpr filter with deterministic label ordering and counts.
 // T026: Implements in-memory bexpr filtering per data-model.md lines 360-411.
+// Includes efficient COUNT subqueries for relationship counts.
 func (r *BunStateRepository) ListWithFilter(ctx context.Context, filter string, pageSize int, offset int) ([]models.State, error) {
 	// 1. Fetch states from DB (over-fetch for in-memory filtering)
 	var states []models.State
@@ -268,6 +275,10 @@ func (r *BunStateRepository) ListWithFilter(ctx context.Context, filter string, 
 		Model(&states).
 		Column("guid", "logic_id", "locked", "created_at", "updated_at", "labels").
 		ColumnExpr("length(state_content) AS size_bytes").
+		// Efficient COUNT subqueries using correlated subqueries
+		ColumnExpr("(SELECT COUNT(*) FROM edges WHERE to_state = s.guid) AS dependencies_count").
+		ColumnExpr("(SELECT COUNT(*) FROM edges WHERE from_state = s.guid) AS dependents_count").
+		ColumnExpr("(SELECT COUNT(*) FROM state_outputs WHERE state_guid = s.guid) AS outputs_count").
 		Order("updated_at DESC").
 		Limit(fetchSize).
 		Offset(offset).
