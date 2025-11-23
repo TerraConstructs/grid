@@ -102,5 +102,5 @@ Example:
 
 func init() {
 	bootstrapCmd.Flags().StringVar(&groupName, "group", "", "External IdP group name (from groups claim in JWT)")
-	bootstrapCmd.MarkFlagRequired("group")
+	_ = bootstrapCmd.MarkFlagRequired("group")
 }

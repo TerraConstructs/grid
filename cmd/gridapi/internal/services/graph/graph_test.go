@@ -138,7 +138,7 @@ func TestDetectCycle_SelfLoop(t *testing.T) {
 		}
 	}()
 
-	DetectCycle(edges)
+	_ = DetectCycle(edges)
 	t.Fatal("Expected panic for self-loop, but none occurred")
 }
 
