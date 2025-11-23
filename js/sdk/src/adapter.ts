@@ -180,13 +180,25 @@ export class GridApiAdapter {
     guid: string;
     logicId: string;
     backendConfig: BackendConfig;
-  }> {
+  } | null> {
+    try {
     const response = await this.client.createState(request);
     return {
       guid: response.guid,
       logicId: response.logicId,
       backendConfig: convertProtoBackendConfig(response.backendConfig),
     };
+    } catch (error) {
+      if (error instanceof ConnectError) {
+        const errorMessage = error.message || 'Failed to create state';
+        // Check for permission denied (code 7 = PERMISSION_DENIED)
+        if (error.code === 7 || errorMessage.toLowerCase().includes('permission')) {
+          throw new Error('Permission denied: You do not have access to create this state.');
+        }
+        throw new Error(errorMessage);
+      }
+      throw error;
+    }
   }
 
   /**

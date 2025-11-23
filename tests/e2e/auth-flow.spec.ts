@@ -55,7 +55,7 @@ test.describe('Authentication Flows', () => {
     await logout(page);
 
     // Verify logged out - should see login button again
-    await expect(page.getByRole('button', { name: /login/i })).toBeVisible();
+    await expect(page.getByRole('button', { name: /sign in/i })).toBeVisible();
   });
 
   /**

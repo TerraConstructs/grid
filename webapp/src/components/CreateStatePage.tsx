@@ -8,7 +8,6 @@
 import { useState } from 'react';
 import { X, Plus, Trash2 } from 'lucide-react';
 import { gridApi } from '../services/gridApi';
-import { ConnectError } from '@connectrpc/connect';
 
 interface CreateStatePageProps {
   onClose: () => void;
@@ -49,7 +48,8 @@ export function CreateStatePage({
     setSubmitting(true);
 
     try {
-      // Generate UUIDv7 for guid
+      // Generate UUID for guid
+      // TODO: Use v7 UUIDs
       const guid = crypto.randomUUID();
 
       // Convert labels array to map, filtering out empty entries
@@ -70,20 +70,8 @@ export function CreateStatePage({
       onSuccess(`State "${response.logicId}" created successfully`);
       onClose();
     } catch (error) {
-      // Handle Connect errors (including permission denied)
-      if (error instanceof ConnectError) {
-        const errorMessage = error.message || 'Failed to create state';
-
-        // Check for permission denied (code 7 = PERMISSION_DENIED)
-        if (error.code === 7 || errorMessage.toLowerCase().includes('permission')) {
-          onError(`Permission denied: ${errorMessage}`);
-        } else {
-          onError(errorMessage);
-        }
-      } else {
-        const message = error instanceof Error ? error.message : 'Failed to create state';
-        onError(message);
-      }
+      const message = error instanceof Error ? error.message : 'Failed to create state';
+      onError(message);
     } finally {
       setSubmitting(false);
     }
