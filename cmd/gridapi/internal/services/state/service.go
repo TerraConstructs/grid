@@ -463,3 +463,43 @@ func (s *Service) GetStateInfo(ctx context.Context, logicID, guid string) (*Stat
 
 	return info, nil
 }
+
+// SetOutputSchema sets or updates the JSON Schema for a specific state output.
+// This allows clients to declare expected output types before the output exists in state.
+func (s *Service) SetOutputSchema(ctx context.Context, guid string, outputKey string, schemaJSON string) error {
+	if s.outputRepo == nil {
+		return fmt.Errorf("output repository not configured")
+	}
+
+	// Validate that state exists
+	_, err := s.repo.GetByGUID(ctx, guid)
+	if err != nil {
+		return fmt.Errorf("state not found: %w", err)
+	}
+
+	// Validate that schemaJSON is not empty
+	if schemaJSON == "" {
+		return fmt.Errorf("schema JSON cannot be empty")
+	}
+
+	// TODO: Optionally validate that schemaJSON is valid JSON Schema
+	// For now, we just store it as-is
+
+	return s.outputRepo.SetOutputSchema(ctx, guid, outputKey, schemaJSON)
+}
+
+// GetOutputSchema retrieves the JSON Schema for a specific state output.
+// Returns empty string if no schema has been set.
+func (s *Service) GetOutputSchema(ctx context.Context, guid string, outputKey string) (string, error) {
+	if s.outputRepo == nil {
+		return "", fmt.Errorf("output repository not configured")
+	}
+
+	// Validate that state exists
+	_, err := s.repo.GetByGUID(ctx, guid)
+	if err != nil {
+		return "", fmt.Errorf("state not found: %w", err)
+	}
+
+	return s.outputRepo.GetOutputSchema(ctx, guid, outputKey)
+}

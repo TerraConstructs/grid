@@ -52,6 +52,8 @@ func (r *BunStateOutputRepository) UpsertOutputs(ctx context.Context, stateGUID 
 		}
 
 		// Use ON CONFLICT DO UPDATE to handle race conditions
+		// Note: We do NOT update schema_json here - schemas are managed separately via SetOutputSchema
+		// This preserves user-defined schemas when Terraform state is uploaded
 		_, err = tx.NewInsert().
 			Model(&outputModels).
 			On("CONFLICT (state_guid, output_key) DO UPDATE").
@@ -83,8 +85,9 @@ func (r *BunStateOutputRepository) GetOutputsByState(ctx context.Context, stateG
 	outputs := make([]OutputKey, len(dbOutputs))
 	for i, dbOut := range dbOutputs {
 		outputs[i] = OutputKey{
-			Key:       dbOut.OutputKey,
-			Sensitive: dbOut.Sensitive,
+			Key:        dbOut.OutputKey,
+			Sensitive:  dbOut.Sensitive,
+			SchemaJSON: dbOut.SchemaJSON,
 		}
 	}
 
@@ -159,4 +162,59 @@ func (r *BunStateOutputRepository) DeleteOutputsByState(ctx context.Context, sta
 	}
 
 	return nil
+}
+
+// SetOutputSchema sets or updates the JSON Schema for a specific state output.
+// Creates the output record if it doesn't exist (with state_serial=0, sensitive=false).
+func (r *BunStateOutputRepository) SetOutputSchema(ctx context.Context, stateGUID string, outputKey string, schemaJSON string) error {
+	now := time.Now()
+
+	// Use INSERT ... ON CONFLICT to upsert the schema
+	output := models.StateOutput{
+		StateGUID:   stateGUID,
+		OutputKey:   outputKey,
+		Sensitive:   false, // Default for schema-only outputs
+		StateSerial: 0,     // Default serial for outputs that don't exist in state yet
+		SchemaJSON:  &schemaJSON,
+		CreatedAt:   now,
+		UpdatedAt:   now,
+	}
+
+	_, err := r.db.NewInsert().
+		Model(&output).
+		On("CONFLICT (state_guid, output_key) DO UPDATE").
+		Set("schema_json = EXCLUDED.schema_json").
+		Set("updated_at = EXCLUDED.updated_at").
+		Exec(ctx)
+	if err != nil {
+		return fmt.Errorf("set schema for output %s in state %s: %w", outputKey, stateGUID, err)
+	}
+
+	return nil
+}
+
+// GetOutputSchema retrieves the JSON Schema for a specific state output.
+// Returns empty string if no schema has been set (not an error).
+func (r *BunStateOutputRepository) GetOutputSchema(ctx context.Context, stateGUID string, outputKey string) (string, error) {
+	var output models.StateOutput
+	err := r.db.NewSelect().
+		Model(&output).
+		Where("state_guid = ?", stateGUID).
+		Where("output_key = ?", outputKey).
+		Scan(ctx)
+
+	if err != nil {
+		// sql.ErrNoRows is not an error - just means no schema set
+		if err.Error() == "sql: no rows in result set" {
+			return "", nil
+		}
+		return "", fmt.Errorf("get schema for output %s in state %s: %w", outputKey, stateGUID, err)
+	}
+
+	// Return empty string if schema is nil
+	if output.SchemaJSON == nil {
+		return "", nil
+	}
+
+	return *output.SchemaJSON, nil
 }

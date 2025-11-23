@@ -166,8 +166,9 @@ type TopologyInput struct {
 
 // OutputKey represents a Terraform output name and metadata.
 type OutputKey struct {
-	Key       string
-	Sensitive bool
+	Key        string
+	Sensitive  bool
+	SchemaJSON *string // Optional JSON Schema definition for this output
 }
 
 // StateInfo provides comprehensive information about a state including dependencies, dependents, and outputs.
@@ -387,10 +388,15 @@ func outputKeyFromProto(pb *statev1.OutputKey) OutputKey {
 	if pb == nil {
 		return OutputKey{}
 	}
-	return OutputKey{
+	out := OutputKey{
 		Key:       pb.GetKey(),
 		Sensitive: pb.GetSensitive(),
 	}
+	// Include schema if available
+	if pb.SchemaJson != nil && *pb.SchemaJson != "" {
+		out.SchemaJSON = pb.SchemaJson
+	}
+	return out
 }
 
 func outputKeysFromProto(pbs []*statev1.OutputKey) []OutputKey {

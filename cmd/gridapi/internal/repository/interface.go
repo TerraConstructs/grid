@@ -67,8 +67,9 @@ type EdgeRepository interface {
 
 // OutputKey represents a Terraform output name and metadata.
 type OutputKey struct {
-	Key       string
-	Sensitive bool
+	Key        string
+	Sensitive  bool
+	SchemaJSON *string // Optional JSON Schema definition for this output
 }
 
 // ========================================
@@ -193,6 +194,16 @@ type StateOutputRepository interface {
 	// DeleteOutputsByState removes all cached outputs for a state
 	// Cascade handles this on state deletion, but explicit method useful for testing
 	DeleteOutputsByState(ctx context.Context, stateGUID string) error
+
+	// SetOutputSchema sets or updates the JSON Schema for a specific state output.
+	// Creates the output record if it doesn't exist (with state_serial=0, sensitive=false).
+	// This allows declaring expected outputs before they exist in the Terraform state.
+	SetOutputSchema(ctx context.Context, stateGUID string, outputKey string, schemaJSON string) error
+
+	// GetOutputSchema retrieves the JSON Schema for a specific state output.
+	// Returns empty string if no schema has been set (not an error).
+	// Returns error only for actual database failures.
+	GetOutputSchema(ctx context.Context, stateGUID string, outputKey string) (string, error)
 }
 
 // LabelPolicyRepository exposes persistence operations for label validation policy.

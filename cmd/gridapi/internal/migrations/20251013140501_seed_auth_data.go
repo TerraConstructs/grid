@@ -105,6 +105,8 @@ func up_20251013140501(ctx context.Context, db *bun.DB) error {
 		{Ptype: "p", V0: "role:product-engineer", V1: "state", V2: "dependency:delete", V3: `env == "dev"`, V4: "allow"},
 		{Ptype: "p", V0: "role:product-engineer", V1: "state", V2: "state-output:list", V3: `env == "dev"`, V4: "allow"},
 		{Ptype: "p", V0: "role:product-engineer", V1: "state", V2: "state-output:read", V3: `env == "dev"`, V4: "allow"},
+		{Ptype: "p", V0: "role:product-engineer", V1: "state", V2: "state-output:schema-write", V3: `env == "dev"`, V4: "allow"},
+		{Ptype: "p", V0: "role:product-engineer", V1: "state", V2: "state-output:schema-read", V3: `env == "dev"`, V4: "allow"},
 		{Ptype: "p", V0: "role:product-engineer", V1: "policy", V2: "policy:read", V3: "", V4: "allow"},
 	}
 

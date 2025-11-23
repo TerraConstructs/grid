@@ -485,10 +485,15 @@ func (h *StateServiceHandler) ListStateOutputs(
 	// Convert to proto
 	protoOutputs := make([]*statev1.OutputKey, len(outputs))
 	for i, out := range outputs {
-		protoOutputs[i] = &statev1.OutputKey{
+		protoOut := &statev1.OutputKey{
 			Key:       out.Key,
 			Sensitive: out.Sensitive,
 		}
+		// Include schema if available
+		if out.SchemaJSON != nil && *out.SchemaJSON != "" {
+			protoOut.SchemaJson = out.SchemaJSON
+		}
+		protoOutputs[i] = protoOut
 	}
 
 	resp := &statev1.ListStateOutputsResponse{
@@ -719,4 +724,90 @@ func (h *StateServiceHandler) filterEdgesByRoleScopes(ctx context.Context, edges
 	}
 
 	return filtered, nil
+}
+
+// SetOutputSchema sets or updates the JSON Schema for a specific state output.
+func (h *StateServiceHandler) SetOutputSchema(
+	ctx context.Context,
+	req *connect.Request[statev1.SetOutputSchemaRequest],
+) (*connect.Response[statev1.SetOutputSchemaResponse], error) {
+	// Resolve state GUID from logic_id or guid
+	var guid, logicID string
+	if state, ok := req.Msg.State.(*statev1.SetOutputSchemaRequest_StateLogicId); ok {
+		logicID = state.StateLogicId
+		// Resolve logic_id to guid
+		stateGUID, _, err := h.service.GetStateConfig(ctx, logicID)
+		if err != nil {
+			return nil, mapServiceError(err)
+		}
+		guid = stateGUID
+	} else if state, ok := req.Msg.State.(*statev1.SetOutputSchemaRequest_StateGuid); ok {
+		guid = state.StateGuid
+		// Get logic_id for response
+		stateRecord, err := h.service.GetStateByGUID(ctx, guid)
+		if err != nil {
+			return nil, mapServiceError(err)
+		}
+		logicID = stateRecord.LogicID
+	} else {
+		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("state reference required (state_logic_id or state_guid)"))
+	}
+
+	// Set the schema via service
+	err := h.service.SetOutputSchema(ctx, guid, req.Msg.OutputKey, req.Msg.SchemaJson)
+	if err != nil {
+		return nil, mapServiceError(err)
+	}
+
+	resp := &statev1.SetOutputSchemaResponse{
+		Success:      true,
+		StateGuid:    guid,
+		StateLogicId: logicID,
+		OutputKey:    req.Msg.OutputKey,
+	}
+
+	return connect.NewResponse(resp), nil
+}
+
+// GetOutputSchema retrieves the JSON Schema for a specific state output.
+func (h *StateServiceHandler) GetOutputSchema(
+	ctx context.Context,
+	req *connect.Request[statev1.GetOutputSchemaRequest],
+) (*connect.Response[statev1.GetOutputSchemaResponse], error) {
+	// Resolve state GUID from logic_id or guid
+	var guid, logicID string
+	if state, ok := req.Msg.State.(*statev1.GetOutputSchemaRequest_StateLogicId); ok {
+		logicID = state.StateLogicId
+		// Resolve logic_id to guid
+		stateGUID, _, err := h.service.GetStateConfig(ctx, logicID)
+		if err != nil {
+			return nil, mapServiceError(err)
+		}
+		guid = stateGUID
+	} else if state, ok := req.Msg.State.(*statev1.GetOutputSchemaRequest_StateGuid); ok {
+		guid = state.StateGuid
+		// Get logic_id for response
+		stateRecord, err := h.service.GetStateByGUID(ctx, guid)
+		if err != nil {
+			return nil, mapServiceError(err)
+		}
+		logicID = stateRecord.LogicID
+	} else {
+		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("state reference required (state_logic_id or state_guid)"))
+	}
+
+	// Get the schema via service
+	schemaJSON, err := h.service.GetOutputSchema(ctx, guid, req.Msg.OutputKey)
+	if err != nil {
+		return nil, mapServiceError(err)
+	}
+
+	resp := &statev1.GetOutputSchemaResponse{
+		StateGuid:    guid,
+		StateLogicId: logicID,
+		OutputKey:    req.Msg.OutputKey,
+		SchemaJson:   schemaJSON,
+	}
+
+	return connect.NewResponse(resp), nil
 }
