@@ -1,9 +1,9 @@
 import { useState, useCallback } from 'react';
 import { useGrid } from '../context/GridContext';
-import type { StateInfo, DependencyEdge } from '@tcons/grid';
+import type { StateSummary, StateInfo, DependencyEdge } from '@tcons/grid';
 
 interface UseGridDataReturn {
-  states: StateInfo[];
+  states: StateSummary[];
   edges: DependencyEdge[];
   loading: boolean;
   error: string | null;
@@ -17,10 +17,11 @@ interface UseGridDataReturn {
  *
  * Provides manual refresh functionality (no background polling).
  * Preserves selected state across refreshes.
+ * Uses optimized StateSummary for list rendering (eliminates N+1 pattern).
  */
 export function useGridData(): UseGridDataReturn {
   const { api } = useGrid();
-  const [states, setStates] = useState<StateInfo[]>([]);
+  const [states, setStates] = useState<StateSummary[]>([]);
   const [edges, setEdges] = useState<DependencyEdge[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);

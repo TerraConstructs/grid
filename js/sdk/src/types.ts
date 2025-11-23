@@ -4,6 +4,7 @@
  */
 
 export type {
+  StateSummary,
   StateInfo,
   BackendConfig,
   DependencyEdge,

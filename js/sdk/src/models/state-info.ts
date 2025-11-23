@@ -1,4 +1,47 @@
 /**
+ * StateSummary represents lightweight state metadata for list operations.
+ * Optimized for rendering state lists without N+1 queries.
+ * Use getStateInfo() to fetch full StateInfo with relationships when needed.
+ */
+export interface StateSummary {
+  /** Immutable client-generated UUIDv7 identifier */
+  guid: string;
+
+  /** User-friendly mutable identifier */
+  logic_id: string;
+
+  /** Whether the state is currently locked */
+  locked?: boolean;
+
+  /** State creation timestamp (ISO 8601) */
+  created_at: string;
+
+  /** State last update timestamp (ISO 8601) */
+  updated_at: string;
+
+  /** State JSON size in bytes */
+  size_bytes?: number;
+
+  /** Aggregate status computed from dependency edges */
+  computed_status?: 'clean' | 'stale' | 'potentially-stale';
+
+  /** Logic IDs of states this state depends on */
+  dependency_logic_ids: string[];
+
+  /** Label metadata (typed values) */
+  labels?: Record<string, LabelScalar>;
+
+  /** Number of incoming dependency edges (efficient count from backend) */
+  dependencies_count: number;
+
+  /** Number of outgoing dependency edges (efficient count from backend) */
+  dependents_count: number;
+
+  /** Number of outputs available (efficient count from backend) */
+  outputs_count: number;
+}
+
+/**
  * StateInfo represents comprehensive metadata for a Terraform remote state
  * including dependencies, outputs, and backend configuration.
  */

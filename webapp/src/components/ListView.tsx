@@ -1,9 +1,9 @@
-import type { StateInfo, DependencyEdge } from '@tcons/grid';
+import type { StateSummary, DependencyEdge } from '@tcons/grid';
 import { Database, GitBranch, ArrowRight, Lock, CheckCircle2, AlertCircle, Clock, Tag } from 'lucide-react';
 import { LabelFilter, type ActiveLabelFilter } from './LabelFilter';
 
 interface ListViewProps {
-  states: StateInfo[];
+  states: StateSummary[];
   edges: DependencyEdge[];
   onStateClick: (logicId: string) => void;
   onEdgeClick: (edge: DependencyEdge) => void;
@@ -149,11 +149,11 @@ export function ListView({
                     </td>
                     <td className="px-4 py-2 whitespace-nowrap">
                       <div className="text-sm text-gray-600">
-                        {state.dependencies.length} in / {state.dependents.length} out
+                        {state.dependencies_count} in / {state.dependents_count} out
                       </div>
                     </td>
                     <td className="px-4 py-2 whitespace-nowrap">
-                      <div className="text-sm text-gray-900">{state.outputs.length} outputs</div>
+                      <div className="text-sm text-gray-900">{state.outputs_count} outputs</div>
                     </td>
                     <td className="px-4 py-2 whitespace-nowrap">
                       <div className="text-sm text-gray-600">

@@ -11,14 +11,14 @@ import {
   ReactFlowProvider,
 } from '@xyflow/react';
 import type { NodeTypes, EdgeTypes } from '@xyflow/react';
-import type { StateInfo, DependencyEdge } from '@tcons/grid';
+import type { StateSummary, DependencyEdge } from '@tcons/grid';
 import { LabelFilter, type ActiveLabelFilter } from './LabelFilter';
 import { GridNode } from './graphflow/GridNode';
 import { GridEdge } from './graphflow/GridEdge';
 import { computeLayout, toReactFlowNodes, toReactFlowEdges, getStatusColor, type GridNodeData } from './graphflow/utils';
 
 interface GraphViewProps {
-  states: StateInfo[];
+  states: StateSummary[];
   edges: DependencyEdge[];
   onStateClick: (logicId: string) => void;
   activeFilters: ActiveLabelFilter[];
