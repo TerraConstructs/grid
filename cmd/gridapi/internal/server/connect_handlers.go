@@ -100,10 +100,9 @@ func (h *StateServiceHandler) ListStates(
 	// Determine if status should be computed (default: true for backward compatibility)
 	// WARNING: This causes N+1 queries when enabled, but preserving old behavior
 	includeStatus := true
-	// TODO: Uncomment after buf generate updates api/ directory with generated Go code
-	// if req.Msg.IncludeStatus != nil {
-	// 	includeStatus = *req.Msg.IncludeStatus
-	// }
+	if req.Msg.IncludeStatus != nil {
+		includeStatus = *req.Msg.IncludeStatus
+	}
 
 	// Get states - use ListWithFilter if filter provided
 	var summaries []statepkg.StateSummary
@@ -225,14 +224,13 @@ func (h *StateServiceHandler) UnlockState(
 
 func summaryToProto(summary statepkg.StateSummary) *statev1.StateInfo {
 	info := &statev1.StateInfo{
-		Guid:      summary.GUID,
-		LogicId:   summary.LogicID,
-		Locked:    summary.Locked,
-		SizeBytes: summary.SizeBytes,
-		// TODO: Uncomment after buf generate updates api/ directory with generated Go code
-		// DependenciesCount: int32(summary.DependenciesCount),
-		// DependentsCount:   int32(summary.DependentsCount),
-		// OutputsCount:      int32(summary.OutputsCount),
+		Guid:              summary.GUID,
+		LogicId:           summary.LogicID,
+		Locked:            summary.Locked,
+		SizeBytes:         summary.SizeBytes,
+		DependenciesCount: int32(summary.DependenciesCount),
+		DependentsCount:   int32(summary.DependentsCount),
+		OutputsCount:      int32(summary.OutputsCount),
 	}
 	if !summary.CreatedAt.IsZero() {
 		info.CreatedAt = timestamppb.New(summary.CreatedAt)
