@@ -131,15 +131,16 @@ test.describe('Authentication Flows', () => {
     await loginViaKeycloak(page, 'newuser@example.com', 'test123');
 
     // Verify successful login (proves JIT provisioning worked)
+    // The loginViaKeycloak helper already verified the profile button is visible
+    // Let's verify by opening the dropdown and checking the email
+    const profileButton = page.locator('button').filter({ has: page.locator('svg.lucide-chevron-down') });
+    await profileButton.click();
     await expect(page.getByText('newuser@example.com')).toBeVisible({
       timeout: 10000,
     });
 
-    // Verify user can access basic features
-    // Note: newuser has no groups, so may have limited permissions
-    await expect(
-      page.getByRole('button', { name: /logout/i })
-    ).toBeVisible();
+    // Close dropdown
+    await page.keyboard.press('Escape');
 
     // Logout
     await logout(page);
