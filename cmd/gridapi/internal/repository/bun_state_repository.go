@@ -335,6 +335,31 @@ func sortLabels(state *models.State) {
 	// when converting to proto messages
 }
 
+// GetByGUIDs fetches multiple states by GUIDs in a single query (batch operation).
+// Returns a map of GUID -> State for efficient lookup. Missing GUIDs are omitted from result.
+func (r *BunStateRepository) GetByGUIDs(ctx context.Context, guids []string) (map[string]*models.State, error) {
+	if len(guids) == 0 {
+		return make(map[string]*models.State), nil
+	}
+
+	var states []*models.State
+	err := r.db.NewSelect().
+		Model(&states).
+		Where("guid IN (?)", bun.In(guids)).
+		Scan(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("batch fetch states: %w", err)
+	}
+
+	// Build map for efficient lookup
+	result := make(map[string]*models.State, len(states))
+	for _, state := range states {
+		result[state.GUID] = state
+	}
+
+	return result, nil
+}
+
 func isDuplicateKeyError(err error) bool {
 	if err == nil {
 		return false

@@ -56,6 +56,11 @@ type State struct {
 
 	// Labels stores typed label key/value pairs
 	Labels LabelMap `bun:"labels,type:jsonb,notnull,default:'{}'"`
+
+	// Relationships for eager loading (populated only when using Relation())
+	Outputs        []*StateOutput `bun:"rel:has-many,join:guid=state_guid"`
+	OutgoingEdges  []*Edge        `bun:"rel:has-many,join:guid=from_state"`
+	IncomingEdges  []*Edge        `bun:"rel:has-many,join:guid=to_state"`
 }
 
 // LockInfo captures Terraform lock metadata stored with the state.

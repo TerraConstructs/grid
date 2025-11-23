@@ -193,22 +193,29 @@ func (s *Service) GetDependencyGraph(ctx context.Context, logicID, guid string) 
 		return nil, fmt.Errorf("get incoming edges: %w", err)
 	}
 
-	// Get unique producer states
+	// Get unique producer GUIDs
 	producerGUIDs := make(map[string]bool)
 	for _, edge := range edges {
 		producerGUIDs[edge.FromState] = true
 	}
 
-	producers := []ProducerState{}
-	for producerGUID := range producerGUIDs {
-		producerState, err := s.stateRepo.GetByGUID(ctx, producerGUID)
-		if err != nil {
-			continue // Skip if not found
-		}
+	// Batch fetch producer states (avoids N+1 queries)
+	guids := make([]string, 0, len(producerGUIDs))
+	for guid := range producerGUIDs {
+		guids = append(guids, guid)
+	}
 
+	producerStates, err := s.stateRepo.GetByGUIDs(ctx, guids)
+	if err != nil {
+		return nil, fmt.Errorf("batch fetch producer states: %w", err)
+	}
+
+	// Build producer list
+	producers := make([]ProducerState, 0, len(producerStates))
+	for guid, state := range producerStates {
 		producers = append(producers, ProducerState{
-			GUID:    producerState.GUID,
-			LogicID: producerState.LogicID,
+			GUID:    guid,
+			LogicID: state.LogicID,
 		})
 	}
 

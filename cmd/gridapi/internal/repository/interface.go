@@ -24,6 +24,10 @@ type StateRepository interface {
 	// ListWithFilter returns states matching bexpr filter with pagination.
 	// T029: Added for label filtering support.
 	ListWithFilter(ctx context.Context, filter string, pageSize int, offset int) ([]models.State, error)
+
+	// GetByGUIDs fetches multiple states by GUIDs in a single query (batch operation).
+	// Returns a map of GUID -> State for efficient lookup. Missing GUIDs are omitted from result.
+	GetByGUIDs(ctx context.Context, guids []string) (map[string]*models.State, error)
 }
 
 // EdgeRepository exposes persistence operations for dependency edges.
@@ -39,6 +43,15 @@ type EdgeRepository interface {
 	GetIncomingEdges(ctx context.Context, toStateGUID string) ([]models.Edge, error)
 	GetAllEdges(ctx context.Context) ([]models.Edge, error)
 	FindByOutput(ctx context.Context, outputKey string) ([]models.Edge, error)
+
+	// Eager loading operations (avoid N+1 queries)
+	// GetIncomingEdgesWithProducers fetches incoming edges with producer state data preloaded.
+	// The FromStateRel field will be populated for each edge.
+	GetIncomingEdgesWithProducers(ctx context.Context, toStateGUID string) ([]*models.Edge, error)
+
+	// GetOutgoingEdgesWithConsumers fetches outgoing edges with consumer state data preloaded.
+	// The ToStateRel field will be populated for each edge.
+	GetOutgoingEdgesWithConsumers(ctx context.Context, fromStateGUID string) ([]*models.Edge, error)
 
 	// Cycle detection (application-layer pre-check, DB trigger is safety net)
 	WouldCreateCycle(ctx context.Context, fromState, toState string) (bool, error)

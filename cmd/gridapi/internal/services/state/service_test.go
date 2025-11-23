@@ -74,6 +74,14 @@ func (m *MockStateRepository) ListWithFilter(ctx context.Context, filter string,
 	return args.Get(0).([]models.State), args.Error(1)
 }
 
+func (m *MockStateRepository) GetByGUIDs(ctx context.Context, guids []string) (map[string]*models.State, error) {
+	args := m.Called(ctx, guids)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(map[string]*models.State), args.Error(1)
+}
+
 // T015: Test StateService.CreateState with labels
 func TestStateService_CreateStateWithLabels(t *testing.T) {
 	t.Run("creates state with valid labels", func(t *testing.T) {
