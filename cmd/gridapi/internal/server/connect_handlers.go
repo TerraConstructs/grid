@@ -97,10 +97,10 @@ func (h *StateServiceHandler) ListStates(
 		includeLabels = *req.Msg.IncludeLabels
 	}
 
-	// TODO: After regenerating proto with buf generate, uncomment this
 	// Determine if status should be computed (default: true for backward compatibility)
 	// WARNING: This causes N+1 queries when enabled, but preserving old behavior
 	includeStatus := true
+	// TODO: Uncomment after buf generate updates api/ directory with generated Go code
 	// if req.Msg.IncludeStatus != nil {
 	// 	includeStatus = *req.Msg.IncludeStatus
 	// }
@@ -229,7 +229,7 @@ func summaryToProto(summary statepkg.StateSummary) *statev1.StateInfo {
 		LogicId:   summary.LogicID,
 		Locked:    summary.Locked,
 		SizeBytes: summary.SizeBytes,
-		// TODO: Uncomment after running buf generate to regenerate proto with count fields
+		// TODO: Uncomment after buf generate updates api/ directory with generated Go code
 		// DependenciesCount: int32(summary.DependenciesCount),
 		// DependentsCount:   int32(summary.DependentsCount),
 		// OutputsCount:      int32(summary.OutputsCount),
