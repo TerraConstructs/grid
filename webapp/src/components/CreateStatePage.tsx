@@ -66,6 +66,9 @@ export function CreateStatePage({
         logicId,
         labels: labelsMap,
       });
+      if (!response) {
+       throw new Error('Failed to create state: No response from server');
+      }
 
       onSuccess(`State "${response.logicId}" created successfully`);
       onClose();

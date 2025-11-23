@@ -93,8 +93,8 @@ Example:
 		}
 		fmt.Println()
 		fmt.Println("\nUsers with this group will receive these roles at authentication time.")
-		fmt.Println("\n✅ Group→role cache has been automatically refreshed!")
-		fmt.Println("   Changes are immediately available if the server is running.")
+		fmt.Println("\nSend SIGHUP to running gridapi processes to reload group→role mappings!")
+		fmt.Println("  Example: pkill -SIGHUP gridapi")
 
 		return nil
 	},

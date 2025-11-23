@@ -16,6 +16,10 @@ bin/gridctl: $(GRIDCTL_SRCS)
 	@echo "Building gridctl..."
 	@cd cmd/gridctl && go build -o ../../bin/gridctl .
 
+JS_SDK_SRCS := $(shell find js/sdk \( -path '*/node_modules' -o -path '*/dist' -o -path '*/build' -o -path '*/lib' \) -prune -o \( -name '*.ts' \) -print)
+js/sdk/lib: $(JS_SDK_SRCS)
+	@cd js/sdk && pnpm run build
+
 build: ## Build gridapi and gridctl to bin/ directory
 	@$(MAKE) bin/gridapi
 	@$(MAKE) bin/gridctl
@@ -184,20 +188,20 @@ test-integration-all: build ## Run full integration suite (Mode 1 + Mode 2 with 
 	@echo "✓ Full integration suite completed!"
 	@echo "=========================================="
 
-test-e2e: build ## Run E2E tests (webapp authentication flows with Playwright)
+test-e2e: build js/sdk/lib ## Run E2E tests (webapp authentication flows with Playwright)
 	@echo "Running E2E tests..."
 	@echo "Note: This will start all required services (postgres, keycloak, gridapi, webapp)"
 	@pnpm test:e2e
 
-test-e2e-ui: build ## Run E2E tests in interactive UI mode
+test-e2e-ui: build js/sdk/lib ## Run E2E tests in interactive UI mode
 	@echo "Starting E2E tests in UI mode..."
 	@pnpm test:e2e:ui
 
-test-e2e-headed: build ## Run E2E tests in headed mode (visible browser)
+test-e2e-headed: build js/sdk/lib ## Run E2E tests in headed mode (visible browser)
 	@echo "Running E2E tests in headed mode..."
 	@pnpm test:e2e:headed
 
-test-e2e-debug: build ## Run E2E tests in debug mode
+test-e2e-debug: build js/sdk/lib ## Run E2E tests in debug mode
 	@echo "Running E2E tests in debug mode..."
 	@pnpm test:e2e:debug
 
