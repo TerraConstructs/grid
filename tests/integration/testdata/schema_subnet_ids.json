@@ -1,0 +1,14 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "array",
+  "items": {
+    "type": "string",
+    "pattern": "^subnet-[a-z0-9]+$"
+  },
+  "minItems": 1,
+  "description": "Array of AWS Subnet IDs",
+  "examples": [
+    ["subnet-111", "subnet-222"],
+    ["subnet-abc", "subnet-def", "subnet-ghi"]
+  ]
+}

@@ -417,3 +417,135 @@ output "test" {
 
 	t.Log("✓ Write authorization via terraform apply test complete!")
 }
+
+// TestMode1_OutputSchemaAuthorization tests schema operations with RBAC
+func TestMode1_OutputSchemaAuthorization(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping Mode 1 integration test in short mode")
+	}
+
+	// Prerequisites
+	require.True(t, isKeycloakHealthy(t), "Keycloak must be running")
+	verifyAuthEnabled(t, "Mode 1")
+
+	t.Log("Testing output schema authorization...")
+
+	// Setup RBAC
+	setupKeycloakForGroupTests(t)
+
+	testClientID := os.Getenv("MODE1_TEST_CLIENT_ID")
+	testClientSecret := os.Getenv("MODE1_TEST_CLIENT_SECRET")
+	if testClientID == "" || testClientSecret == "" {
+		t.Skip("MODE1_TEST_CLIENT_ID and MODE1_TEST_CLIENT_SECRET must be set")
+	}
+
+	adminTokenResp := authenticateWithKeycloak(t, testClientID, testClientSecret)
+	assignGroupRoleInGrid(t, adminTokenResp.AccessToken, "product-engineers", "product-engineer")
+
+	// Authenticate as product engineer (env=dev scope)
+	userClientID := os.Getenv("EXTERNAL_IDP_CLIENT_ID")
+	userClientSecret := os.Getenv("EXTERNAL_IDP_CLIENT_SECRET")
+	userTokenResp := authenticateUserWithPassword(t, userClientID, userClientSecret, "alice@example.com", "test123")
+
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	logicID := fmt.Sprintf("test-schema-auth-%d", time.Now().UnixNano())
+
+	// Create state with env=dev label
+	gridctlPath := getGridctlPath(t)
+	createCmd := exec.CommandContext(ctx, gridctlPath,
+		"state", "create", logicID,
+		"--label", "env=dev",
+		"--server", serverURL,
+		"--token", userTokenResp.AccessToken)
+	output, err := createCmd.CombinedOutput()
+	require.NoError(t, err, "Failed to create state: %s", string(output))
+
+	// Get schema file path
+	schemaPath, err := filepath.Abs(filepath.Join("testdata", "schema_vpc_id.json"))
+	require.NoError(t, err)
+
+	// Product engineer SHOULD be able to set schema on env=dev state
+	setSchemaCmd := exec.CommandContext(ctx, gridctlPath,
+		"state", "set-output-schema",
+		"--logic-id", logicID,
+		"--output-key", "vpc_id",
+		"--schema-file", schemaPath,
+		"--server", serverURL,
+		"--token", userTokenResp.AccessToken)
+	setOutput, err := setSchemaCmd.CombinedOutput()
+	require.NoError(t, err, "Product engineer should be able to set schema on env=dev state: %s", string(setOutput))
+	require.Contains(t, string(setOutput), "Set schema for output 'vpc_id'")
+	t.Log("✓ Product engineer can set output schema on env=dev state")
+
+	// Product engineer SHOULD be able to get schema from env=dev state
+	getSchemaCmd := exec.CommandContext(ctx, gridctlPath,
+		"state", "get-output-schema",
+		"--logic-id", logicID,
+		"--output-key", "vpc_id",
+		"--server", serverURL,
+		"--token", userTokenResp.AccessToken)
+	getOutput, err := getSchemaCmd.CombinedOutput()
+	require.NoError(t, err, "Product engineer should be able to get schema from env=dev state: %s", string(getOutput))
+	
+	// Verify schema content
+	schemaBytes, err := os.ReadFile(schemaPath)
+	require.NoError(t, err)
+	
+	var expectedSchema, actualSchema map[string]interface{}
+	err = json.Unmarshal(schemaBytes, &expectedSchema)
+	require.NoError(t, err)
+	err = json.Unmarshal(getOutput, &actualSchema)
+	require.NoError(t, err)
+	require.Equal(t, expectedSchema, actualSchema, "Retrieved schema should match")
+	t.Log("✓ Product engineer can get output schema from env=dev state")
+
+	// Now create env=prod state (using admin)
+	prodLogicID := fmt.Sprintf("test-schema-auth-prod-%d", time.Now().UnixNano())
+	createProdCmd := exec.CommandContext(ctx, gridctlPath,
+		"state", "create", prodLogicID,
+		"--label", "env=prod",
+		"--server", serverURL,
+		"--token", adminTokenResp.AccessToken)
+	prodOutput, err := createProdCmd.CombinedOutput()
+	require.NoError(t, err, "Admin should be able to create env=prod state: %s", string(prodOutput))
+
+	// Admin sets schema on env=prod state
+	setProdSchemaCmd := exec.CommandContext(ctx, gridctlPath,
+		"state", "set-output-schema",
+		"--logic-id", prodLogicID,
+		"--output-key", "vpc_id",
+		"--schema-file", schemaPath,
+		"--server", serverURL,
+		"--token", adminTokenResp.AccessToken)
+	setProdOutput, err := setProdSchemaCmd.CombinedOutput()
+	require.NoError(t, err, "Admin should be able to set schema on env=prod state: %s", string(setProdOutput))
+
+	// Product engineer should NOT be able to write schema to env=prod state
+	setUnauthorizedCmd := exec.CommandContext(ctx, gridctlPath,
+		"state", "set-output-schema",
+		"--logic-id", prodLogicID,
+		"--output-key", "vpc_cidr",
+		"--schema-file", schemaPath,
+		"--server", serverURL,
+		"--token", userTokenResp.AccessToken)
+	setUnauthorizedOutput, err := setUnauthorizedCmd.CombinedOutput()
+	require.Error(t, err, "Product engineer should NOT be able to set schema on env=prod state")
+	t.Logf("Expected error output: %s", string(setUnauthorizedOutput))
+	t.Log("✓ Product engineer correctly denied write access to env=prod state schema")
+
+	// Product engineer should NOT be able to read schema from env=prod state
+	getUnauthorizedCmd := exec.CommandContext(ctx, gridctlPath,
+		"state", "get-output-schema",
+		"--logic-id", prodLogicID,
+		"--output-key", "vpc_id",
+		"--server", serverURL,
+		"--token", userTokenResp.AccessToken)
+	getUnauthorizedOutput, err := getUnauthorizedCmd.CombinedOutput()
+	require.Error(t, err, "Product engineer should NOT be able to get schema from env=prod state")
+	t.Logf("Expected error output: %s", string(getUnauthorizedOutput))
+	t.Log("✓ Product engineer correctly denied read access to env=prod state schema")
+
+	t.Log("✓ Output schema authorization tests complete!")
+}

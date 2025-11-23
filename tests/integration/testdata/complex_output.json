@@ -1,0 +1,29 @@
+{
+  "version": 4,
+  "terraform_version": "1.5.0",
+  "serial": 1,
+  "lineage": "test-lineage-complex",
+  "outputs": {
+    "network_config": {
+      "value": {
+        "vpc_id": "vpc-complex123",
+        "cidr": "10.0.0.0/16",
+        "enable_dns": true,
+        "subnets": [
+          {"id": "subnet-1", "az": "us-east-1a"},
+          {"id": "subnet-2", "az": "us-east-1b"}
+        ]
+      },
+      "type": ["object", {"cidr": "string", "enable_dns": "bool", "subnets": ["list", ["object", {"az": "string", "id": "string"}]], "vpc_id": "string"}]
+    },
+    "tags": {
+      "value": {
+        "Environment": "test",
+        "ManagedBy": "terraform",
+        "Project": "grid-integration"
+      },
+      "type": ["map", "string"]
+    }
+  },
+  "resources": []
+}

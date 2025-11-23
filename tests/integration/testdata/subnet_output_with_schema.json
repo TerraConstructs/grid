@@ -1,0 +1,17 @@
+{
+  "version": 4,
+  "terraform_version": "1.5.0",
+  "serial": 1,
+  "lineage": "test-lineage-subnet-schema",
+  "outputs": {
+    "subnet_ids": {
+      "value": ["subnet-111", "subnet-222", "subnet-333"],
+      "type": ["list", "string"]
+    },
+    "private_subnet_ids": {
+      "value": ["subnet-aaa", "subnet-bbb"],
+      "type": ["list", "string"]
+    }
+  },
+  "resources": []
+}
