@@ -383,20 +383,24 @@ func (s *Service) UpdateLabels(ctx context.Context, guid string, adds models.Lab
 }
 
 // GetStateInfo retrieves comprehensive state information including dependencies, dependents, and outputs.
-// This consolidates multiple data sources into a single response.
+// This consolidates multiple data sources into a single response using eager loading to avoid N+1 queries.
 func (s *Service) GetStateInfo(ctx context.Context, logicID, guid string) (*StateInfo, error) {
-	// Resolve state
-	var state *models.State
-	var err error
-	if logicID != "" {
-		state, err = s.repo.GetByLogicID(ctx, logicID)
-	} else if guid != "" {
-		state, err = s.repo.GetByGUID(ctx, guid)
-	} else {
+	// First resolve GUID if only logic_id provided
+	resolvedGUID := guid
+	if logicID != "" && guid == "" {
+		state, err := s.repo.GetByLogicID(ctx, logicID)
+		if err != nil {
+			return nil, fmt.Errorf("get state: %w", err)
+		}
+		resolvedGUID = state.GUID
+	} else if guid == "" {
 		return nil, fmt.Errorf("state reference required (logic_id or guid)")
 	}
+
+	// Fetch state with all related data in one query using eager loading
+	state, err := s.repo.GetByGUIDWithRelations(ctx, resolvedGUID, "Outputs", "IncomingEdges", "OutgoingEdges")
 	if err != nil {
-		return nil, fmt.Errorf("get state: %w", err)
+		return nil, fmt.Errorf("get state with relations: %w", err)
 	}
 
 	// Build state info
@@ -410,30 +414,34 @@ func (s *Service) GetStateInfo(ctx context.Context, logicID, guid string) (*Stat
 		Labels:        state.Labels,
 	}
 
-	// Get dependencies (incoming edges) if edge repository available
-	if s.edgeRepo != nil {
-		dependencies, err := s.edgeRepo.GetIncomingEdges(ctx, state.GUID)
-		if err == nil {
-			info.Dependencies = dependencies
+	// Convert eagerly loaded outputs to OutputKey slice
+	if state.Outputs != nil {
+		outputs := make([]repository.OutputKey, len(state.Outputs))
+		for i, out := range state.Outputs {
+			outputs[i] = repository.OutputKey{
+				Key:       out.OutputKey,
+				Sensitive: out.Sensitive,
+			}
 		}
-		// Ignore errors, just return empty dependencies
-	}
-
-	// Get dependents (outgoing edges) if edge repository available
-	if s.edgeRepo != nil {
-		dependents, err := s.edgeRepo.GetOutgoingEdges(ctx, state.GUID)
-		if err == nil {
-			info.Dependents = dependents
-		}
-		// Ignore errors, just return empty dependents
-	}
-
-	// Get outputs
-	outputs, err := s.GetOutputKeys(ctx, state.GUID)
-	if err == nil {
 		info.Outputs = outputs
 	}
-	// Ignore errors, just return empty outputs
+
+	// Convert eagerly loaded edges to models.Edge slices
+	if state.IncomingEdges != nil {
+		dependencies := make([]models.Edge, len(state.IncomingEdges))
+		for i, edge := range state.IncomingEdges {
+			dependencies[i] = *edge
+		}
+		info.Dependencies = dependencies
+	}
+
+	if state.OutgoingEdges != nil {
+		dependents := make([]models.Edge, len(state.OutgoingEdges))
+		for i, edge := range state.OutgoingEdges {
+			dependents[i] = *edge
+		}
+		info.Dependents = dependents
+	}
 
 	return info, nil
 }

@@ -360,6 +360,48 @@ func (r *BunStateRepository) GetByGUIDs(ctx context.Context, guids []string) (ma
 	return result, nil
 }
 
+// GetByGUIDWithRelations fetches a state with specified relations preloaded.
+// Relations can be: "Outputs", "IncomingEdges", "OutgoingEdges"
+// This allows flexible eager loading based on what data is needed.
+func (r *BunStateRepository) GetByGUIDWithRelations(ctx context.Context, guid string, relations ...string) (*models.State, error) {
+	state := new(models.State)
+	query := r.db.NewSelect().Model(state).Where("guid = ?", guid)
+
+	// Add each requested relation
+	for _, rel := range relations {
+		query = query.Relation(rel)
+	}
+
+	err := query.Scan(ctx)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, fmt.Errorf("state with guid '%s' not found", guid)
+		}
+		return nil, fmt.Errorf("query state with relations: %w", err)
+	}
+
+	return state, nil
+}
+
+// ListStatesWithOutputs returns all states with their outputs preloaded (avoids N+1).
+// This is useful for operations that need to display state summaries with output counts.
+func (r *BunStateRepository) ListStatesWithOutputs(ctx context.Context) ([]*models.State, error) {
+	var states []*models.State
+	err := r.db.NewSelect().
+		Model(&states).
+		Relation("Outputs").
+		Column("guid", "logic_id", "locked", "created_at", "updated_at", "labels").
+		ColumnExpr("length(state_content) AS size_bytes").
+		Order("created_at DESC").
+		Scan(ctx)
+
+	if err != nil {
+		return nil, fmt.Errorf("list states with outputs: %w", err)
+	}
+
+	return states, nil
+}
+
 func isDuplicateKeyError(err error) bool {
 	if err == nil {
 		return false

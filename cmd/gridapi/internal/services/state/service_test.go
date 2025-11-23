@@ -82,6 +82,22 @@ func (m *MockStateRepository) GetByGUIDs(ctx context.Context, guids []string) (m
 	return args.Get(0).(map[string]*models.State), args.Error(1)
 }
 
+func (m *MockStateRepository) GetByGUIDWithRelations(ctx context.Context, guid string, relations ...string) (*models.State, error) {
+	args := m.Called(ctx, guid, relations)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*models.State), args.Error(1)
+}
+
+func (m *MockStateRepository) ListStatesWithOutputs(ctx context.Context) ([]*models.State, error) {
+	args := m.Called(ctx)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).([]*models.State), args.Error(1)
+}
+
 // T015: Test StateService.CreateState with labels
 func TestStateService_CreateStateWithLabels(t *testing.T) {
 	t.Run("creates state with valid labels", func(t *testing.T) {
