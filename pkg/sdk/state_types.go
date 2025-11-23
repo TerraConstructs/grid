@@ -27,6 +27,7 @@ type State struct {
 }
 
 // StateSummary conveys lightweight information about a state returned by ListStates.
+// Optimized with count fields to eliminate N+1 queries for list rendering.
 type StateSummary struct {
 	GUID               string
 	LogicID            string
@@ -37,6 +38,11 @@ type StateSummary struct {
 	ComputedStatus     string
 	DependencyLogicIDs []string
 	Labels             LabelMap
+
+	// Count fields populated from backend (efficient for list rendering)
+	DependenciesCount int32
+	DependentsCount   int32
+	OutputsCount      int32
 }
 
 // LockInfo contains details about a Terraform state lock.
@@ -312,6 +318,9 @@ func stateSummaryFromProto(info *statev1.StateInfo) StateSummary {
 		SizeBytes:          info.GetSizeBytes(),
 		DependencyLogicIDs: append([]string(nil), info.DependencyLogicIds...),
 		Labels:             ConvertProtoLabels(info.GetLabels()),
+		DependenciesCount:  info.GetDependenciesCount(),
+		DependentsCount:    info.GetDependentsCount(),
+		OutputsCount:       info.GetOutputsCount(),
 	}
 	if info.CreatedAt != nil {
 		t := info.CreatedAt.AsTime()

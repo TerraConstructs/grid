@@ -23,6 +23,7 @@ type Client struct {
 type ListStatesOptions struct {
 	Filter        string
 	IncludeLabels *bool
+	IncludeStatus *bool // Whether to compute status for each state (default: true, expensive N+1 operation)
 }
 
 // UpdateStateLabelsInput describes label mutations for UpdateStateLabels.
@@ -116,6 +117,9 @@ func (c *Client) ListStatesWithOptions(ctx context.Context, opts ListStatesOptio
 	}
 	if opts.IncludeLabels != nil {
 		req.Msg.IncludeLabels = opts.IncludeLabels
+	}
+	if opts.IncludeStatus != nil {
+		req.Msg.IncludeStatus = opts.IncludeStatus
 	}
 
 	resp, err := c.rpc.ListStates(ctx, req)
