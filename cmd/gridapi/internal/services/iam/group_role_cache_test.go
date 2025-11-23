@@ -229,7 +229,7 @@ func TestGroupRoleCache_Refresh(t *testing.T) {
 	}
 
 	// Add new group-role mapping
-	groupRoleRepo.Create(context.Background(), &models.GroupRole{
+	_ = groupRoleRepo.Create(context.Background(), &models.GroupRole{
 		ID:         "gr-4",
 		GroupName:  "admins",
 		RoleID:     "role-1",
@@ -401,7 +401,7 @@ func TestGroupRoleCache_Concurrent(t *testing.T) {
 			time.Sleep(10 * time.Millisecond)
 
 			// Add a new mapping
-			groupRoleRepo.Create(context.Background(), &models.GroupRole{
+			_ = groupRoleRepo.Create(context.Background(), &models.GroupRole{
 				ID:         "gr-dynamic-" + time.Now().String(),
 				GroupName:  "dynamic-group",
 				RoleID:     "role-1",

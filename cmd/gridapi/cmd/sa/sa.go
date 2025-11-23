@@ -19,4 +19,6 @@ func init() {
 	createCmd.Flags().StringSliceVar(&rolesInput, "role", []string{}, "Role(s) to assign to the service account")
 	SaCmd.AddCommand(assignCmd)
 	assignCmd.Flags().StringSliceVar(&rolesInput, "role", []string{}, "Role(s) to assign to the service account")
+	SaCmd.AddCommand(unassignCmd)
+	unassignCmd.Flags().StringSliceVar(&rolesInput, "role", []string{}, "Role(s) to unassign from the service account")
 }

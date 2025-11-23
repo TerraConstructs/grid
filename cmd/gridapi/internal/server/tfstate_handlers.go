@@ -62,13 +62,13 @@ func (h *TerraformHandlers) GetState(w http.ResponseWriter, r *http.Request) {
 		emptyState := []byte(`{"version":4,"terraform_version":"","serial":0,"lineage":"","outputs":null,"resources":null}`)
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
-		w.Write(emptyState)
+		_, _ = w.Write(emptyState)
 		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	w.Write(state.StateContent)
+	_, _ = w.Write(state.StateContent)
 }
 
 // UpdateState handles POST /tfstate/{guid} - update state content
@@ -194,7 +194,7 @@ func (h *TerraformHandlers) LockState(w http.ResponseWriter, r *http.Request) {
 			if lockErr == nil && currentLock != nil {
 				w.Header().Set("Content-Type", "application/json")
 				w.WriteHeader(http.StatusLocked)
-				json.NewEncoder(w).Encode(currentLock)
+				_ = json.NewEncoder(w).Encode(currentLock)
 			} else {
 				http.Error(w, fmt.Sprintf("state is already locked: %v", err), http.StatusLocked)
 			}

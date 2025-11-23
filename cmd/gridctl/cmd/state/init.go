@@ -97,7 +97,7 @@ If logic-id is not provided, the .grid context will be used (if available).`,
 		if err != nil {
 			return fmt.Errorf("failed to create file: %w", err)
 		}
-		defer f.Close()
+		defer func() { _ = f.Close() }()
 
 		data := struct {
 			Address       string

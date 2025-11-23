@@ -338,7 +338,9 @@ func (s *providerStorage) CreateAccessAndRefreshTokens(ctx context.Context, requ
 		s.mu.Lock()
 		if rt, ok := s.refreshTokens[currentRefreshToken]; ok {
 			delete(s.refreshTokens, currentRefreshToken)
-			go s.revokeSessionByJTI(context.Background(), rt.AccessToken) // rt.AccessToken holds the JTI
+			go func() {
+				_ = s.revokeSessionByJTI(context.Background(), rt.AccessToken) // rt.AccessToken holds the JTI
+			}()
 		}
 		s.mu.Unlock()
 	}
@@ -401,15 +403,16 @@ func (s *providerStorage) RevokeToken(ctx context.Context, tokenOrID string, use
 			return oidc.ErrInvalidClient().WithDescription("token belongs to another client")
 		}
 		delete(s.refreshTokens, tokenOrID)
-		go s.revokeSessionByJTI(context.Background(), rt.AccessToken)
+		go func() {
+			_ = s.revokeSessionByJTI(context.Background(), rt.AccessToken)
+		}()
 		s.mu.Unlock()
 		return nil
 	}
 	s.mu.Unlock()
 
-	if err := s.revokeSessionByJTI(ctx, tokenOrID); err != nil {
-		// Log the error, but don't necessarily return an OIDC error unless the spec requires it.
-	}
+	// Attempt to revoke session by JTI (best effort, ignore errors)
+	_ = s.revokeSessionByJTI(ctx, tokenOrID)
 
 	return nil
 }

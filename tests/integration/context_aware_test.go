@@ -34,7 +34,7 @@ func TestDirectoryContextCreation(t *testing.T) {
 	// Change to temp directory
 	originalDir, err := os.Getwd()
 	require.NoError(t, err)
-	defer os.Chdir(originalDir)
+	defer func() { _ = os.Chdir(originalDir) }()
 
 	err = os.Chdir(tempDir)
 	require.NoError(t, err)
@@ -175,7 +175,7 @@ func TestContextAwareDepsAdd(t *testing.T) {
 	// Change to consumer directory
 	originalDir, err := os.Getwd()
 	require.NoError(t, err)
-	defer os.Chdir(originalDir)
+	defer func() { _ = os.Chdir(originalDir) }()
 
 	err = os.Chdir(consumerDir)
 	require.NoError(t, err)
@@ -625,7 +625,7 @@ func TestCorruptedGridFile(t *testing.T) {
 
 	originalDir, err := os.Getwd()
 	require.NoError(t, err)
-	defer os.Chdir(originalDir)
+	defer func() { _ = os.Chdir(originalDir) }()
 
 	err = os.Chdir(tempDir)
 	require.NoError(t, err)

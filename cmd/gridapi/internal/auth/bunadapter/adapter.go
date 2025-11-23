@@ -46,7 +46,7 @@ func (a *Adapter) LoadPolicy(model model.Model) error {
 		if lastNonEmpty == -1 {
 			continue // skip empty rule
 		}
-		model.AddPolicy(r.Ptype, r.Ptype, values[:lastNonEmpty+1])
+		_ = model.AddPolicy(r.Ptype, r.Ptype, values[:lastNonEmpty+1])
 	}
 
 	a.filtered = false
@@ -175,11 +175,11 @@ func (a *Adapter) LoadFilteredPolicy(model model.Model, filter any) error {
 	}
 
 	for _, line := range policies {
-		persist.LoadPolicyLine(line.String(), model)
+		_ = persist.LoadPolicyLine(line.String(), model)
 	}
 
 	for _, line := range groupings {
-		persist.LoadPolicyLine(line.String(), model)
+		_ = persist.LoadPolicyLine(line.String(), model)
 	}
 
 	a.filtered = true
@@ -222,7 +222,7 @@ func (a *Adapter) UpdatePolicies(_ string, ptype string, oldRules, newRules [][]
 		line.QueryWhereGroup(qb)
 		_, err = q.Exec(context.Background())
 		if err != nil {
-			tx.Rollback()
+			_ = tx.Rollback()
 
 			return err
 		}

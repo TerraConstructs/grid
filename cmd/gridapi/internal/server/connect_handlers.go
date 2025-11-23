@@ -9,6 +9,7 @@ import (
 	"connectrpc.com/connect"
 	statev1 "github.com/terraconstructs/grid/api/state/v1"
 	"github.com/terraconstructs/grid/api/state/v1/statev1connect"
+	"github.com/terraconstructs/grid/cmd/gridapi/internal/auth"
 	"github.com/terraconstructs/grid/cmd/gridapi/internal/config"
 	"github.com/terraconstructs/grid/cmd/gridapi/internal/db/models"
 	gridmiddleware "github.com/terraconstructs/grid/cmd/gridapi/internal/middleware"
@@ -79,6 +80,7 @@ func (h *StateServiceHandler) CreateState(
 
 // ListStates returns all states with summary information.
 // T038: Updated to support filter parameter and include_labels toggle (FR-020a).
+// States are filtered based on the user's role label scopes to ensure users only see states they have access to.
 func (h *StateServiceHandler) ListStates(
 	ctx context.Context,
 	req *connect.Request[statev1.ListStatesRequest],
@@ -108,8 +110,15 @@ func (h *StateServiceHandler) ListStates(
 		return nil, mapServiceError(err)
 	}
 
-	infos := make([]*statev1.StateInfo, 0, len(summaries))
-	for _, summary := range summaries {
+	// Filter states based on user's role label scopes
+	// This ensures users only see states they have access to
+	filteredSummaries, err := h.filterStatesByRoleScopes(ctx, summaries)
+	if err != nil {
+		return nil, mapServiceError(err)
+	}
+
+	infos := make([]*statev1.StateInfo, 0, len(filteredSummaries))
+	for _, summary := range filteredSummaries {
 		info := summaryToProto(summary)
 
 		// Add labels if requested
@@ -373,6 +382,77 @@ func (h *StateServiceHandler) SetLabelPolicy(
 	}
 
 	return connect.NewResponse(resp), nil
+}
+
+// Helper functions for state filtering and label value conversion
+
+// filterStatesByRoleScopes filters states based on the user's role label scopes.
+// For each state, it checks if the state's labels match ANY of the user's role scopes.
+// Platform engineers (with no label scope constraints) see all states.
+// Product engineers (with env=="dev" scope) only see states with env=dev labels.
+// In no-auth mode (no principal), all states are returned.
+func (h *StateServiceHandler) filterStatesByRoleScopes(ctx context.Context, summaries []statepkg.StateSummary) ([]statepkg.StateSummary, error) {
+	// Get principal from context
+	principal, ok := auth.GetUserFromContext(ctx)
+	if !ok {
+		// No principal - this means auth is disabled (no-auth mode)
+		// Return all states without filtering
+		return summaries, nil
+	}
+
+	// If IAM service not available, return all states (backwards compatibility)
+	if h.iamService == nil {
+		return summaries, nil
+	}
+
+	// Get role scopes from the user's roles
+	// We need to extract the role names from the Casbin role identifiers (e.g., "role:platform-engineer")
+	roleScopes := make([]string, 0, len(principal.Roles))
+	for _, casbinRole := range principal.Roles {
+		roleName, err := auth.ExtractRoleID(casbinRole)
+		if err != nil {
+			continue // Skip invalid role format
+		}
+
+		role, err := h.iamService.GetRoleByName(ctx, roleName)
+		if err != nil {
+			continue // Skip roles that don't exist
+		}
+
+		roleScopes = append(roleScopes, role.ScopeExpr)
+	}
+
+	// If user has no roles or couldn't fetch any, return all states
+	// This handles edge cases where role lookup fails
+	if len(roleScopes) == 0 {
+		return summaries, nil
+	}
+
+	// Filter states based on role scopes
+	filtered := make([]statepkg.StateSummary, 0, len(summaries))
+	for _, summary := range summaries {
+		// Check if state matches ANY of the user's role scopes
+		matchesAnyScope := false
+		for _, scopeExpr := range roleScopes {
+			// Empty scope expression means no constraint (matches all states)
+			if strings.TrimSpace(scopeExpr) == "" {
+				matchesAnyScope = true
+				break
+			}
+
+			// Evaluate bexpr against state labels
+			if auth.EvaluateBexpr(scopeExpr, summary.Labels) {
+				matchesAnyScope = true
+				break
+			}
+		}
+
+		if matchesAnyScope {
+			filtered = append(filtered, summary)
+		}
+	}
+
+	return filtered, nil
 }
 
 // Helper functions for label value conversion

@@ -141,7 +141,7 @@ func runTfCommand(cmd *cobra.Command, args []string) error {
 		if err := os.WriteFile("backend.tf", []byte("terraform {\n  backend \"http\" {}\n}"), 0644); err != nil {
 			return fmt.Errorf("failed to write temporary backend.tf: %w", err)
 		}
-		defer os.Remove("backend.tf")
+		defer func() { _ = os.Remove("backend.tf") }()
 	}
 
 	// ignore error, wrapper will handle missing creds
@@ -165,17 +165,6 @@ func runTfCommand(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("failed to run terraform command: %w", err)
 	}
 	return nil
-}
-
-func sdkCredentials() (*sdk.Credentials, error) {
-	if clientProvider == nil {
-		return nil, fmt.Errorf("client provider not configured")
-	}
-	creds, err := clientProvider.Credentials()
-	if err != nil {
-		return nil, err
-	}
-	return creds, nil
 }
 
 func sdkClient(ctx context.Context) (*sdk.Client, error) {

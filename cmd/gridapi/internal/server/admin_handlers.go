@@ -54,7 +54,7 @@ func HandleCacheRefresh(iamService iamAdminService) http.HandlerFunc {
 
 		// Return success response
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(map[string]interface{}{
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{
 			"status":    "success",
 			"version":   snapshot.Version,
 			"groups":    len(snapshot.Mappings),

@@ -186,6 +186,7 @@ type UserResponse struct {
 	Email    string   `json:"email"`
 	AuthType string   `json:"auth_type"`
 	Roles    []string `json:"roles"`
+	Groups   []string `json:"groups,omitempty"` // Group memberships (external IdP only)
 }
 
 // LoginResponse represents the response from POST /auth/login
@@ -283,6 +284,7 @@ func HandleInternalLogin(iamService iamAdminService) http.HandlerFunc {
 				Email:    user.Email,
 				AuthType: "internal",
 				Roles:    roles,
+				Groups:   []string{}, // Internal IdP users don't have groups
 			},
 			ExpiresAt: expiresAt.UnixMilli(),
 		}
@@ -328,8 +330,18 @@ func HandleWhoAmI(iamService iamAdminService) http.HandlerFunc {
 			authType = "external"
 		}
 
-		// Resolve roles via IAM service (roles already resolved in principal, but we recompute for freshness)
-		roles, err := iamService.ResolveRoles(ctx, user.ID, []string{}, true /* isUser */)
+		// Extract groups from session ID token (for external IdP users)
+		// This is critical for group→role mapping to work correctly
+		groups, err := auth.ExtractGroupsFromIDToken(session.IDToken)
+		if err != nil {
+			// Failed to extract groups, continue with empty groups
+			// This is not a fatal error - user may have no groups
+			groups = []string{}
+		}
+
+		// Resolve roles via IAM service with groups
+		// For external IdP users, this uses the group→role cache to map groups to roles
+		roles, err := iamService.ResolveRoles(ctx, user.ID, groups, true /* isUser */)
 		if err != nil {
 			roles = []string{}
 		}
@@ -343,6 +355,7 @@ func HandleWhoAmI(iamService iamAdminService) http.HandlerFunc {
 				Email:    user.Email,
 				AuthType: authType,
 				Roles:    roles,
+				Groups:   groups,
 			},
 			Session: SessionResponse{
 				ID:        session.ID,

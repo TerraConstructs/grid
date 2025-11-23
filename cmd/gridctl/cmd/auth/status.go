@@ -51,13 +51,13 @@ var statusCmd = &cobra.Command{
 
 		pterm.DefaultSection.Println("Effective Permissions")
 		w := tabwriter.NewWriter(os.Stdout, 0, 4, 2, ' ', 0)
-		fmt.Fprintln(w, "ROLES\tACTIONS\tSCOPE EXPRESSIONS")
-		fmt.Fprintf(w, "%s\t%s\t%s\n",
+		_, _ = fmt.Fprintln(w, "ROLES\tACTIONS\tSCOPE EXPRESSIONS")
+		_, _ = fmt.Fprintf(w, "%s\t%s\t%s\n",
 			strings.Join(result.Permissions.Roles, ", "),
 			strings.Join(result.Permissions.Actions, ", "),
 			strings.Join(result.Permissions.LabelScopeExprs, ", "),
 		)
-		w.Flush()
+		_ = w.Flush()
 
 		return nil
 	},

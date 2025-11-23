@@ -69,7 +69,7 @@ Status can be:
 
 		fmt.Println("\nIncoming edge details:")
 		w := tabwriter.NewWriter(os.Stdout, 0, 4, 2, ' ', 0)
-		fmt.Fprintln(w, "EDGE_ID\tFROM_STATE\tOUTPUT\tSTATUS\tPRODUCER_DIGEST\tCONSUMER_DIGEST\tLAST_PRODUCED\tLAST_CONSUMED")
+		_, _ = fmt.Fprintln(w, "EDGE_ID\tFROM_STATE\tOUTPUT\tSTATUS\tPRODUCER_DIGEST\tCONSUMER_DIGEST\tLAST_PRODUCED\tLAST_CONSUMED")
 		for _, edge := range status.Incoming {
 			producerDigest := "-"
 			if edge.InDigest != "" {
@@ -87,7 +87,7 @@ Status can be:
 			if edge.LastConsumedAt != nil {
 				lastConsumed = edge.LastConsumedAt.UTC().Format(time.RFC3339)
 			}
-			fmt.Fprintf(w, "%d\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n",
+			_, _ = fmt.Fprintf(w, "%d\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n",
 				edge.ID,
 				edge.From.LogicID,
 				edge.FromOutput,
@@ -98,7 +98,7 @@ Status can be:
 				lastConsumed,
 			)
 		}
-		w.Flush()
+		_ = w.Flush()
 		return nil
 	},
 }

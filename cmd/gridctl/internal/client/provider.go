@@ -183,7 +183,7 @@ func (p *Provider) oidcStatus(ctx context.Context) (bool, error) {
 			p.oidcErr = fmt.Errorf("health request failed: %w", err)
 			return
 		}
-		defer resp.Body.Close()
+		defer func() { _ = resp.Body.Close() }()
 
 		if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 			p.oidcErr = fmt.Errorf("health endpoint returned %s", resp.Status)
