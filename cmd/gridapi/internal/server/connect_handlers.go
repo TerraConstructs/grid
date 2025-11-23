@@ -97,6 +97,13 @@ func (h *StateServiceHandler) ListStates(
 		includeLabels = *req.Msg.IncludeLabels
 	}
 
+	// TODO: After regenerating proto with buf generate, uncomment this
+	// Determine if status should be computed (default: false to avoid N+1 queries)
+	includeStatus := false
+	// if req.Msg.IncludeStatus != nil {
+	// 	includeStatus = *req.Msg.IncludeStatus
+	// }
+
 	// Get states - use ListWithFilter if filter provided
 	var summaries []statepkg.StateSummary
 	var err error
@@ -129,8 +136,9 @@ func (h *StateServiceHandler) ListStates(
 			}
 		}
 
-		// Populate computed_status and dependency_logic_ids if dependency service is available
-		if h.depService != nil {
+		// Populate computed_status and dependency_logic_ids ONLY if explicitly requested
+		// (avoids N+1 queries for status computation)
+		if includeStatus && h.depService != nil {
 			status, err := h.depService.GetStateStatus(ctx, summary.LogicID, "")
 			if err == nil && status != nil {
 				info.ComputedStatus = &status.Status

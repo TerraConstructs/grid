@@ -172,6 +172,16 @@ func (s *Service) GetStateByGUID(ctx context.Context, guid string) (*models.Stat
 	return record, nil
 }
 
+// GetStatesByGUIDs retrieves multiple states by their GUIDs in a single query (batch operation).
+// Returns a map of GUID -> State for efficient lookup. Missing GUIDs are omitted from result.
+func (s *Service) GetStatesByGUIDs(ctx context.Context, guids []string) (map[string]*models.State, error) {
+	stateMap, err := s.repo.GetByGUIDs(ctx, guids)
+	if err != nil {
+		return nil, fmt.Errorf("batch get states by GUIDs: %w", err)
+	}
+	return stateMap, nil
+}
+
 // GetEdgeByID retrieves an edge by ID for authorization checks
 func (s *Service) GetEdgeByID(ctx context.Context, edgeID int64) (*models.Edge, error) {
 	edge, err := s.edgeRepo.GetByID(ctx, edgeID)

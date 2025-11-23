@@ -286,21 +286,17 @@ func (h *StateServiceHandler) GetDependencyGraph(
 		return nil, mapServiceError(err)
 	}
 
-	// Convert producers
+	// Convert producers - compute backend configs inline (avoids N+1 GetStateConfig calls)
 	protoProducers := make([]*statev1.ProducerState, 0, len(graph.Producers))
 	for _, producer := range graph.Producers {
-		_, config, err := h.service.GetStateConfig(ctx, producer.LogicID)
-		if err != nil {
-			continue // Skip if can't get config
-		}
-
+		// Compute backend URLs directly using GUID (avoids extra DB query per producer)
 		protoProducers = append(protoProducers, &statev1.ProducerState{
 			Guid:    producer.GUID,
 			LogicId: producer.LogicID,
 			BackendConfig: &statev1.BackendConfig{
-				Address:       config.Address,
-				LockAddress:   config.LockAddress,
-				UnlockAddress: config.UnlockAddress,
+				Address:       fmt.Sprintf("%s/tfstate/%s", h.cfg.ServerURL, producer.GUID),
+				LockAddress:   fmt.Sprintf("%s/tfstate/%s/lock", h.cfg.ServerURL, producer.GUID),
+				UnlockAddress: fmt.Sprintf("%s/tfstate/%s/unlock", h.cfg.ServerURL, producer.GUID),
 			},
 		})
 	}
@@ -323,11 +319,32 @@ func (h *StateServiceHandler) GetDependencyGraph(
 
 // Helper function to convert edges to proto
 func (h *StateServiceHandler) edgesToProto(ctx context.Context, edges []models.Edge) ([]*statev1.DependencyEdge, error) {
-	protoEdges := make([]*statev1.DependencyEdge, 0, len(edges))
-	cache := make(map[string]*models.State)
+	if len(edges) == 0 {
+		return []*statev1.DependencyEdge{}, nil
+	}
 
+	// Collect all unique GUIDs from edges (both from_state and to_state)
+	guidSet := make(map[string]struct{})
 	for i := range edges {
-		protoEdge, err := h.edgeToProto(ctx, &edges[i], cache)
+		guidSet[edges[i].FromState] = struct{}{}
+		guidSet[edges[i].ToState] = struct{}{}
+	}
+
+	// Batch fetch all states at once (avoids N+1 queries)
+	guids := make([]string, 0, len(guidSet))
+	for guid := range guidSet {
+		guids = append(guids, guid)
+	}
+
+	stateMap, err := h.service.GetStatesByGUIDs(ctx, guids)
+	if err != nil {
+		return nil, fmt.Errorf("batch fetch states for edges: %w", err)
+	}
+
+	// Convert edges using pre-fetched states
+	protoEdges := make([]*statev1.DependencyEdge, 0, len(edges))
+	for i := range edges {
+		protoEdge, err := h.edgeToProtoWithCache(ctx, &edges[i], stateMap)
 		if err != nil {
 			return nil, err
 		}
@@ -337,18 +354,19 @@ func (h *StateServiceHandler) edgesToProto(ctx context.Context, edges []models.E
 	return protoEdges, nil
 }
 
-func (h *StateServiceHandler) edgeToProto(ctx context.Context, edge *models.Edge, cache map[string]*models.State) (*statev1.DependencyEdge, error) {
+func (h *StateServiceHandler) edgeToProtoWithCache(ctx context.Context, edge *models.Edge, cache map[string]*models.State) (*statev1.DependencyEdge, error) {
 	if cache == nil {
 		cache = make(map[string]*models.State)
 	}
 
-	fromState, err := h.stateByGUID(ctx, edge.FromState, cache)
-	if err != nil {
-		return nil, err
+	fromState := cache[edge.FromState]
+	if fromState == nil {
+		return nil, fmt.Errorf("from_state %s not found in cache", edge.FromState)
 	}
-	toState, err := h.stateByGUID(ctx, edge.ToState, cache)
-	if err != nil {
-		return nil, err
+
+	toState := cache[edge.ToState]
+	if toState == nil {
+		return nil, fmt.Errorf("to_state %s not found in cache", edge.ToState)
 	}
 
 	protoEdge := &statev1.DependencyEdge{
@@ -394,6 +412,24 @@ func (h *StateServiceHandler) edgeToProto(ctx context.Context, edge *models.Edge
 	}
 
 	return protoEdge, nil
+}
+
+// edgeToProto converts a single edge to proto (legacy wrapper for compatibility)
+// For batch operations, use edgesToProto instead which avoids N+1 queries
+func (h *StateServiceHandler) edgeToProto(ctx context.Context, edge *models.Edge, cache map[string]*models.State) (*statev1.DependencyEdge, error) {
+	// If cache is provided and populated, use it
+	if cache != nil && len(cache) > 0 {
+		return h.edgeToProtoWithCache(ctx, edge, cache)
+	}
+
+	// Otherwise, fetch the states we need
+	guids := []string{edge.FromState, edge.ToState}
+	stateMap, err := h.service.GetStatesByGUIDs(ctx, guids)
+	if err != nil {
+		return nil, fmt.Errorf("fetch states for edge: %w", err)
+	}
+
+	return h.edgeToProtoWithCache(ctx, edge, stateMap)
 }
 
 func (h *StateServiceHandler) stateByGUID(ctx context.Context, guid string, cache map[string]*models.State) (*models.State, error) {
