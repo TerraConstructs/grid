@@ -65,6 +65,7 @@ export const GridEdge = memo(({
           strokeWidth: isHovered ? 3 : 2,
           opacity: isHovered ? 1 : 0.7,
         }}
+        data-testid={`graph-edge-${id}`}
       />
 
       {/* Invisible wider path for easier hover detection */}
@@ -76,6 +77,7 @@ export const GridEdge = memo(({
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
         className="cursor-pointer"
+        data-testid={`graph-edge-hover-${id}`}
       />
 
       {/* Tooltip */}
