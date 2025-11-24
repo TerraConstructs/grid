@@ -418,7 +418,7 @@ func (h *StateServiceHandler) edgeToProtoWithCache(ctx context.Context, edge *mo
 // For batch operations, use edgesToProto instead which avoids N+1 queries
 func (h *StateServiceHandler) edgeToProto(ctx context.Context, edge *models.Edge, cache map[string]*models.State) (*statev1.DependencyEdge, error) {
 	// If cache is provided and populated, use it
-	if cache != nil && len(cache) > 0 {
+	if len(cache) > 0 {
 		return h.edgeToProtoWithCache(ctx, edge, cache)
 	}
 
@@ -430,25 +430,6 @@ func (h *StateServiceHandler) edgeToProto(ctx context.Context, edge *models.Edge
 	}
 
 	return h.edgeToProtoWithCache(ctx, edge, stateMap)
-}
-
-func (h *StateServiceHandler) stateByGUID(ctx context.Context, guid string, cache map[string]*models.State) (*models.State, error) {
-	if guid == "" {
-		return nil, nil
-	}
-	if state, ok := cache[guid]; ok {
-		return state, nil
-	}
-
-	state, err := h.service.GetStateByGUID(ctx, guid)
-	if err != nil {
-		if isNotFoundError(err) {
-			return nil, nil
-		}
-		return nil, err
-	}
-	cache[guid] = state
-	return state, nil
 }
 
 // ListStateOutputs returns cached output keys with sensitive flags for a state.
