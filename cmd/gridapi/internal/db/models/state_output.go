@@ -17,4 +17,7 @@ type StateOutput struct {
 	StateSerial int64     `bun:"state_serial,notnull"`
 	CreatedAt   time.Time `bun:"created_at,notnull,default:current_timestamp"`
 	UpdatedAt   time.Time `bun:"updated_at,notnull,default:current_timestamp"`
+
+	// Relationships for eager loading (populated only when using Relation())
+	State *State `bun:"rel:belongs-to,join:state_guid=guid"`
 }

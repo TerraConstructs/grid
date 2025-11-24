@@ -174,14 +174,21 @@ func (r *BunStateRepository) UpdateContentAndUpsertOutputs(ctx context.Context, 
 	})
 }
 
-// List returns all states ordered from newest to oldest.
+// List returns all states ordered from newest to oldest with relationship counts.
+// Uses efficient COUNT subqueries to populate dependencies_count, dependents_count, outputs_count
+// without fetching full relationship data (eliminates N+1 pattern for StateInfo rendering).
 func (r *BunStateRepository) List(ctx context.Context) ([]models.State, error) {
 	var states []models.State
 	if err := r.db.NewSelect().
 		Model(&states).
-		Column("guid", "logic_id", "locked", "created_at", "updated_at", "labels").
-		ColumnExpr("length(state_content) AS size_bytes").
-		Order("created_at DESC").
+		ModelTableExpr("states AS s").
+		Column("s.guid", "s.logic_id", "s.locked", "s.created_at", "s.updated_at", "s.labels").
+		ColumnExpr("length(s.state_content) AS size_bytes").
+		// Efficient COUNT subqueries using correlated subqueries
+		ColumnExpr("(SELECT COUNT(*) FROM edges WHERE to_state = s.guid) AS dependencies_count").
+		ColumnExpr("(SELECT COUNT(*) FROM edges WHERE from_state = s.guid) AS dependents_count").
+		ColumnExpr("(SELECT COUNT(*) FROM state_outputs WHERE state_guid = s.guid) AS outputs_count").
+		Order("s.created_at DESC").
 		Scan(ctx); err != nil {
 		return nil, fmt.Errorf("list states: %w", err)
 	}
@@ -254,8 +261,9 @@ func (r *BunStateRepository) Unlock(ctx context.Context, guid string, lockID str
 	return nil
 }
 
-// ListWithFilter returns states matching bexpr filter with deterministic label ordering.
+// ListWithFilter returns states matching bexpr filter with deterministic label ordering and counts.
 // T026: Implements in-memory bexpr filtering per data-model.md lines 360-411.
+// Includes efficient COUNT subqueries for relationship counts.
 func (r *BunStateRepository) ListWithFilter(ctx context.Context, filter string, pageSize int, offset int) ([]models.State, error) {
 	// 1. Fetch states from DB (over-fetch for in-memory filtering)
 	var states []models.State
@@ -268,6 +276,10 @@ func (r *BunStateRepository) ListWithFilter(ctx context.Context, filter string, 
 		Model(&states).
 		Column("guid", "logic_id", "locked", "created_at", "updated_at", "labels").
 		ColumnExpr("length(state_content) AS size_bytes").
+		// Efficient COUNT subqueries using correlated subqueries
+		ColumnExpr("(SELECT COUNT(*) FROM edges WHERE to_state = s.guid) AS dependencies_count").
+		ColumnExpr("(SELECT COUNT(*) FROM edges WHERE from_state = s.guid) AS dependents_count").
+		ColumnExpr("(SELECT COUNT(*) FROM state_outputs WHERE state_guid = s.guid) AS outputs_count").
 		Order("updated_at DESC").
 		Limit(fetchSize).
 		Offset(offset).
@@ -333,6 +345,73 @@ func sortLabels(state *models.State) {
 	// but this prepares the data for serialization where order matters)
 	// The actual sorting enforcement happens in the service/handler layer
 	// when converting to proto messages
+}
+
+// GetByGUIDs fetches multiple states by GUIDs in a single query (batch operation).
+// Returns a map of GUID -> State for efficient lookup. Missing GUIDs are omitted from result.
+func (r *BunStateRepository) GetByGUIDs(ctx context.Context, guids []string) (map[string]*models.State, error) {
+	if len(guids) == 0 {
+		return make(map[string]*models.State), nil
+	}
+
+	var states []*models.State
+	err := r.db.NewSelect().
+		Model(&states).
+		Where("guid IN (?)", bun.In(guids)).
+		Scan(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("batch fetch states: %w", err)
+	}
+
+	// Build map for efficient lookup
+	result := make(map[string]*models.State, len(states))
+	for _, state := range states {
+		result[state.GUID] = state
+	}
+
+	return result, nil
+}
+
+// GetByGUIDWithRelations fetches a state with specified relations preloaded.
+// Relations can be: "Outputs", "IncomingEdges", "OutgoingEdges"
+// This allows flexible eager loading based on what data is needed.
+func (r *BunStateRepository) GetByGUIDWithRelations(ctx context.Context, guid string, relations ...string) (*models.State, error) {
+	state := new(models.State)
+	query := r.db.NewSelect().Model(state).Where("guid = ?", guid)
+
+	// Add each requested relation
+	for _, rel := range relations {
+		query = query.Relation(rel)
+	}
+
+	err := query.Scan(ctx)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, fmt.Errorf("state with guid '%s' not found", guid)
+		}
+		return nil, fmt.Errorf("query state with relations: %w", err)
+	}
+
+	return state, nil
+}
+
+// ListStatesWithOutputs returns all states with their outputs preloaded (avoids N+1).
+// This is useful for operations that need to display state summaries with output counts.
+func (r *BunStateRepository) ListStatesWithOutputs(ctx context.Context) ([]*models.State, error) {
+	var states []*models.State
+	err := r.db.NewSelect().
+		Model(&states).
+		Relation("Outputs").
+		Column("guid", "logic_id", "locked", "created_at", "updated_at", "labels").
+		ColumnExpr("length(state_content) AS size_bytes").
+		Order("created_at DESC").
+		Scan(ctx)
+
+	if err != nil {
+		return nil, fmt.Errorf("list states with outputs: %w", err)
+	}
+
+	return states, nil
 }
 
 func isDuplicateKeyError(err error) bool {

@@ -100,27 +100,26 @@ func ComputeStateStatus(ctx context.Context, edgeRepo repository.EdgeRepository,
 		status = "potentially-stale" // Transitive upstream dirty
 	}
 
-	// Collect incoming edges with producer logic IDs
+	// Collect incoming edges with producer logic IDs (using eager loading to avoid N+1)
 	incoming := []IncomingEdgeView{}
 	summary := StatusSummary{}
 
-	incomingEdges, err := edgeRepo.GetIncomingEdges(ctx, stateGUID)
+	incomingEdges, err := edgeRepo.GetIncomingEdgesWithProducers(ctx, stateGUID)
 	if err != nil {
-		return nil, fmt.Errorf("get incoming edges: %w", err)
+		return nil, fmt.Errorf("get incoming edges with producers: %w", err)
 	}
 
 	for _, edge := range incomingEdges {
-		// Get producer state for logic_id
-		producerState, err := stateRepo.GetByGUID(ctx, edge.FromState)
-		if err != nil {
-			// If producer state not found, skip
+		// Producer state is already loaded via eager loading
+		if edge.FromStateRel == nil {
+			// Skip if producer state not found (shouldn't happen with proper FK constraints)
 			continue
 		}
 
 		view := IncomingEdgeView{
 			EdgeID:      edge.ID,
 			FromGUID:    edge.FromState,
-			FromLogicID: producerState.LogicID,
+			FromLogicID: edge.FromStateRel.LogicID,
 			FromOutput:  edge.FromOutput,
 			Status:      string(edge.Status),
 			InDigest:    edge.InDigest,

@@ -38,6 +38,10 @@ type Edge struct {
 	LastOutAt   *time.Time `bun:"last_out_at"`
 	CreatedAt   time.Time  `bun:"created_at,notnull,default:current_timestamp"`
 	UpdatedAt   time.Time  `bun:"updated_at,notnull,default:current_timestamp"`
+
+	// Relationships for eager loading (populated only when using Relation())
+	FromStateRel *State `bun:"rel:belongs-to,join:from_state=guid"`
+	ToStateRel   *State `bun:"rel:belongs-to,join:to_state=guid"`
 }
 
 var slugRegex = regexp.MustCompile(`^[a-z0-9_-]+$`)

@@ -2,6 +2,7 @@ import React, { ReactElement } from 'react';
 import { render, RenderOptions } from '@testing-library/react';
 import { GridApiAdapter } from '@tcons/grid';
 import { GridProvider } from '../src/context/GridContext';
+import { AuthProvider } from '../src/context/AuthContext';
 
 interface RenderWithGridOptions extends Omit<RenderOptions, 'wrapper'> {
   api?: GridApiAdapter;
@@ -39,9 +40,11 @@ export function renderWithGrid(
   const gridApi = api;
 
   const Wrapper = ({ children }: { children: React.ReactNode }) => (
-    <GridProvider api={gridApi} transport={mockTransport as any}>
-      {children}
-    </GridProvider>
+    <AuthProvider>
+      <GridProvider api={gridApi} transport={mockTransport as any}>
+        {children}
+      </GridProvider>
+    </AuthProvider>
   );
 
   return render(ui, { wrapper: Wrapper, ...renderOptions });

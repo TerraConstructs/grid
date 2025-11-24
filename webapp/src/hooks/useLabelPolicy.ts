@@ -27,6 +27,12 @@ interface CachedPolicyState {
 let cachedPolicyState: CachedPolicyState | null = null;
 let policyRequest: Promise<CachedPolicyState> | null = null;
 
+// Test-only helper to clear module-level caches
+export function __resetLabelPolicyCacheForTests() {
+  cachedPolicyState = null;
+  policyRequest = null;
+}
+
 async function fetchPolicy(api: GridApiAdapter): Promise<CachedPolicyState> {
   const response = await api.getLabelPolicy();
   if (!response) {
@@ -132,19 +138,19 @@ export function useLabelPolicy(): UseLabelPolicyReturn {
     loadPolicy();
   }, [loadPolicy]);
 
-  const getAllowedValues = (key: string): string[] | null => {
+  const getAllowedValues = useCallback((key: string): string[] | null => {
     if (!policy?.allowed_values) {
       return null;
     }
     return policy.allowed_values[key] || null;
-  };
+  }, [policy]);
 
-  const getAllowedKeys = (): string[] => {
+  const getAllowedKeys = useCallback((): string[] => {
     if (!policy?.allowed_keys) {
       return [];
     }
     return Object.keys(policy.allowed_keys);
-  };
+  }, [policy]);
 
   return {
     policy,

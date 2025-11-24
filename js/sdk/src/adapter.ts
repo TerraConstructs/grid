@@ -9,6 +9,7 @@ import type {
   StateInfo as ProtoStateInfo,
 } from '../gen/state/v1/state_pb.js';
 import type {
+  StateSummary,
   StateInfo,
   DependencyEdge,
   OutputKey,
@@ -140,6 +141,29 @@ function convertProtoStateInfo(response: GetStateInfoResponse): StateInfo {
 }
 
 /**
+ * Convert protobuf StateInfo (from ListStatesResponse) to plain StateSummary type.
+ * Uses efficient count fields from backend instead of fetching full relationship data.
+ */
+function convertProtoStateSummary(protoState: ProtoStateInfo): StateSummary {
+  const labels = convertProtoLabels(protoState.labels);
+
+  return {
+    guid: protoState.guid,
+    logic_id: protoState.logicId,
+    locked: protoState.locked,
+    created_at: timestampToISO(protoState.createdAt),
+    updated_at: timestampToISO(protoState.updatedAt),
+    size_bytes: Number(protoState.sizeBytes),
+    computed_status: protoState.computedStatus as StateSummary['computed_status'],
+    dependency_logic_ids: protoState.dependencyLogicIds || [],
+    dependencies_count: protoState.dependenciesCount ?? 0,
+    dependents_count: protoState.dependentsCount ?? 0,
+    outputs_count: protoState.outputsCount ?? 0,
+    ...(labels ? { labels } : {}),
+  };
+}
+
+/**
  * Grid API Adapter providing a mockApi-compatible interface.
  *
  * Wraps Connect RPC client calls and converts protobuf types to plain
@@ -202,43 +226,34 @@ export class GridApiAdapter {
   }
 
   /**
-   * List all states with comprehensive information.
-   * Performs N queries to fetch full state info for each state.
+   * List all states with summary information (optimized for list rendering).
+   * Returns lightweight StateSummary objects with efficient count fields.
+   * Use getStateInfo() to fetch full StateInfo with relationships when needed.
    *
-   * @param options - Optional filter/includeLabels flags
-   * @returns Array of StateInfo objects
+   * @param options - Optional filter/includeLabels/includeStatus flags
+   * @returns Array of StateSummary objects
    */
-  async listStates(options?: { filter?: string; includeLabels?: boolean }): Promise<StateInfo[]> {
-    const { filter, includeLabels = true } = options ?? {};
+  async listStates(options?: {
+    filter?: string;
+    includeLabels?: boolean;
+    includeStatus?: boolean;
+  }): Promise<StateSummary[]> {
+    const { filter, includeLabels = true, includeStatus = true } = options ?? {};
 
-    const request: Record<string, unknown> = { includeLabels };
+    const request: Record<string, unknown> = {
+      includeLabels,
+      includeStatus,
+    };
     if (filter && filter.trim() !== '') {
       request.filter = filter;
     }
 
     const listResponse = await this.client.listStates(request);
 
-    const labelLookup = new Map<string, Record<string, LabelScalar>>();
-    for (const state of listResponse.states) {
-      const labels = convertProtoLabels((state as ProtoStateInfo).labels);
-      if (labels) {
-        labelLookup.set(state.logicId, labels);
-        labelLookup.set(state.guid, labels);
-      }
-    }
-
-    const stateInfoPromises = listResponse.states.map((state: { logicId: string }) =>
-      this.getStateInfo(state.logicId)
+    // Convert proto StateInfo to StateSummary (uses count fields, not full relationships)
+    return listResponse.states.map((protoState) =>
+      convertProtoStateSummary(protoState as ProtoStateInfo)
     );
-
-    const stateInfos = await Promise.all(stateInfoPromises);
-
-    return stateInfos
-      .filter((info: StateInfo | null): info is StateInfo => info !== null)
-      .map((info) => {
-        const labels = labelLookup.get(info.guid) ?? labelLookup.get(info.logic_id);
-        return labels ? { ...info, labels } : info;
-      });
   }
 
   /**

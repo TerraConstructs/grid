@@ -132,6 +132,11 @@ message ListStatesRequest {
 
   // Whether to include labels in response (default: true)
   optional bool include_labels = 2;
+
+  // Whether to compute and include dependency status for each state (default: true for backward compatibility)
+  // WARNING: This requires computing status for EVERY state which can be expensive (N+1 pattern).
+  // Set to false if you don't need real-time status to improve performance significantly.
+  optional bool include_status = 3;
 }
 
 // ListStatesResponse returns all states with basic info.
@@ -152,6 +157,13 @@ message StateInfo {
   repeated string dependency_logic_ids = 8; // Unique set of producer logic_ids (incoming edges)
   // State labels (key-value pairs with typed values)
   map<string, LabelValue> labels = 9;
+
+  // Relationship counts for efficient list rendering (eliminates N+1 pattern in frontend)
+  // These counts are populated from database relationships without fetching full edge/output data
+  // Using optional to ensure zero values are always serialized in JSON
+  optional int32 dependencies_count = 10;  // Number of incoming dependency edges
+  optional int32 dependents_count = 11;    // Number of outgoing dependency edges
+  optional int32 outputs_count = 12;        // Number of outputs available from this state
 }
 
 // BackendConfig contains Terraform backend configuration URLs.

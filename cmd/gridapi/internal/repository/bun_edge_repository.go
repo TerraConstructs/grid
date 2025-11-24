@@ -164,6 +164,44 @@ func (r *BunEdgeRepository) FindByOutput(ctx context.Context, outputKey string) 
 	return edges, nil
 }
 
+// GetIncomingEdgesWithProducers fetches incoming edges with producer state data preloaded.
+// The FromStateRel field will be populated for each edge.
+// This avoids N+1 queries when iterating over edges and accessing producer state.
+func (r *BunEdgeRepository) GetIncomingEdgesWithProducers(ctx context.Context, toStateGUID string) ([]*models.Edge, error) {
+	var edges []*models.Edge
+	err := r.db.NewSelect().
+		Model(&edges).
+		Relation("FromStateRel"). // Eager load producer states
+		Where("to_state = ?", toStateGUID).
+		Order("created_at ASC").
+		Scan(ctx)
+
+	if err != nil {
+		return nil, fmt.Errorf("query incoming edges with producers: %w", err)
+	}
+
+	return edges, nil
+}
+
+// GetOutgoingEdgesWithConsumers fetches outgoing edges with consumer state data preloaded.
+// The ToStateRel field will be populated for each edge.
+// This avoids N+1 queries when iterating over edges and accessing consumer state.
+func (r *BunEdgeRepository) GetOutgoingEdgesWithConsumers(ctx context.Context, fromStateGUID string) ([]*models.Edge, error) {
+	var edges []*models.Edge
+	err := r.db.NewSelect().
+		Model(&edges).
+		Relation("ToStateRel"). // Eager load consumer states
+		Where("from_state = ?", fromStateGUID).
+		Order("created_at ASC").
+		Scan(ctx)
+
+	if err != nil {
+		return nil, fmt.Errorf("query outgoing edges with consumers: %w", err)
+	}
+
+	return edges, nil
+}
+
 // WouldCreateCycle checks if adding an edge from fromState to toState would create a cycle.
 // Uses a recursive CTE to check reachability.
 func (r *BunEdgeRepository) WouldCreateCycle(ctx context.Context, fromState, toState string) (bool, error) {

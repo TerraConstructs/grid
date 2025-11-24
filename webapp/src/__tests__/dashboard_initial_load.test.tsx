@@ -92,7 +92,11 @@ describe('Dashboard initial load', () => {
 
     renderWithGrid(<App />, { api });
 
-    expect(screen.getByText(/Loading Grid/i)).toBeInTheDocument();
+    // Wait for auth to initialize first (will show "Loading..." briefly)
+    // Then wait for Grid data loading to start (shows "Loading Grid...")
+    await waitFor(() => {
+      expect(screen.getByText(/Loading Grid/i)).toBeInTheDocument();
+    });
 
     expect(listStates).toHaveBeenCalledTimes(1);
     expect(getAllEdges).toHaveBeenCalledTimes(1);
