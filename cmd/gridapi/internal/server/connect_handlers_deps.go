@@ -3,9 +3,12 @@ package server
 import (
 	"context"
 	"fmt"
+	"log"
+	"strings"
 
 	"connectrpc.com/connect"
 	statev1 "github.com/terraconstructs/grid/api/state/v1"
+	"github.com/terraconstructs/grid/cmd/gridapi/internal/auth"
 	"github.com/terraconstructs/grid/cmd/gridapi/internal/db/models"
 	"github.com/terraconstructs/grid/cmd/gridapi/internal/services/dependency"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -104,7 +107,14 @@ func (h *StateServiceHandler) ListDependencies(
 		return nil, mapServiceError(err)
 	}
 
-	protoEdges, err := h.edgesToProto(ctx, edges)
+	// Filter edges based on user's role scopes
+	// Users only see edges where they can view both source and destination states
+	filteredEdges, err := h.filterEdgesByRoleScopes(ctx, edges)
+	if err != nil {
+		return nil, mapServiceError(err)
+	}
+
+	protoEdges, err := h.edgesToProto(ctx, filteredEdges)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
@@ -132,7 +142,14 @@ func (h *StateServiceHandler) ListDependents(
 		return nil, mapServiceError(err)
 	}
 
-	protoEdges, err := h.edgesToProto(ctx, edges)
+	// Filter edges based on user's role scopes
+	// Users only see edges where they can view both source and destination states
+	filteredEdges, err := h.filterEdgesByRoleScopes(ctx, edges)
+	if err != nil {
+		return nil, mapServiceError(err)
+	}
+
+	protoEdges, err := h.edgesToProto(ctx, filteredEdges)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
@@ -574,6 +591,8 @@ func (h *StateServiceHandler) GetStateInfo(
 }
 
 // ListAllEdges returns all dependency edges in the system.
+// Edges are filtered based on user's role label scopes to ensure users only see edges
+// where they have permission to view BOTH the source and destination states.
 func (h *StateServiceHandler) ListAllEdges(
 	ctx context.Context,
 	req *connect.Request[statev1.ListAllEdgesRequest],
@@ -588,11 +607,116 @@ func (h *StateServiceHandler) ListAllEdges(
 		return nil, mapServiceError(err)
 	}
 
+	// Filter edges based on user's role scopes
+	// Users only see edges where they can view both source and destination states
+	filteredEdges, err := h.filterEdgesByRoleScopes(ctx, edges)
+	if err != nil {
+		return nil, mapServiceError(err)
+	}
+
 	// Convert edges to proto
-	protoEdges, err := h.edgesToProto(ctx, edges)
+	protoEdges, err := h.edgesToProto(ctx, filteredEdges)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
 
 	return connect.NewResponse(&statev1.ListAllEdgesResponse{Edges: protoEdges}), nil
+}
+
+// filterEdgesByRoleScopes filters edges based on user's role label scopes.
+// An edge is included only if the user has permission to view BOTH the source and destination states.
+// This follows the same pattern as filterStatesByRoleScopes in connect_handlers.go.
+func (h *StateServiceHandler) filterEdgesByRoleScopes(ctx context.Context, edges []models.Edge) ([]models.Edge, error) {
+	// Get principal from context
+	principal, ok := auth.GetUserFromContext(ctx)
+	if !ok {
+		// No principal (no-auth mode) - return all edges
+		return edges, nil
+	}
+
+	// If IAM service not available, return all edges (backwards compatibility)
+	if h.iamService == nil {
+		return edges, nil
+	}
+
+	// Get role scopes from the user's roles
+	roleScopes := make([]string, 0, len(principal.Roles))
+	for _, casbinRole := range principal.Roles {
+		roleName, err := auth.ExtractRoleID(casbinRole)
+		if err != nil {
+			// try with casbinRole as is
+			roleName = casbinRole
+			// TODO: Review Mode 1 vs  Mode 2 role prefix handling?
+			log.Printf("warning: could not extract role name from casbin role %s: %v", casbinRole, err)
+
+		}
+
+		role, err := h.iamService.GetRoleByName(ctx, roleName)
+		if err != nil {
+			continue // Skip roles that don't exist
+		}
+
+		roleScopes = append(roleScopes, role.ScopeExpr)
+	}
+
+	// If user has no roles, return empty list
+	if len(roleScopes) == 0 {
+		return []models.Edge{}, nil
+	}
+
+	// Build a map of state GUID -> labels for efficient lookup
+	// We need to fetch all unique states referenced in the edges
+	stateGUIDs := make(map[string]bool)
+	for _, edge := range edges {
+		stateGUIDs[edge.FromState] = true
+		stateGUIDs[edge.ToState] = true
+	}
+
+	// Fetch all states
+	stateLabels := make(map[string]map[string]any)
+	for guid := range stateGUIDs {
+		state, err := h.service.GetStateByGUID(ctx, guid)
+		if err != nil {
+			// State not found - skip (edge will be filtered out)
+			continue
+		}
+		stateLabels[guid] = state.Labels
+	}
+
+	// Filter edges: include only if user can see BOTH from and to states
+	filtered := make([]models.Edge, 0, len(edges))
+	for _, edge := range edges {
+		fromLabels, fromExists := stateLabels[edge.FromState]
+		toLabels, toExists := stateLabels[edge.ToState]
+
+		// Both states must exist
+		if !fromExists || !toExists {
+			continue
+		}
+
+		// Check if user can see FROM state
+		canSeeFrom := false
+		for _, scopeExpr := range roleScopes {
+			if strings.TrimSpace(scopeExpr) == "" || auth.EvaluateBexpr(scopeExpr, fromLabels) {
+				canSeeFrom = true
+				break
+			}
+		}
+
+		// Check if user can see TO state
+		canSeeTo := false
+		for _, scopeExpr := range roleScopes {
+			if strings.TrimSpace(scopeExpr) == "" || auth.EvaluateBexpr(scopeExpr, toLabels) {
+				canSeeTo = true
+				break
+			}
+		}
+
+		// Include edge only if user can see both states
+		if canSeeFrom && canSeeTo {
+			filtered = append(filtered, edge)
+		}
+	}
+
+	return filtered, nil
 }

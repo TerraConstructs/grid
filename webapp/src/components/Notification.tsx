@@ -36,6 +36,7 @@ export function NotificationToast({ notification, onDismiss }: NotificationToast
   return (
     <div
       role="alert"
+      data-testid={`notification-toast-${notification.id}`}
       className={`flex items-start gap-3 p-4 rounded-lg shadow-lg border ${
         isSuccess
           ? 'bg-green-50 border-green-200'
@@ -60,6 +61,7 @@ export function NotificationToast({ notification, onDismiss }: NotificationToast
 
       <button
         onClick={() => onDismiss(notification.id)}
+        data-testid={`notification-dismiss-${notification.id}`}
         className={`flex-shrink-0 ${
           isSuccess
             ? 'text-green-600 hover:text-green-800'

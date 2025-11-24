@@ -50,11 +50,8 @@ export async function loginViaKeycloak(
   await page.waitForURL(/.*localhost:5173.*/, { timeout: 10000 });
 
   // Verify we're logged in by checking for the user profile button
-  // The AuthStatus component shows a button with User icon + ChevronDown icon
-  // The username text has "hidden sm:inline" so might not be visible
-  // The email is inside the dropdown, only visible when clicked
-  // So we check for the profile button itself (same as isLoggedIn helper)
-  const profileButton = page.locator('button').filter({ has: page.locator('svg.lucide-chevron-down') });
+  // Use data-testid for reliable selection instead of CSS class selectors
+  const profileButton = page.locator('[data-testid="auth-profile-button"]');
   await expect(profileButton).toBeVisible({ timeout: 10000 });
 }
 
@@ -67,13 +64,14 @@ export async function loginViaKeycloak(
  */
 export async function logout(page: Page): Promise<void> {
   // First, open the AuthStatus dropdown by clicking the user profile button
-  // This button contains the User icon and ChevronDown icon
-  const profileButton = page.locator('button').filter({ has: page.locator('svg.lucide-chevron-down') });
+  // Use data-testid for reliable selection
+  const profileButton = page.locator('[data-testid="auth-profile-button"]');
   await expect(profileButton).toBeVisible({ timeout: 10000 });
   await profileButton.click();
 
   // Now the dropdown is open, click "Sign Out" button
-  const logoutButton = page.getByRole('button', { name: /sign out/i });
+  // Use data-testid for reliable selection
+  const logoutButton = page.locator('[data-testid="auth-sign-out-button"]');
   await expect(logoutButton).toBeVisible({ timeout: 10000 });
   await logoutButton.click();
 

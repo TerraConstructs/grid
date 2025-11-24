@@ -3,6 +3,7 @@ package server
 import (
 	"context"
 	"fmt"
+	"log"
 	"sort"
 	"strings"
 
@@ -426,7 +427,10 @@ func (h *StateServiceHandler) filterStatesByRoleScopes(ctx context.Context, summ
 	for _, casbinRole := range principal.Roles {
 		roleName, err := auth.ExtractRoleID(casbinRole)
 		if err != nil {
-			continue // Skip invalid role format
+			// try with casbinRole as is
+			roleName = casbinRole
+			// TODO: Review Mode 1 vs  Mode 2 role prefix handling?
+			log.Printf("warning: could not extract role name from casbin role %s: %v", casbinRole, err)
 		}
 
 		role, err := h.iamService.GetRoleByName(ctx, roleName)
@@ -437,10 +441,10 @@ func (h *StateServiceHandler) filterStatesByRoleScopes(ctx context.Context, summ
 		roleScopes = append(roleScopes, role.ScopeExpr)
 	}
 
-	// If user has no roles or couldn't fetch any, return all states
-	// This handles edge cases where role lookup fails
+	// If user has no roles or couldn't fetch any, return empty list
+	// Be restrictive: if we can't determine permissions, deny access
 	if len(roleScopes) == 0 {
-		return summaries, nil
+		return []statepkg.StateSummary{}, nil
 	}
 
 	// Filter states based on role scopes

@@ -46,7 +46,7 @@ func NewAuthzInterceptor(deps AuthzDependencies) connect.UnaryInterceptorFunc {
 				action = auth.StateList
 			case statev1connect.StateServiceListAllEdgesProcedure:
 				obj = auth.ObjectTypeState
-				action = auth.StateOutputList
+				action = auth.DependencyListAll
 			case statev1connect.StateServiceGetLabelPolicyProcedure:
 				obj = auth.ObjectTypePolicy
 				action = auth.PolicyRead

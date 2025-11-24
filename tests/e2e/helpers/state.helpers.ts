@@ -108,8 +108,13 @@ export async function waitForStateInList(
     await statesLink.click();
   }
 
-  // Wait for the state to appear in the list
-  await expect(page.getByText(logicId)).toBeVisible({ timeout });
+  // Wait for the state to appear in the list or graph
+  // Use data-testid to avoid ambiguous text matches (e.g., notification + graph node)
+  await expect(
+    page.locator(`[data-testid="list-state-row-${logicId}"]`).or(
+      page.locator(`[data-testid="graph-node-${logicId}"]`)
+    )
+  ).toBeVisible({ timeout });
 }
 
 /**

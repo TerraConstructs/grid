@@ -50,6 +50,7 @@ export function AuthStatus({ user, onLogout }: AuthStatusProps) {
   return (
     <div className="relative">
       <button
+        data-testid="auth-profile-button"
         onClick={() => setIsOpen(!isOpen)}
         className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium bg-gray-700 text-gray-300 hover:bg-gray-600 transition-colors"
       >
@@ -141,6 +142,7 @@ export function AuthStatus({ user, onLogout }: AuthStatusProps) {
 
             <div className="p-4 border-t border-gray-200">
               <button
+                data-testid="auth-sign-out-button"
                 onClick={handleLogout}
                 className="w-full flex items-center justify-center gap-2 px-3 py-2 bg-red-50 hover:bg-red-100 text-red-700 rounded-lg text-sm font-medium transition-colors"
               >

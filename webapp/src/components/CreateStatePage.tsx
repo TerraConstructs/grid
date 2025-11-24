@@ -110,6 +110,7 @@ export function CreateStatePage({
               </label>
               <input
                 id="logic-id"
+                data-testid="create-state-logic-id-input"
                 type="text"
                 value={logicId}
                 onChange={(e) => setLogicId(e.target.value)}
@@ -131,6 +132,7 @@ export function CreateStatePage({
                 </label>
                 <button
                   type="button"
+                  data-testid="create-state-add-label-btn"
                   onClick={handleAddLabel}
                   className="flex items-center gap-1 text-sm text-purple-600 hover:text-purple-700 font-medium"
                   disabled={submitting}
@@ -149,6 +151,7 @@ export function CreateStatePage({
                       onChange={(e) => handleLabelChange(index, 'key', e.target.value)}
                       placeholder="env"
                       aria-label={`Label key ${index + 1}`}
+                      data-testid={`create-state-label-key-${index + 1}`}
                       className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-600 focus:border-transparent text-sm"
                       disabled={submitting}
                     />
@@ -158,6 +161,7 @@ export function CreateStatePage({
                       onChange={(e) => handleLabelChange(index, 'value', e.target.value)}
                       placeholder="dev"
                       aria-label={`Label value ${index + 1}`}
+                      data-testid={`create-state-label-value-${index + 1}`}
                       className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-600 focus:border-transparent text-sm"
                       disabled={submitting}
                     />
@@ -186,6 +190,7 @@ export function CreateStatePage({
         <div className="flex items-center justify-end gap-3 p-6 border-t border-gray-200">
           <button
             type="button"
+            data-testid="create-state-cancel-btn"
             onClick={onClose}
             className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
             disabled={submitting}
@@ -194,6 +199,7 @@ export function CreateStatePage({
           </button>
           <button
             type="submit"
+            data-testid="create-state-submit-btn"
             disabled={!canSubmit}
             className="px-4 py-2 text-sm font-medium text-white bg-gradient-to-r from-purple-600 to-purple-700 rounded-lg hover:from-purple-700 hover:to-purple-800 disabled:from-gray-400 disabled:to-gray-500 transition-all"
           >

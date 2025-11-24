@@ -12,6 +12,7 @@ export const GridNode = memo(({ data, selected }: NodeProps) => {
   return (
     <div
       className="relative group"
+      data-testid={`graph-node-${nodeData.label}`}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
@@ -32,6 +33,7 @@ export const GridNode = memo(({ data, selected }: NodeProps) => {
           <div className="flex items-start justify-between">
             <div
               className="w-3 h-3 rounded-full"
+              data-testid={`graph-node-status-${nodeData.label}`}
               style={{ backgroundColor: statusColor }}
             />
           </div>

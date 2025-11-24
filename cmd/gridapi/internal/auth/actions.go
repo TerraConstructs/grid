@@ -46,8 +46,11 @@ const (
 	// DependencyRead allows reading dependency metadata
 	DependencyRead = "dependency:read"
 
-	// DependencyList allows listing dependencies
+	// DependencyList allows listing dependencies for a specific state (state-scoped)
 	DependencyList = "dependency:list"
+
+	// DependencyListAll allows listing all edges in the system (globally allowed, filtered by handler)
+	DependencyListAll = "dependency:list-all"
 
 	// DependencyDelete allows deleting dependencies
 	DependencyDelete = "dependency:delete"
@@ -155,10 +158,11 @@ func ValidateAction(action string) bool {
 		TfstateLock:   true,
 		TfstateUnlock: true,
 		// Dependencies
-		DependencyCreate: true,
-		DependencyRead:   true,
-		DependencyList:   true,
-		DependencyDelete: true,
+		DependencyCreate:  true,
+		DependencyRead:    true,
+		DependencyList:    true,
+		DependencyListAll: true,
+		DependencyDelete:  true,
 		// State Outputs
 		StateOutputList: true,
 		StateOutputRead: true,
@@ -196,7 +200,7 @@ func ExpandWildcard(action string) []string {
 	case TfstateWildcard:
 		return []string{TfstateRead, TfstateWrite, TfstateLock, TfstateUnlock}
 	case DependencyWildcard:
-		return []string{DependencyCreate, DependencyRead, DependencyList, DependencyDelete}
+		return []string{DependencyCreate, DependencyRead, DependencyList, DependencyListAll, DependencyDelete}
 	case StateOutputWildcard:
 		return []string{StateOutputList, StateOutputRead}
 	case PolicyWildcard:

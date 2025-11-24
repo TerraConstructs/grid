@@ -120,6 +120,7 @@ export function ListView({
                 {states.map((state) => (
                   <tr
                     key={state.guid}
+                    data-testid={`list-state-row-${state.logic_id}`}
                     onClick={() => onStateClick(state.logic_id)}
                     className="hover:bg-purple-50 cursor-pointer transition-colors"
                   >
@@ -205,6 +206,7 @@ export function ListView({
                 {edges.map((edge) => (
                   <tr
                     key={edge.id}
+                    data-testid={`list-edge-row-${edge.id}`}
                     onClick={() => onEdgeClick(edge)}
                     className="hover:bg-purple-50 cursor-pointer transition-colors"
                   >
