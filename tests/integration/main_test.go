@@ -178,11 +178,17 @@ func bootstrapMode1TestUser() error {
 	fmt.Println("  Integration-tests service account must have 'test-admins' group in JWT")
 
 	// CRITICAL: Bootstrap runs in separate process with its own cache
-	// The test server's cache is stale until background refresh picks up changes
-	// Background refresh runs on startup + every 5 minutes
-	// Wait for the startup refresh to complete (should happen within 1-2 seconds)
-	fmt.Println("  Waiting 3 seconds for server cache to refresh after bootstrap...")
-	time.Sleep(3 * time.Second)
+	// The test server's cache is stale until we force a refresh
+	// Send SIGHUP to trigger immediate cache refresh (handled in cmd/serve.go:277-300)
+	fmt.Printf("  Sending SIGHUP to gridapi server (PID: %d) to refresh cache...\n", serverCmd.Process.Pid)
+	if err := serverCmd.Process.Signal(syscall.SIGHUP); err != nil {
+		return fmt.Errorf("failed to send SIGHUP to server: %w", err)
+	}
+
+	// Give the server a moment to process the signal and refresh the cache
+	// The refresh is synchronous once SIGHUP is handled (< 100ms typically)
+	time.Sleep(500 * time.Millisecond)
+	fmt.Println("  ✓ Cache refresh signal sent")
 
 	return nil
 }

@@ -92,15 +92,16 @@ func up_20251013140501(ctx context.Context, db *bun.DB) error {
 		// product-engineer role: Label-scoped dev access
 		{Ptype: "p", V0: "role:product-engineer", V1: "state", V2: "state:create", V3: `env == "dev"`, V4: "allow"},
 		{Ptype: "p", V0: "role:product-engineer", V1: "state", V2: "state:read", V3: `env == "dev"`, V4: "allow"},
-		{Ptype: "p", V0: "role:product-engineer", V1: "state", V2: "state:list", V3: "", V4: "allow"}, // Listing allowed globally - TODO: service layer should filter?
+		{Ptype: "p", V0: "role:product-engineer", V1: "state", V2: "state:list", V3: "", V4: "allow"}, // Listing allowed globally - service layer filters by role scopes
 		{Ptype: "p", V0: "role:product-engineer", V1: "state", V2: "state:update-labels", V3: `env == "dev"`, V4: "allow"},
 		{Ptype: "p", V0: "role:product-engineer", V1: "state", V2: "tfstate:read", V3: `env == "dev"`, V4: "allow"},
 		{Ptype: "p", V0: "role:product-engineer", V1: "state", V2: "tfstate:write", V3: `env == "dev"`, V4: "allow"},
 		{Ptype: "p", V0: "role:product-engineer", V1: "state", V2: "tfstate:lock", V3: `env == "dev"`, V4: "allow"},
 		{Ptype: "p", V0: "role:product-engineer", V1: "state", V2: "tfstate:unlock", V3: `env == "dev"`, V4: "allow"},
+		{Ptype: "p", V0: "role:product-engineer", V1: "state", V2: "dependency:list", V3: `env == "dev"`, V4: "allow"},     // List dependencies of a specific state (state-scoped)
+		{Ptype: "p", V0: "role:product-engineer", V1: "state", V2: "dependency:list-all", V3: "", V4: "allow"},           // List all edges globally (filtered by handler)
 		{Ptype: "p", V0: "role:product-engineer", V1: "state", V2: "dependency:create", V3: `env == "dev"`, V4: "allow"},
 		{Ptype: "p", V0: "role:product-engineer", V1: "state", V2: "dependency:read", V3: `env == "dev"`, V4: "allow"},
-		{Ptype: "p", V0: "role:product-engineer", V1: "state", V2: "dependency:list", V3: `env == "dev"`, V4: "allow"},
 		{Ptype: "p", V0: "role:product-engineer", V1: "state", V2: "dependency:delete", V3: `env == "dev"`, V4: "allow"},
 		{Ptype: "p", V0: "role:product-engineer", V1: "state", V2: "state-output:list", V3: `env == "dev"`, V4: "allow"},
 		{Ptype: "p", V0: "role:product-engineer", V1: "state", V2: "state-output:read", V3: `env == "dev"`, V4: "allow"},

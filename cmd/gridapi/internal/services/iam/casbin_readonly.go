@@ -65,7 +65,7 @@ func AuthorizeWithRoles(
 
 	// Ensure labels is never nil (Casbin expects map[string]interface{})
 	if labels == nil {
-		labels = make(map[string]interface{})
+		labels = make(map[string]any)
 	}
 
 	// Try each role until one grants permission
