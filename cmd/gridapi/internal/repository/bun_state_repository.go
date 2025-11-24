@@ -181,13 +181,14 @@ func (r *BunStateRepository) List(ctx context.Context) ([]models.State, error) {
 	var states []models.State
 	if err := r.db.NewSelect().
 		Model(&states).
-		Column("guid", "logic_id", "locked", "created_at", "updated_at", "labels").
-		ColumnExpr("length(state_content) AS size_bytes").
+		ModelTableExpr("states AS s").
+		Column("s.guid", "s.logic_id", "s.locked", "s.created_at", "s.updated_at", "s.labels").
+		ColumnExpr("length(s.state_content) AS size_bytes").
 		// Efficient COUNT subqueries using correlated subqueries
 		ColumnExpr("(SELECT COUNT(*) FROM edges WHERE to_state = s.guid) AS dependencies_count").
 		ColumnExpr("(SELECT COUNT(*) FROM edges WHERE from_state = s.guid) AS dependents_count").
 		ColumnExpr("(SELECT COUNT(*) FROM state_outputs WHERE state_guid = s.guid) AS outputs_count").
-		Order("created_at DESC").
+		Order("s.created_at DESC").
 		Scan(ctx); err != nil {
 		return nil, fmt.Errorf("list states: %w", err)
 	}

@@ -84,7 +84,11 @@ describe('Dashboard graph view filtering', () => {
 
     renderWithGrid(<App />, { api });
 
-    await waitFor(() => expect(listStates).toHaveBeenCalledTimes(1));
+    // Wait for auth initialization and initial data load
+    await waitFor(() => {
+      expect(listStates).toHaveBeenCalled();
+      expect(getAllEdges).toHaveBeenCalled();
+    });
 
     const prodButton = await screen.findByRole('button', { name: 'prod' });
     await userEvent.click(prodButton);
@@ -92,7 +96,13 @@ describe('Dashboard graph view filtering', () => {
     const addFilter = screen.getByRole('button', { name: /Add Filter/i });
     await userEvent.click(addFilter);
 
-    await waitFor(() => expect(listStates).toHaveBeenCalledTimes(2));
+    // Wait for the filtered API call (may be 2nd or 3rd call depending on timing)
+    await waitFor(() => {
+      expect(listStates).toHaveBeenCalledWith(expect.objectContaining({
+        includeLabels: true,
+        filter: 'env == "prod"',
+      }));
+    });
     expect(listStates).toHaveBeenLastCalledWith(expect.objectContaining({
       includeLabels: true,
       filter: 'env == "prod"',

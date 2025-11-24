@@ -223,14 +223,18 @@ func (h *StateServiceHandler) UnlockState(
 }
 
 func summaryToProto(summary statepkg.StateSummary) *statev1.StateInfo {
+	dependenciesCount := int32(summary.DependenciesCount)
+	dependentsCount := int32(summary.DependentsCount)
+	outputsCount := int32(summary.OutputsCount)
+
 	info := &statev1.StateInfo{
 		Guid:              summary.GUID,
 		LogicId:           summary.LogicID,
 		Locked:            summary.Locked,
 		SizeBytes:         summary.SizeBytes,
-		DependenciesCount: int32(summary.DependenciesCount),
-		DependentsCount:   int32(summary.DependentsCount),
-		OutputsCount:      int32(summary.OutputsCount),
+		DependenciesCount: &dependenciesCount,
+		DependentsCount:   &dependentsCount,
+		OutputsCount:      &outputsCount,
 	}
 	if !summary.CreatedAt.IsZero() {
 		info.CreatedAt = timestamppb.New(summary.CreatedAt)

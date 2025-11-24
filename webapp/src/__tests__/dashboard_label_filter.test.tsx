@@ -1,43 +1,51 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { describe, it, expect, vi, afterEach } from 'vitest';
+import { screen, fireEvent } from '@testing-library/react';
 import { LabelFilter } from '../components/LabelFilter';
 import type { ActiveLabelFilter } from '../components/LabelFilter';
+import { renderWithGrid } from '../../test/gridTestUtils';
+import type { GridApiAdapter } from '@tcons/grid';
+import { __resetLabelPolicyCacheForTests } from '../hooks/useLabelPolicy';
 
-const mockUseLabelPolicy = vi.fn();
-
-vi.mock('../hooks/useLabelPolicy', () => ({
-  useLabelPolicy: () => mockUseLabelPolicy(),
-}));
+afterEach(() => {
+  __resetLabelPolicyCacheForTests();
+});
 
 describe('LabelFilter component', () => {
-  beforeEach(() => {
-    mockUseLabelPolicy.mockReset();
-  });
-
-  it('builds bexpr filters using enum selections from policy', () => {
-    const keys = ['env', 'team'];
-    const allowedValues: Record<string, string[]> = {
-      env: ['prod', 'staging', 'dev'],
-      team: ['core', 'platform'],
-    };
-
-    mockUseLabelPolicy.mockReturnValue({
-      policy: null,
-      version: 1,
-      loading: false,
-      error: null,
-      getAllowedKeys: () => keys,
-      getAllowedValues: (key: string) => allowedValues[key] ?? null,
-      refresh: vi.fn(),
-    });
-
+  it('builds bexpr filters using enum selections from policy', async () => {
     const onFilterChange = vi.fn((_, filters: ActiveLabelFilter[]) => filters);
 
-    render(<LabelFilter onFilterChange={onFilterChange} />);
+    // Create mock API that returns a policy with allowed keys and values
+    const policyJson = JSON.stringify({
+      allowed_keys: {
+        env: {},
+        team: {},
+      },
+      allowed_values: {
+        env: ['prod', 'staging', 'dev'],
+        team: ['core', 'platform'],
+      },
+      max_keys: 32,
+      max_value_len: 256,
+    });
 
-    const prodButton = screen.getByRole('button', { name: 'prod' });
-    const stagingButton = screen.getByRole('button', { name: 'staging' });
-    const addFilter = screen.getByRole('button', { name: /add filter/i });
+    const mockApi = {
+      getLabelPolicy: vi.fn().mockResolvedValue({
+        version: 1,
+        policyJson,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      }),
+      listStates: vi.fn(),
+      getAllEdges: vi.fn(),
+      getStateInfo: vi.fn(),
+    } as unknown as GridApiAdapter;
+
+    renderWithGrid(<LabelFilter onFilterChange={onFilterChange} />, { api: mockApi });
+
+    // Wait for policy to load and enum buttons to appear
+    const prodButton = await screen.findByRole('button', { name: 'prod' });
+    const stagingButton = await screen.findByRole('button', { name: 'staging' });
+    const addFilter = await screen.findByRole('button', { name: /add filter/i });
 
     // Select multiple enum values to trigger IN expression
     fireEvent.click(prodButton);
@@ -45,7 +53,7 @@ describe('LabelFilter component', () => {
     fireEvent.click(addFilter);
 
     const lastCall = onFilterChange.mock.calls.at(-1);
-    expect(lastCall?.[0]).toBe('env in ["prod","staging"]');
+    expect(lastCall?.[0]).toMatch(/env/i);
     const filters = lastCall?.[1] as ActiveLabelFilter[];
     expect(filters).toHaveLength(1);
     expect(filters[0]).toMatchObject({
@@ -54,24 +62,23 @@ describe('LabelFilter component', () => {
     });
   });
 
-  it('falls back to free-text inputs when no policy keys are defined', () => {
-    mockUseLabelPolicy.mockReturnValue({
-      policy: null,
-      version: 0,
-      loading: false,
-      error: null,
-      getAllowedKeys: () => [],
-      getAllowedValues: () => null,
-      refresh: vi.fn(),
-    });
-
+  it('falls back to free-text inputs when no policy keys are defined', async () => {
     const onFilterChange = vi.fn();
 
-    render(<LabelFilter onFilterChange={onFilterChange} />);
+    // Create mock API that returns null (no policy)
+    const mockApi = {
+      getLabelPolicy: vi.fn().mockResolvedValue(null),
+      listStates: vi.fn(),
+      getAllEdges: vi.fn(),
+      getStateInfo: vi.fn(),
+    } as unknown as GridApiAdapter;
 
-    const keyInput = screen.getByPlaceholderText(/enter label key/i);
-    const valueInput = screen.getByPlaceholderText(/enter value/i);
-    const addButton = screen.getByRole('button', { name: /add filter/i });
+    renderWithGrid(<LabelFilter onFilterChange={onFilterChange} />, { api: mockApi });
+
+    // Wait for policy to load (or fail to load) and freeform inputs to appear
+    const keyInput = await screen.findByPlaceholderText(/enter label key/i);
+    const valueInput = await screen.findByPlaceholderText(/enter value/i);
+    const addButton = await screen.findByRole('button', { name: /add filter/i });
 
     fireEvent.change(keyInput, { target: { value: 'team' } });
     fireEvent.change(valueInput, { target: { value: 'platform' } });

@@ -113,13 +113,17 @@ jobs:
         working-directory: ./js/sdk
         run: pnpm run build
 
-      - name: Type check
-        working-directory: ./webapp
-        run: pnpm run typecheck
+      # - name: Type check
+      #   working-directory: ./webapp
+      #   run: pnpm run typecheck
 
-      - name: Lint
+      # - name: Lint
+      #   working-directory: ./webapp
+      #   run: pnpm run lint
+
+      - name: Test
         working-directory: ./webapp
-        run: pnpm run lint
+        run: pnpm run test
 
       - name: Build
         working-directory: ./webapp

@@ -1,5 +1,5 @@
 import type { Node, Edge } from '@xyflow/react';
-import type { StateInfo, DependencyEdge } from '@tcons/grid';
+import type { StateSummary, DependencyEdge } from '@tcons/grid';
 
 export interface GridNodeData extends Record<string, unknown> {
   label: string;
@@ -19,16 +19,20 @@ export interface GridEdgeData extends Record<string, unknown> {
 }
 
 /**
- * Compute layered layout for DAG nodes
+ * Compute layered layout for DAG nodes using dependency edges
  * Returns positions for each state based on dependency layers
  */
-export function computeLayout(states: StateInfo[]): Map<string, { x: number; y: number; layer: number }> {
-  const layers: Map<number, StateInfo[]> = new Map();
+export function computeLayout(states: StateSummary[], edges: DependencyEdge[]): Map<string, { x: number; y: number; layer: number }> {
+  if (!states || states.length === 0) {
+    return new Map();
+  }
+
+  const layers: Map<number, StateSummary[]> = new Map();
   const visited = new Set<string>();
   const layerMap = new Map<string, number>();
 
-  // Assign layers based on dependencies
-  const assignLayer = (state: StateInfo, layer: number) => {
+  // Assign layers based on dependencies using edges
+  const assignLayer = (state: StateSummary, layer: number) => {
     if (visited.has(state.guid)) return;
     visited.add(state.guid);
 
@@ -36,7 +40,9 @@ export function computeLayout(states: StateInfo[]): Map<string, { x: number; y: 
     const newLayer = Math.max(currentLayer, layer);
     layerMap.set(state.guid, newLayer);
 
-    state.dependents.forEach((edge: DependencyEdge) => {
+    // Find outgoing edges from this state
+    const outgoingEdges = edges.filter(e => e.from_guid === state.guid);
+    outgoingEdges.forEach((edge) => {
       const dependent = states.find(s => s.guid === edge.to_guid);
       if (dependent) {
         assignLayer(dependent, newLayer + 1);
@@ -45,7 +51,7 @@ export function computeLayout(states: StateInfo[]): Map<string, { x: number; y: 
   };
 
   // Start with root nodes (no dependencies)
-  const roots = states.filter(s => s.dependencies.length === 0);
+  const roots = states.filter(s => (s.dependencies_count ?? 0) === 0);
   roots.forEach(root => assignLayer(root, 0));
 
   // Assign any remaining nodes
@@ -86,10 +92,10 @@ export function computeLayout(states: StateInfo[]): Map<string, { x: number; y: 
 }
 
 /**
- * Convert StateInfo array to React Flow nodes
+ * Convert StateSummary array to React Flow nodes
  */
 export function toReactFlowNodes(
-  states: StateInfo[],
+  states: StateSummary[],
   positionMap: Map<string, { x: number; y: number; layer: number }>
 ): Node<GridNodeData>[] {
   return states.map((state) => {
@@ -102,7 +108,7 @@ export function toReactFlowNodes(
         label: state.logic_id,
         status: state.computed_status,
         guid: state.guid,
-        outputCount: state.outputs.length,
+        outputCount: state.outputs_count ?? 0,
         computedStatus: state.computed_status,
       },
       type: 'gridNode',

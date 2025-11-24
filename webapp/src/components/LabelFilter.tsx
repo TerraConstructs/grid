@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { PlusCircle, X, Filter as FilterIcon } from 'lucide-react';
 import {
   buildEqualityFilter,
@@ -66,16 +66,23 @@ const buildExpression = (filters: ActiveLabelFilter[]): string => {
   return combineFilters(expressions, 'AND');
 };
 
-export function LabelFilter({ onFilterChange, initialFilters = [] }: LabelFilterProps) {
+export function LabelFilter({ onFilterChange, initialFilters }: LabelFilterProps) {
+  const onFilterChangeRef = useRef(onFilterChange);
   const { getAllowedKeys, getAllowedValues, loading } = useLabelPolicy();
-  const [activeFilters, setActiveFilters] = useState<ActiveLabelFilter[]>(initialFilters);
+  const [activeFilters, setActiveFilters] = useState<ActiveLabelFilter[]>(initialFilters ?? []);
   const [selectedKey, setSelectedKey] = useState<string>('');
   const [customKey, setCustomKey] = useState<string>('');
   const [freeformValue, setFreeformValue] = useState<string>('');
   const [enumSelections, setEnumSelections] = useState<string[]>([]);
 
   useEffect(() => {
-    setActiveFilters(initialFilters);
+    onFilterChangeRef.current = onFilterChange;
+  }, [onFilterChange]);
+
+  useEffect(() => {
+    if (initialFilters) {
+      setActiveFilters(initialFilters);
+    }
   }, [initialFilters]);
 
   const allowedKeys = useMemo(() => getAllowedKeys(), [getAllowedKeys]);
@@ -91,8 +98,8 @@ export function LabelFilter({ onFilterChange, initialFilters = [] }: LabelFilter
 
   useEffect(() => {
     const expression = buildExpression(activeFilters);
-    onFilterChange(expression, activeFilters);
-  }, [activeFilters, onFilterChange]);
+    onFilterChangeRef.current(expression, activeFilters);
+  }, [activeFilters]);
 
   const handleEnumSelection = (value: string) => {
     setEnumSelections((current) => {

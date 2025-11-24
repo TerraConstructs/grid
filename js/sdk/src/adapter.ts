@@ -156,9 +156,9 @@ function convertProtoStateSummary(protoState: ProtoStateInfo): StateSummary {
     size_bytes: Number(protoState.sizeBytes),
     computed_status: protoState.computedStatus as StateSummary['computed_status'],
     dependency_logic_ids: protoState.dependencyLogicIds || [],
-    dependencies_count: protoState.dependenciesCount,
-    dependents_count: protoState.dependentsCount,
-    outputs_count: protoState.outputsCount,
+    dependencies_count: protoState.dependenciesCount ?? 0,
+    dependents_count: protoState.dependentsCount ?? 0,
+    outputs_count: protoState.outputsCount ?? 0,
     ...(labels ? { labels } : {}),
   };
 }

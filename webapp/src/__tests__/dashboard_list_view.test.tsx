@@ -88,7 +88,11 @@ describe('Dashboard list view', () => {
 
     renderWithGrid(<App />, { api });
 
-    await waitFor(() => expect(listStates).toHaveBeenCalledTimes(1));
+    // Wait for auth initialization and initial data load
+    await waitFor(() => {
+      expect(listStates).toHaveBeenCalled();
+      expect(getAllEdges).toHaveBeenCalled();
+    });
 
     const listToggle = await screen.findByRole('button', { name: /List/i });
     await userEvent.click(listToggle);
@@ -110,7 +114,8 @@ describe('Dashboard list view', () => {
       expect(getStateInfo).toHaveBeenCalledWith('app/prod');
     });
 
-    expect(await screen.findByText(/State JSON/i)).toBeInTheDocument();
+    // Detail drawer should open showing the state heading
+    expect(await screen.findByRole('heading', { name: 'app/prod' })).toBeInTheDocument();
   });
 
   it('applies label filters and fetches filtered results from API', async () => {
@@ -145,7 +150,11 @@ describe('Dashboard list view', () => {
 
     renderWithGrid(<App />, { api });
 
-    await waitFor(() => expect(listStates).toHaveBeenCalledTimes(1));
+    // Wait for auth initialization and initial data load
+    await waitFor(() => {
+      expect(listStates).toHaveBeenCalled();
+      expect(getAllEdges).toHaveBeenCalled();
+    });
 
     const listToggle = await screen.findByRole('button', { name: /List/i });
     await userEvent.click(listToggle);
@@ -156,7 +165,13 @@ describe('Dashboard list view', () => {
     const addFilter = screen.getByRole('button', { name: /Add Filter/i });
     await userEvent.click(addFilter);
 
-    await waitFor(() => expect(listStates).toHaveBeenCalledTimes(2));
+    // Wait for the filtered API call (check for the correct params, not count)
+    await waitFor(() => {
+      expect(listStates).toHaveBeenCalledWith(expect.objectContaining({
+        includeLabels: true,
+        filter: 'env == "prod"',
+      }));
+    });
     expect(listStates).toHaveBeenLastCalledWith(expect.objectContaining({
       includeLabels: true,
       filter: 'env == "prod"',

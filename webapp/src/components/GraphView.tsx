@@ -43,7 +43,7 @@ function GraphViewContent({
 }: GraphViewProps) {
   // Compute layout and convert to React Flow format
   const { reactFlowNodes, reactFlowEdges } = useMemo(() => {
-    const positionMap = computeLayout(states);
+    const positionMap = computeLayout(states, edges);
     return {
       reactFlowNodes: toReactFlowNodes(states, positionMap),
       reactFlowEdges: toReactFlowEdges(edges, positionMap),

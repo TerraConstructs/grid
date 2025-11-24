@@ -47,6 +47,7 @@ export {
  * Plain TypeScript model types (not protobuf)
  */
 export type {
+  StateSummary,
   StateInfo,
   BackendConfig,
   DependencyEdge,

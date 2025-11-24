@@ -271,9 +271,10 @@ type StateInfo struct {
 	Labels map[string]*LabelValue `protobuf:"bytes,9,rep,name=labels,proto3" json:"labels,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
 	// Relationship counts for efficient list rendering (eliminates N+1 pattern in frontend)
 	// These counts are populated from database relationships without fetching full edge/output data
-	DependenciesCount int32 `protobuf:"varint,10,opt,name=dependencies_count,json=dependenciesCount,proto3" json:"dependencies_count,omitempty"` // Number of incoming dependency edges
-	DependentsCount   int32 `protobuf:"varint,11,opt,name=dependents_count,json=dependentsCount,proto3" json:"dependents_count,omitempty"`       // Number of outgoing dependency edges
-	OutputsCount      int32 `protobuf:"varint,12,opt,name=outputs_count,json=outputsCount,proto3" json:"outputs_count,omitempty"`                // Number of outputs available from this state
+	// Using optional to ensure zero values are always serialized in JSON
+	DependenciesCount *int32 `protobuf:"varint,10,opt,name=dependencies_count,json=dependenciesCount,proto3,oneof" json:"dependencies_count,omitempty"` // Number of incoming dependency edges
+	DependentsCount   *int32 `protobuf:"varint,11,opt,name=dependents_count,json=dependentsCount,proto3,oneof" json:"dependents_count,omitempty"`       // Number of outgoing dependency edges
+	OutputsCount      *int32 `protobuf:"varint,12,opt,name=outputs_count,json=outputsCount,proto3,oneof" json:"outputs_count,omitempty"`                // Number of outputs available from this state
 	unknownFields     protoimpl.UnknownFields
 	sizeCache         protoimpl.SizeCache
 }
@@ -372,22 +373,22 @@ func (x *StateInfo) GetLabels() map[string]*LabelValue {
 }
 
 func (x *StateInfo) GetDependenciesCount() int32 {
-	if x != nil {
-		return x.DependenciesCount
+	if x != nil && x.DependenciesCount != nil {
+		return *x.DependenciesCount
 	}
 	return 0
 }
 
 func (x *StateInfo) GetDependentsCount() int32 {
-	if x != nil {
-		return x.DependentsCount
+	if x != nil && x.DependentsCount != nil {
+		return *x.DependentsCount
 	}
 	return 0
 }
 
 func (x *StateInfo) GetOutputsCount() int32 {
-	if x != nil {
-		return x.OutputsCount
+	if x != nil && x.OutputsCount != nil {
+		return *x.OutputsCount
 	}
 	return 0
 }
@@ -5781,7 +5782,7 @@ const file_state_v1_state_proto_rawDesc = "" +
 	"\x0f_include_labelsB\x11\n" +
 	"\x0f_include_status\"A\n" +
 	"\x12ListStatesResponse\x12+\n" +
-	"\x06states\x18\x01 \x03(\v2\x13.state.v1.StateInfoR\x06states\"\xe4\x04\n" +
+	"\x06states\x18\x01 \x03(\v2\x13.state.v1.StateInfoR\x06states\"\xb1\x05\n" +
 	"\tStateInfo\x12\x12\n" +
 	"\x04guid\x18\x01 \x01(\tR\x04guid\x12\x19\n" +
 	"\blogic_id\x18\x02 \x01(\tR\alogicId\x12\x16\n" +
@@ -5794,15 +5795,18 @@ const file_state_v1_state_proto_rawDesc = "" +
 	"size_bytes\x18\x06 \x01(\x03R\tsizeBytes\x12,\n" +
 	"\x0fcomputed_status\x18\a \x01(\tH\x00R\x0ecomputedStatus\x88\x01\x01\x120\n" +
 	"\x14dependency_logic_ids\x18\b \x03(\tR\x12dependencyLogicIds\x127\n" +
-	"\x06labels\x18\t \x03(\v2\x1f.state.v1.StateInfo.LabelsEntryR\x06labels\x12-\n" +
+	"\x06labels\x18\t \x03(\v2\x1f.state.v1.StateInfo.LabelsEntryR\x06labels\x122\n" +
 	"\x12dependencies_count\x18\n" +
-	" \x01(\x05R\x11dependenciesCount\x12)\n" +
-	"\x10dependents_count\x18\v \x01(\x05R\x0fdependentsCount\x12#\n" +
-	"\routputs_count\x18\f \x01(\x05R\foutputsCount\x1aO\n" +
+	" \x01(\x05H\x01R\x11dependenciesCount\x88\x01\x01\x12.\n" +
+	"\x10dependents_count\x18\v \x01(\x05H\x02R\x0fdependentsCount\x88\x01\x01\x12(\n" +
+	"\routputs_count\x18\f \x01(\x05H\x03R\foutputsCount\x88\x01\x01\x1aO\n" +
 	"\vLabelsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12*\n" +
 	"\x05value\x18\x02 \x01(\v2\x14.state.v1.LabelValueR\x05value:\x028\x01B\x12\n" +
-	"\x10_computed_status\"s\n" +
+	"\x10_computed_statusB\x15\n" +
+	"\x13_dependencies_countB\x13\n" +
+	"\x11_dependents_countB\x10\n" +
+	"\x0e_outputs_count\"s\n" +
 	"\rBackendConfig\x12\x18\n" +
 	"\aaddress\x18\x01 \x01(\tR\aaddress\x12!\n" +
 	"\flock_address\x18\x02 \x01(\tR\vlockAddress\x12%\n" +

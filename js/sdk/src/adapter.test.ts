@@ -108,7 +108,59 @@ describe("GridApiAdapter", () => {
     expect(receivedFilter).toBe('env == "prod"');
   });
 
-  it("transforms protobuf responses into plain state info", async () => {
+  it("transforms protobuf responses into plain state summaries with count fields", async () => {
+    const stateCreatedAt = timestampFromDate(new Date("2024-02-01T00:00:00Z"));
+    const stateUpdatedAt = timestampFromDate(new Date("2024-02-01T02:30:00Z"));
+
+    const listStatesResponse = create(ListStatesResponseSchema, {
+      states: [
+        create(StateInfoSchema, {
+          guid: "consumer-guid",
+          logicId: "app/prod",
+          createdAt: stateCreatedAt,
+          updatedAt: stateUpdatedAt,
+          sizeBytes: 0n,
+          dependencyLogicIds: ["network/prod"],
+          computedStatus: "clean",
+          dependenciesCount: 1,
+          dependentsCount: 0,
+          outputsCount: 1,
+        }),
+      ],
+    });
+
+    const transport = createRouterTransport(({ service }) => {
+      service(StateService, {
+        async listStates() {
+          return listStatesResponse;
+        },
+      });
+    });
+
+    const adapter = new GridApiAdapter(transport);
+
+    const states = await adapter.listStates();
+    expect(states).toHaveLength(1);
+
+    const state = states[0];
+    expect(state.guid).toBe("consumer-guid");
+    expect(state.logic_id).toBe("app/prod");
+    expect(state.dependency_logic_ids).toEqual(["network/prod"]);
+    expect(state.computed_status).toBe("clean");
+
+    // Verify count fields (eliminates N+1 pattern)
+    expect(state.dependencies_count).toBe(1);
+    expect(state.dependents_count).toBe(0);
+    expect(state.outputs_count).toBe(1);
+
+    // StateSummary should NOT have these fields (use getStateInfo() for full data)
+    expect(state).not.toHaveProperty("backend_config");
+    expect(state).not.toHaveProperty("dependencies");
+    expect(state).not.toHaveProperty("dependents");
+    expect(state).not.toHaveProperty("outputs");
+  });
+
+  it("fetches full state info with backend config and relationships via getStateInfo", async () => {
     const stateCreatedAt = timestampFromDate(new Date("2024-02-01T00:00:00Z"));
     const stateUpdatedAt = timestampFromDate(new Date("2024-02-01T02:30:00Z"));
     const edgeCreatedAt = timestampFromDate(new Date("2024-02-01T03:00:00Z"));
@@ -144,54 +196,38 @@ describe("GridApiAdapter", () => {
       computedStatus: "clean",
     });
 
-    const listStatesResponse = create(ListStatesResponseSchema, {
-      states: [
-        create(StateInfoSchema, {
-          guid: "consumer-guid",
-          logicId: "app/prod",
-          createdAt: stateCreatedAt,
-          updatedAt: stateUpdatedAt,
-          sizeBytes: 0n,
-          dependencyLogicIds: ["network/prod"],
-          computedStatus: "clean",
-        }),
-      ],
-    });
-
-    const getStateInfoMock = vi.fn(async () => stateInfoResponse);
-
     const transport = createRouterTransport(({ service }) => {
       service(StateService, {
-        async listStates() {
-          return listStatesResponse;
+        async getStateInfo() {
+          return stateInfoResponse;
         },
-        getStateInfo: getStateInfoMock,
       });
     });
 
     const adapter = new GridApiAdapter(transport);
 
-    const states = await adapter.listStates();
+    const stateInfo = await adapter.getStateInfo("app/prod");
+    expect(stateInfo).not.toBeNull();
 
-    expect(getStateInfoMock).toHaveBeenCalledTimes(1);
-    expect(states).toHaveLength(1);
-
-    const state = states[0];
-    expect(state.guid).toBe("consumer-guid");
-    expect(state.logic_id).toBe("app/prod");
-    expect(state.backend_config).toEqual({
+    // Full StateInfo should have all fields including relationships
+    expect(stateInfo!.guid).toBe("consumer-guid");
+    expect(stateInfo!.logic_id).toBe("app/prod");
+    expect(stateInfo!.backend_config).toEqual({
       address: "https://grid/states/consumer-guid",
       lock_address: "https://grid/states/consumer-guid/lock",
       unlock_address: "https://grid/states/consumer-guid/unlock",
     });
-    expect(state.dependency_logic_ids).toEqual(["network/prod"]);
-    expect(state.dependencies[0]).toMatchObject({
+    expect(stateInfo!.dependency_logic_ids).toEqual(["network/prod"]);
+    expect(stateInfo!.dependencies).toHaveLength(1);
+    expect(stateInfo!.dependencies[0]).toMatchObject({
       id: 1,
       from_logic_id: "network/prod",
       to_logic_id: "app/prod",
       status: "clean",
     });
-    expect(state.outputs[0]).toEqual({ key: "vpc_id", sensitive: false });
+    expect(stateInfo!.dependents).toHaveLength(0);
+    expect(stateInfo!.outputs).toHaveLength(1);
+    expect(stateInfo!.outputs[0]).toEqual({ key: "vpc_id", sensitive: false });
   });
 
   it("converts dependency edges returned by getAllEdges", async () => {
