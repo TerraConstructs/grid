@@ -133,37 +133,68 @@ func (r *BunStateRepository) UpdateContentAndUpsertOutputs(ctx context.Context, 
 			return fmt.Errorf("state with guid '%s' not found", guid)
 		}
 
-		// 4. Delete old outputs with different serial (cache invalidation)
+		// 4. Fetch existing schemas before deleting outputs
+		var existingOutputs []models.StateOutput
+		err = tx.NewSelect().
+			Model(&existingOutputs).
+			Where("state_guid = ?", guid).
+			Where("schema_json IS NOT NULL").
+			Scan(ctx)
+		if err != nil {
+			return fmt.Errorf("fetch existing schemas: %w", err)
+		}
+
+		// Build map of output_key -> schema_json
+		existingSchemas := make(map[string]*string, len(existingOutputs))
+		for i := range existingOutputs {
+			existingSchemas[existingOutputs[i].OutputKey] = existingOutputs[i].SchemaJSON
+			fmt.Printf("DEBUG bun_state_repository: Found existing schema for key='%s' has_schema=%v\n", existingOutputs[i].OutputKey, existingOutputs[i].SchemaJSON != nil)
+		}
+		fmt.Printf("DEBUG bun_state_repository: Total existing schemas: %d\n", len(existingSchemas))
+
+		// 5. Delete old outputs with different serial (cache invalidation)
+		// IMPORTANT: Do NOT delete outputs that have schemas (schema_json IS NOT NULL)
 		_, err = tx.NewDelete().
 			Model((*models.StateOutput)(nil)).
 			Where("state_guid = ?", guid).
 			Where("state_serial != ?", serial).
+			Where("schema_json IS NULL").
 			Exec(ctx)
 		if err != nil {
 			return fmt.Errorf("delete stale outputs: %w", err)
 		}
 
-		// 5. Insert new outputs (if any)
+		// 6. Insert new outputs (if any)
 		if len(outputs) > 0 {
 			outputModels := make([]models.StateOutput, 0, len(outputs))
 			for _, out := range outputs {
-				outputModels = append(outputModels, models.StateOutput{
+				model := models.StateOutput{
 					StateGUID:   guid,
 					OutputKey:   out.Key,
 					Sensitive:   out.Sensitive,
 					StateSerial: serial,
 					CreatedAt:   now,
 					UpdatedAt:   now,
-				})
+				}
+				// Preserve existing schema if it exists
+				if existingSchema, ok := existingSchemas[out.Key]; ok {
+					model.SchemaJSON = existingSchema
+					fmt.Printf("DEBUG bun_state_repository: Preserving schema for key='%s' schema_is_not_nil=%v\n", out.Key, existingSchema != nil)
+				} else {
+					fmt.Printf("DEBUG bun_state_repository: NO schema to preserve for key='%s'\n", out.Key)
+				}
+				outputModels = append(outputModels, model)
 			}
 
 			// Use ON CONFLICT DO UPDATE for idempotency
+			// Include schema_json so preserved schemas are maintained
 			_, err = tx.NewInsert().
 				Model(&outputModels).
 				On("CONFLICT (state_guid, output_key) DO UPDATE").
 				Set("sensitive = EXCLUDED.sensitive").
 				Set("state_serial = EXCLUDED.state_serial").
 				Set("updated_at = EXCLUDED.updated_at").
+				Set("schema_json = EXCLUDED.schema_json").
 				Exec(ctx)
 			if err != nil {
 				return fmt.Errorf("insert outputs: %w", err)

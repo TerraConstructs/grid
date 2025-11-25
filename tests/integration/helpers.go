@@ -61,6 +61,26 @@ func mustRunGridctl(t *testing.T, ctx context.Context, workDir string, args ...s
 	return output
 }
 
+// mustRunGridctlStdOut executes the gridctl CLI with the given arguments and optional working directory returning only the stdout.
+func mustRunGridctlStdOut(t *testing.T, ctx context.Context, workDir string, args ...string) string {
+	output, err := runGridctlStdOut(t, ctx, workDir, args...)
+	if err != nil {
+		t.Fatalf("gridctl %v failed: %v\n%s", args, err, output)
+	}
+	return output
+}
+
+// runGridctlStdOut executes the gridctl CLI with the given arguments and optional working directory returning only the stdout.
+func runGridctlStdOut(t *testing.T, ctx context.Context, workDir string, args ...string) (string, error) {
+	gridctlPath := getGridctlPath(t)
+	fullArgs := append(args, "--server", serverURL)
+	cmd := exec.CommandContext(ctx, gridctlPath, fullArgs...)
+	if workDir != "" {
+		cmd.Dir = workDir
+	}
+	stdout, err := cmd.Output()
+	return string(stdout), err
+}
 func newSDKClient() *sdk.Client {
 	return sdk.NewClient(serverURL)
 }

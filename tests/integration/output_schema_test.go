@@ -349,9 +349,9 @@ func TestSchemaWithGridctl(t *testing.T) {
 
 	ctx := context.Background()
 
-	// Create state via CLI
+	// Create state via CLI (use --force to handle leftover .grid files from other tests)
 	logicID := "test-gridctl-schema"
-	output := mustRunGridctl(t, ctx, "", "state", "create", logicID)
+	output := mustRunGridctl(t, ctx, "", "state", "create", logicID, "--force")
 	assert.Contains(t, output, logicID, "State creation should succeed")
 
 	// Get absolute path to schema file
@@ -366,7 +366,7 @@ func TestSchemaWithGridctl(t *testing.T) {
 	assert.Contains(t, setOutput, "Set schema for output 'vpc_id'", "Schema should be set")
 
 	// Get schema via CLI
-	getOutput := mustRunGridctl(t, ctx, "", "state", "get-output-schema",
+	getOutput := mustRunGridctlStdOut(t, ctx, "", "state", "get-output-schema",
 		"--logic-id", logicID,
 		"--output-key", "vpc_id")
 

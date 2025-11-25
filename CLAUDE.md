@@ -230,6 +230,8 @@ Integration tests in `tests/integration/`:
 - Browser localStorage/sessionStorage for session management, httpOnly cookies for auth tokens (managed by gridapi) (007-webapp-auth)
 - YAML (GitHub Actions workflows), Go 1.24+ (existing project), Node.js 20+ (pnpm workspaces) (008-cicd-workflows)
 - N/A (CI/CD infrastructure only) (008-cicd-workflows)
+- Go 1.24+, TypeScript 5.x (webapp) (010-output-schema-support)
+- PostgreSQL (existing), new columns in `state_outputs` table (010-output-schema-support)
 
 ## Recent Changes
 - 007-webapp-auth: Added TypeScript 5.x (webapp), React 18 (UI framework) + React, @connectrpc/connect-web (RPC client), Vite (build tool), Tailwind CSS (styling), Lucide React (icons)

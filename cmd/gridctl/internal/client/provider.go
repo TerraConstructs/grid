@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"os"
 	"sync"
 	"time"
 
@@ -103,7 +104,8 @@ func (p *Provider) HTTPClient(ctx context.Context) (*http.Client, error) {
 
 		if !enabled {
 			p.oidcWarnOnce.Do(func() {
-				pterm.Warning.Printf("OIDC authentication disabled for %s; proceeding without credentials.\n", p.serverURL)
+				// Write warning to stderr to avoid polluting stdout (important for machine-readable output)
+				pterm.Warning.WithWriter(os.Stderr).Printf("OIDC authentication disabled for %s; proceeding without credentials.\n", p.serverURL)
 			})
 			p.httpCli = http.DefaultClient
 			return

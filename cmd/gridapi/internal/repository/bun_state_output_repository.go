@@ -23,11 +23,31 @@ func NewBunStateOutputRepository(db *bun.DB) StateOutputRepository {
 // Deletes outputs with mismatched serial, then inserts new outputs.
 func (r *BunStateOutputRepository) UpsertOutputs(ctx context.Context, stateGUID string, serial int64, outputs []OutputKey) error {
 	return r.db.RunInTx(ctx, nil, func(ctx context.Context, tx bun.Tx) error {
+		// Fetch existing schemas for this state before modifying
+		var existingOutputs []models.StateOutput
+		err := tx.NewSelect().
+			Model(&existingOutputs).
+			Where("state_guid = ?", stateGUID).
+			Where("schema_json IS NOT NULL").
+			Scan(ctx)
+		if err != nil {
+			return fmt.Errorf("fetch existing schemas: %w", err)
+		}
+
+		// Build map of output_key -> schema_json
+		existingSchemas := make(map[string]*string, len(existingOutputs))
+		for i := range existingOutputs {
+			existingSchemas[existingOutputs[i].OutputKey] = existingOutputs[i].SchemaJSON
+		}
+
 		// Delete old outputs with different serial (cache invalidation)
-		_, err := tx.NewDelete().
+		// IMPORTANT: Do NOT delete outputs that have schemas (schema_json IS NOT NULL)
+		// These are user-defined schemas that should persist across state uploads
+		_, err = tx.NewDelete().
 			Model((*models.StateOutput)(nil)).
 			Where("state_guid = ?", stateGUID).
 			Where("state_serial != ?", serial).
+			Where("schema_json IS NULL").
 			Exec(ctx)
 		if err != nil {
 			return fmt.Errorf("delete stale outputs: %w", err)
@@ -41,25 +61,30 @@ func (r *BunStateOutputRepository) UpsertOutputs(ctx context.Context, stateGUID 
 		now := time.Now()
 		outputModels := make([]models.StateOutput, 0, len(outputs))
 		for _, out := range outputs {
-			outputModels = append(outputModels, models.StateOutput{
+			model := models.StateOutput{
 				StateGUID:   stateGUID,
 				OutputKey:   out.Key,
 				Sensitive:   out.Sensitive,
 				StateSerial: serial,
 				CreatedAt:   now,
 				UpdatedAt:   now,
-			})
+			}
+			// Preserve existing schema if it exists
+			if existingSchema, ok := existingSchemas[out.Key]; ok {
+				model.SchemaJSON = existingSchema
+			}
+			outputModels = append(outputModels, model)
 		}
 
 		// Use ON CONFLICT DO UPDATE to handle race conditions
-		// Note: We do NOT update schema_json here - schemas are managed separately via SetOutputSchema
-		// This preserves user-defined schemas when Terraform state is uploaded
+		// Now we can include schema_json in the update since we've preserved it above
 		_, err = tx.NewInsert().
 			Model(&outputModels).
 			On("CONFLICT (state_guid, output_key) DO UPDATE").
 			Set("sensitive = EXCLUDED.sensitive").
 			Set("state_serial = EXCLUDED.state_serial").
 			Set("updated_at = EXCLUDED.updated_at").
+			Set("schema_json = EXCLUDED.schema_json").
 			Exec(ctx)
 		if err != nil {
 			return fmt.Errorf("insert outputs: %w", err)

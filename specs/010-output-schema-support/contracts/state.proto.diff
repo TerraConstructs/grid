@@ -1,0 +1,69 @@
+// Proto Changes for Output Schema Support - Phase 2
+// File: proto/state/v1/state.proto
+//
+// This diff shows additions to the existing proto file
+
+// ============================================================================
+// OutputKey Message Extensions
+// ============================================================================
+
+// BEFORE (Phase 1):
+message OutputKey {
+  string key = 1;
+  bool sensitive = 2;
+  optional string schema_json = 3;
+}
+
+// AFTER (Phase 2):
+message OutputKey {
+  string key = 1;
+  bool sensitive = 2;
+
+  // Schema definition (Phase 1)
+  optional string schema_json = 3;
+
+  // Schema source indicator (Phase 2A: Inference)
+  // Values: "manual" (explicitly set) | "inferred" (auto-generated)
+  optional string schema_source = 4;
+
+  // Validation results (Phase 2B: Validation)
+  // Values: "valid" | "invalid" | "error"
+  optional string validation_status = 5;
+
+  // Error message when validation_status is "invalid" or "error"
+  // Contains: JSON path, expected type/constraint, actual value (truncated)
+  optional string validation_error = 6;
+
+  // Timestamp of last validation run
+  optional google.protobuf.Timestamp validated_at = 7;
+}
+
+// ============================================================================
+// EdgeStatus Enum Extension
+// ============================================================================
+
+// BEFORE (existing):
+// status field uses string values: pending, clean, dirty, potentially-stale, mock, missing-output
+
+// AFTER (Phase 2B):
+// Add new value: "schema-invalid"
+// Priority order (highest to lowest):
+//   1. schema-invalid - Producer output failed schema validation
+//   2. missing-output - Output doesn't exist
+//   3. dirty - Fingerprint changed
+//   4. clean - Fingerprints match
+//   5. pending - Not yet computed
+//   6. mock - Producer is mock state
+
+// ============================================================================
+// No New RPC Methods Required
+// ============================================================================
+
+// Existing methods suffice for Phase 2:
+// - SetOutputSchema: Already exists (Phase 1), schema_source handled server-side
+// - GetOutputSchema: Already exists (Phase 1), will include schema_source in response
+// - ListStateOutputs: Already exists, will include all new fields
+// - GetStateInfo: Already exists, outputs field includes new metadata
+
+// The validation happens server-side during state upload (POST /tfstate/{guid})
+// No client-initiated validation RPC is needed per FR-032 (async background jobs)
