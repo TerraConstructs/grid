@@ -61,6 +61,7 @@ postgres_data/
 # Playwright
 /test-results/
 /playwright-report/
+/playwright-report-no-auth/
 /blob-report/
 /playwright/.cache/
 /playwright/.auth/
