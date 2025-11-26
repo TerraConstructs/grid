@@ -21,6 +21,7 @@ import (
 	"github.com/terraconstructs/grid/cmd/gridapi/internal/server"
 	"github.com/terraconstructs/grid/cmd/gridapi/internal/services/dependency"
 	"github.com/terraconstructs/grid/cmd/gridapi/internal/services/iam"
+	"github.com/terraconstructs/grid/cmd/gridapi/internal/services/inference"
 	"github.com/terraconstructs/grid/cmd/gridapi/internal/services/state"
 	"golang.org/x/net/http2"
 	"golang.org/x/net/http2/h2c"
@@ -53,11 +54,15 @@ var serveCmd = &cobra.Command{
 		groupRoleRepo := repository.NewBunGroupRoleRepository(db)
 		revokedJTIRepo := repository.NewBunRevokedJTIRepository(db)
 
+		// Initialize inference service
+		inferrer := inference.NewInferrer()
+
 		// Initialize services
 		svc := state.NewService(stateRepo, cfg.ServerURL).
 			WithOutputRepository(outputRepo).
 			WithEdgeRepository(edgeRepo).
-			WithPolicyRepository(labelPolicyRepo)
+			WithPolicyRepository(labelPolicyRepo).
+			WithInferrer(inferrer)
 		depService := dependency.NewService(edgeRepo, stateRepo).
 			WithOutputRepository(outputRepo)
 		edgeUpdater := server.NewEdgeUpdateJob(edgeRepo, stateRepo)

@@ -438,6 +438,24 @@ message OutputKey {
   // This field is optional and only populated when schema metadata is available.
   // Allows clients to understand the expected type structure without fetching values.
   optional string schema_json = 3;
+
+  // Schema source indicates whether the schema was manually set or automatically inferred.
+  // Values: "manual" (explicitly set via SetOutputSchema) or "inferred" (auto-generated from output values)
+  // This field is optional and only populated when schema_json is non-null.
+  optional string schema_source = 4;
+
+  // Validation status indicates the result of JSON Schema validation.
+  // Values: "valid" (passed validation), "invalid" (failed validation), "error" (validation system error)
+  // This field is optional and only populated when schema_json is non-null and validation has run.
+  optional string validation_status = 5;
+
+  // Validation error contains the validation error message with JSON path information.
+  // This field is optional and only populated when validation_status is "invalid" or "error".
+  optional string validation_error = 6;
+
+  // Validated at is the timestamp of the last validation run.
+  // This field is optional and only populated when validation has run.
+  optional google.protobuf.Timestamp validated_at = 7;
 }
 
 // ListStateOutputsRequest fetches output keys for a state.

@@ -493,6 +493,22 @@ func (h *StateServiceHandler) ListStateOutputs(
 		if out.SchemaJSON != nil && *out.SchemaJSON != "" {
 			protoOut.SchemaJson = out.SchemaJSON
 		}
+		// Include schema source if available
+		if out.SchemaSource != nil && *out.SchemaSource != "" {
+			protoOut.SchemaSource = out.SchemaSource
+		}
+		// Include validation status if available
+		if out.ValidationStatus != nil && *out.ValidationStatus != "" {
+			protoOut.ValidationStatus = out.ValidationStatus
+		}
+		// Include validation error if available
+		if out.ValidationError != nil && *out.ValidationError != "" {
+			protoOut.ValidationError = out.ValidationError
+		}
+		// Include validated_at if available
+		if out.ValidatedAt != nil {
+			protoOut.ValidatedAt = timestamppb.New(*out.ValidatedAt)
+		}
 		protoOutputs[i] = protoOut
 	}
 

@@ -1,0 +1,40 @@
+{
+  "version": 4,
+  "terraform_version": "1.5.0",
+  "serial": 1,
+  "lineage": "test-complex-inference",
+  "outputs": {
+    "port": {
+      "value": 8080,
+      "type": "number",
+      "sensitive": false
+    },
+    "enabled": {
+      "value": true,
+      "type": "bool",
+      "sensitive": false
+    },
+    "subnet_ids": {
+      "value": ["subnet-abc", "subnet-def", "subnet-ghi"],
+      "type": ["list", "string"],
+      "sensitive": false
+    },
+    "config": {
+      "value": {
+        "name": "production",
+        "region": "us-west-2",
+        "tags": {
+          "Environment": "prod",
+          "Team": "platform"
+        }
+      },
+      "type": ["object", {
+        "name": "string",
+        "region": "string",
+        "tags": ["map", "string"]
+      }],
+      "sensitive": false
+    }
+  },
+  "resources": []
+}

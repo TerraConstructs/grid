@@ -1,5 +1,7 @@
 connectrpc.com/connect v1.19.0 h1:LuqUbq01PqbtL0o7vn0WMRXzR2nNsiINe5zfcJ24pJM=
 connectrpc.com/connect v1.19.0/go.mod h1:tN20fjdGlewnSFeZxLKb0xwIZ6ozc3OQs2hTXy4du9w=
+github.com/JLugagne/jsonschema-infer v0.1.2 h1:EpV15tuep5CZZO6rzb6RGa3fxlp3WeWEnO+9lJ2mi0Y=
+github.com/JLugagne/jsonschema-infer v0.1.2/go.mod h1:V1ae1kcppLBW3sXy9hU8LmU5KGqX86q2jdb1Rv1Lg+c=
 github.com/aead/siphash v1.0.1/go.mod h1:Nywa3cDsYNNK3gaciGTWPwHt0wlpNV15vwmswBAUSII=
 github.com/benbjohnson/clock v1.3.5 h1:VvXlSJBzZpA/zum6Sj74hxwYI2DIxRWuNIoXAzHZz5o=
 github.com/benbjohnson/clock v1.3.5/go.mod h1:J11/hYXuz8f4ySSvYwY0FKfm+ezbsZBKZxNJlLklBHA=

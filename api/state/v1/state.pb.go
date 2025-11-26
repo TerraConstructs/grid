@@ -2508,7 +2508,21 @@ type OutputKey struct {
 	// JSON Schema definition for this output (if one has been set via SetOutputSchema).
 	// This field is optional and only populated when schema metadata is available.
 	// Allows clients to understand the expected type structure without fetching values.
-	SchemaJson    *string `protobuf:"bytes,3,opt,name=schema_json,json=schemaJson,proto3,oneof" json:"schema_json,omitempty"`
+	SchemaJson *string `protobuf:"bytes,3,opt,name=schema_json,json=schemaJson,proto3,oneof" json:"schema_json,omitempty"`
+	// Schema source indicates whether the schema was manually set or automatically inferred.
+	// Values: "manual" (explicitly set via SetOutputSchema) or "inferred" (auto-generated from output values)
+	// This field is optional and only populated when schema_json is non-null.
+	SchemaSource *string `protobuf:"bytes,4,opt,name=schema_source,json=schemaSource,proto3,oneof" json:"schema_source,omitempty"`
+	// Validation status indicates the result of JSON Schema validation.
+	// Values: "valid" (passed validation), "invalid" (failed validation), "error" (validation system error)
+	// This field is optional and only populated when schema_json is non-null and validation has run.
+	ValidationStatus *string `protobuf:"bytes,5,opt,name=validation_status,json=validationStatus,proto3,oneof" json:"validation_status,omitempty"`
+	// Validation error contains the validation error message with JSON path information.
+	// This field is optional and only populated when validation_status is "invalid" or "error".
+	ValidationError *string `protobuf:"bytes,6,opt,name=validation_error,json=validationError,proto3,oneof" json:"validation_error,omitempty"`
+	// Validated at is the timestamp of the last validation run.
+	// This field is optional and only populated when validation has run.
+	ValidatedAt   *timestamppb.Timestamp `protobuf:"bytes,7,opt,name=validated_at,json=validatedAt,proto3,oneof" json:"validated_at,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -2562,6 +2576,34 @@ func (x *OutputKey) GetSchemaJson() string {
 		return *x.SchemaJson
 	}
 	return ""
+}
+
+func (x *OutputKey) GetSchemaSource() string {
+	if x != nil && x.SchemaSource != nil {
+		return *x.SchemaSource
+	}
+	return ""
+}
+
+func (x *OutputKey) GetValidationStatus() string {
+	if x != nil && x.ValidationStatus != nil {
+		return *x.ValidationStatus
+	}
+	return ""
+}
+
+func (x *OutputKey) GetValidationError() string {
+	if x != nil && x.ValidationError != nil {
+		return *x.ValidationError
+	}
+	return ""
+}
+
+func (x *OutputKey) GetValidatedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.ValidatedAt
+	}
+	return nil
 }
 
 // ListStateOutputsRequest fetches output keys for a state.
@@ -6316,13 +6358,21 @@ const file_state_v1_state_proto_rawDesc = "" +
 	"\v_out_digestB\x12\n" +
 	"\x10_mock_value_jsonB\r\n" +
 	"\v_last_in_atB\x0e\n" +
-	"\f_last_out_at\"q\n" +
+	"\f_last_out_at\"\x8f\x03\n" +
 	"\tOutputKey\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x1c\n" +
 	"\tsensitive\x18\x02 \x01(\bR\tsensitive\x12$\n" +
 	"\vschema_json\x18\x03 \x01(\tH\x00R\n" +
-	"schemaJson\x88\x01\x01B\x0e\n" +
-	"\f_schema_json\"U\n" +
+	"schemaJson\x88\x01\x01\x12(\n" +
+	"\rschema_source\x18\x04 \x01(\tH\x01R\fschemaSource\x88\x01\x01\x120\n" +
+	"\x11validation_status\x18\x05 \x01(\tH\x02R\x10validationStatus\x88\x01\x01\x12.\n" +
+	"\x10validation_error\x18\x06 \x01(\tH\x03R\x0fvalidationError\x88\x01\x01\x12B\n" +
+	"\fvalidated_at\x18\a \x01(\v2\x1a.google.protobuf.TimestampH\x04R\vvalidatedAt\x88\x01\x01B\x0e\n" +
+	"\f_schema_jsonB\x10\n" +
+	"\x0e_schema_sourceB\x14\n" +
+	"\x12_validation_statusB\x13\n" +
+	"\x11_validation_errorB\x0f\n" +
+	"\r_validated_at\"U\n" +
 	"\x17ListStateOutputsRequest\x12\x1b\n" +
 	"\blogic_id\x18\x01 \x01(\tH\x00R\alogicId\x12\x14\n" +
 	"\x04guid\x18\x02 \x01(\tH\x00R\x04guidB\a\n" +
@@ -6806,133 +6856,134 @@ var file_state_v1_state_proto_depIdxs = []int32{
 	102, // 25: state.v1.DependencyEdge.last_out_at:type_name -> google.protobuf.Timestamp
 	102, // 26: state.v1.DependencyEdge.created_at:type_name -> google.protobuf.Timestamp
 	102, // 27: state.v1.DependencyEdge.updated_at:type_name -> google.protobuf.Timestamp
-	36,  // 28: state.v1.ListStateOutputsResponse.outputs:type_name -> state.v1.OutputKey
-	5,   // 29: state.v1.GetStateInfoResponse.backend_config:type_name -> state.v1.BackendConfig
-	35,  // 30: state.v1.GetStateInfoResponse.dependencies:type_name -> state.v1.DependencyEdge
-	35,  // 31: state.v1.GetStateInfoResponse.dependents:type_name -> state.v1.DependencyEdge
-	36,  // 32: state.v1.GetStateInfoResponse.outputs:type_name -> state.v1.OutputKey
-	102, // 33: state.v1.GetStateInfoResponse.created_at:type_name -> google.protobuf.Timestamp
-	102, // 34: state.v1.GetStateInfoResponse.updated_at:type_name -> google.protobuf.Timestamp
-	98,  // 35: state.v1.GetStateInfoResponse.labels:type_name -> state.v1.GetStateInfoResponse.LabelsEntry
-	35,  // 36: state.v1.ListAllEdgesResponse.edges:type_name -> state.v1.DependencyEdge
-	99,  // 37: state.v1.UpdateStateLabelsRequest.adds:type_name -> state.v1.UpdateStateLabelsRequest.AddsEntry
-	100, // 38: state.v1.UpdateStateLabelsResponse.labels:type_name -> state.v1.UpdateStateLabelsResponse.LabelsEntry
-	102, // 39: state.v1.UpdateStateLabelsResponse.updated_at:type_name -> google.protobuf.Timestamp
-	102, // 40: state.v1.GetLabelPolicyResponse.created_at:type_name -> google.protobuf.Timestamp
-	102, // 41: state.v1.GetLabelPolicyResponse.updated_at:type_name -> google.protobuf.Timestamp
-	102, // 42: state.v1.SetLabelPolicyResponse.updated_at:type_name -> google.protobuf.Timestamp
-	102, // 43: state.v1.CreateServiceAccountResponse.created_at:type_name -> google.protobuf.Timestamp
-	102, // 44: state.v1.ServiceAccountInfo.created_at:type_name -> google.protobuf.Timestamp
-	102, // 45: state.v1.ServiceAccountInfo.last_used_at:type_name -> google.protobuf.Timestamp
-	53,  // 46: state.v1.ListServiceAccountsResponse.service_accounts:type_name -> state.v1.ServiceAccountInfo
-	102, // 47: state.v1.RotateServiceAccountResponse.rotated_at:type_name -> google.protobuf.Timestamp
-	60,  // 48: state.v1.CreateRoleRequest.create_constraints:type_name -> state.v1.CreateConstraints
-	101, // 49: state.v1.CreateConstraints.constraints:type_name -> state.v1.CreateConstraints.ConstraintsEntry
-	60,  // 50: state.v1.RoleInfo.create_constraints:type_name -> state.v1.CreateConstraints
-	102, // 51: state.v1.RoleInfo.created_at:type_name -> google.protobuf.Timestamp
-	102, // 52: state.v1.RoleInfo.updated_at:type_name -> google.protobuf.Timestamp
-	62,  // 53: state.v1.CreateRoleResponse.role:type_name -> state.v1.RoleInfo
-	62,  // 54: state.v1.ListRolesResponse.roles:type_name -> state.v1.RoleInfo
-	60,  // 55: state.v1.UpdateRoleRequest.create_constraints:type_name -> state.v1.CreateConstraints
-	62,  // 56: state.v1.UpdateRoleResponse.role:type_name -> state.v1.RoleInfo
-	102, // 57: state.v1.AssignRoleResponse.assigned_at:type_name -> google.protobuf.Timestamp
-	102, // 58: state.v1.RoleAssignmentInfo.assigned_at:type_name -> google.protobuf.Timestamp
-	75,  // 59: state.v1.ListUserRolesResponse.roles:type_name -> state.v1.RoleAssignmentInfo
-	102, // 60: state.v1.AssignGroupRoleResponse.assigned_at:type_name -> google.protobuf.Timestamp
-	102, // 61: state.v1.GroupRoleAssignmentInfo.assigned_at:type_name -> google.protobuf.Timestamp
-	82,  // 62: state.v1.ListGroupRolesResponse.assignments:type_name -> state.v1.GroupRoleAssignmentInfo
-	60,  // 63: state.v1.EffectivePermissions.effective_create_constraints:type_name -> state.v1.CreateConstraints
-	85,  // 64: state.v1.GetEffectivePermissionsResponse.permissions:type_name -> state.v1.EffectivePermissions
-	102, // 65: state.v1.SessionInfo.created_at:type_name -> google.protobuf.Timestamp
-	102, // 66: state.v1.SessionInfo.last_used_at:type_name -> google.protobuf.Timestamp
-	102, // 67: state.v1.SessionInfo.expires_at:type_name -> google.protobuf.Timestamp
-	88,  // 68: state.v1.ListSessionsResponse.sessions:type_name -> state.v1.SessionInfo
-	43,  // 69: state.v1.StateInfo.LabelsEntry.value:type_name -> state.v1.LabelValue
-	43,  // 70: state.v1.GetStateInfoResponse.LabelsEntry.value:type_name -> state.v1.LabelValue
-	43,  // 71: state.v1.UpdateStateLabelsRequest.AddsEntry.value:type_name -> state.v1.LabelValue
-	43,  // 72: state.v1.UpdateStateLabelsResponse.LabelsEntry.value:type_name -> state.v1.LabelValue
-	61,  // 73: state.v1.CreateConstraints.ConstraintsEntry.value:type_name -> state.v1.CreateConstraint
-	0,   // 74: state.v1.StateService.CreateState:input_type -> state.v1.CreateStateRequest
-	2,   // 75: state.v1.StateService.ListStates:input_type -> state.v1.ListStatesRequest
-	6,   // 76: state.v1.StateService.GetStateConfig:input_type -> state.v1.GetStateConfigRequest
-	8,   // 77: state.v1.StateService.GetStateLock:input_type -> state.v1.GetStateLockRequest
-	12,  // 78: state.v1.StateService.UnlockState:input_type -> state.v1.UnlockStateRequest
-	14,  // 79: state.v1.StateService.AddDependency:input_type -> state.v1.AddDependencyRequest
-	16,  // 80: state.v1.StateService.RemoveDependency:input_type -> state.v1.RemoveDependencyRequest
-	18,  // 81: state.v1.StateService.ListDependencies:input_type -> state.v1.ListDependenciesRequest
-	20,  // 82: state.v1.StateService.ListDependents:input_type -> state.v1.ListDependentsRequest
-	22,  // 83: state.v1.StateService.SearchByOutput:input_type -> state.v1.SearchByOutputRequest
-	24,  // 84: state.v1.StateService.GetTopologicalOrder:input_type -> state.v1.GetTopologicalOrderRequest
-	28,  // 85: state.v1.StateService.GetStateStatus:input_type -> state.v1.GetStateStatusRequest
-	32,  // 86: state.v1.StateService.GetDependencyGraph:input_type -> state.v1.GetDependencyGraphRequest
-	37,  // 87: state.v1.StateService.ListStateOutputs:input_type -> state.v1.ListStateOutputsRequest
-	39,  // 88: state.v1.StateService.GetStateInfo:input_type -> state.v1.GetStateInfoRequest
-	41,  // 89: state.v1.StateService.ListAllEdges:input_type -> state.v1.ListAllEdgesRequest
-	44,  // 90: state.v1.StateService.UpdateStateLabels:input_type -> state.v1.UpdateStateLabelsRequest
-	46,  // 91: state.v1.StateService.GetLabelPolicy:input_type -> state.v1.GetLabelPolicyRequest
-	48,  // 92: state.v1.StateService.SetLabelPolicy:input_type -> state.v1.SetLabelPolicyRequest
-	50,  // 93: state.v1.StateService.CreateServiceAccount:input_type -> state.v1.CreateServiceAccountRequest
-	52,  // 94: state.v1.StateService.ListServiceAccounts:input_type -> state.v1.ListServiceAccountsRequest
-	55,  // 95: state.v1.StateService.RevokeServiceAccount:input_type -> state.v1.RevokeServiceAccountRequest
-	57,  // 96: state.v1.StateService.RotateServiceAccount:input_type -> state.v1.RotateServiceAccountRequest
-	59,  // 97: state.v1.StateService.CreateRole:input_type -> state.v1.CreateRoleRequest
-	64,  // 98: state.v1.StateService.ListRoles:input_type -> state.v1.ListRolesRequest
-	66,  // 99: state.v1.StateService.UpdateRole:input_type -> state.v1.UpdateRoleRequest
-	68,  // 100: state.v1.StateService.DeleteRole:input_type -> state.v1.DeleteRoleRequest
-	70,  // 101: state.v1.StateService.AssignRole:input_type -> state.v1.AssignRoleRequest
-	72,  // 102: state.v1.StateService.RemoveRole:input_type -> state.v1.RemoveRoleRequest
-	74,  // 103: state.v1.StateService.ListUserRoles:input_type -> state.v1.ListUserRolesRequest
-	77,  // 104: state.v1.StateService.AssignGroupRole:input_type -> state.v1.AssignGroupRoleRequest
-	79,  // 105: state.v1.StateService.RemoveGroupRole:input_type -> state.v1.RemoveGroupRoleRequest
-	81,  // 106: state.v1.StateService.ListGroupRoles:input_type -> state.v1.ListGroupRolesRequest
-	84,  // 107: state.v1.StateService.GetEffectivePermissions:input_type -> state.v1.GetEffectivePermissionsRequest
-	87,  // 108: state.v1.StateService.ListSessions:input_type -> state.v1.ListSessionsRequest
-	90,  // 109: state.v1.StateService.RevokeSession:input_type -> state.v1.RevokeSessionRequest
-	92,  // 110: state.v1.StateService.SetOutputSchema:input_type -> state.v1.SetOutputSchemaRequest
-	94,  // 111: state.v1.StateService.GetOutputSchema:input_type -> state.v1.GetOutputSchemaRequest
-	1,   // 112: state.v1.StateService.CreateState:output_type -> state.v1.CreateStateResponse
-	3,   // 113: state.v1.StateService.ListStates:output_type -> state.v1.ListStatesResponse
-	7,   // 114: state.v1.StateService.GetStateConfig:output_type -> state.v1.GetStateConfigResponse
-	11,  // 115: state.v1.StateService.GetStateLock:output_type -> state.v1.GetStateLockResponse
-	13,  // 116: state.v1.StateService.UnlockState:output_type -> state.v1.UnlockStateResponse
-	15,  // 117: state.v1.StateService.AddDependency:output_type -> state.v1.AddDependencyResponse
-	17,  // 118: state.v1.StateService.RemoveDependency:output_type -> state.v1.RemoveDependencyResponse
-	19,  // 119: state.v1.StateService.ListDependencies:output_type -> state.v1.ListDependenciesResponse
-	21,  // 120: state.v1.StateService.ListDependents:output_type -> state.v1.ListDependentsResponse
-	23,  // 121: state.v1.StateService.SearchByOutput:output_type -> state.v1.SearchByOutputResponse
-	25,  // 122: state.v1.StateService.GetTopologicalOrder:output_type -> state.v1.GetTopologicalOrderResponse
-	29,  // 123: state.v1.StateService.GetStateStatus:output_type -> state.v1.GetStateStatusResponse
-	33,  // 124: state.v1.StateService.GetDependencyGraph:output_type -> state.v1.GetDependencyGraphResponse
-	38,  // 125: state.v1.StateService.ListStateOutputs:output_type -> state.v1.ListStateOutputsResponse
-	40,  // 126: state.v1.StateService.GetStateInfo:output_type -> state.v1.GetStateInfoResponse
-	42,  // 127: state.v1.StateService.ListAllEdges:output_type -> state.v1.ListAllEdgesResponse
-	45,  // 128: state.v1.StateService.UpdateStateLabels:output_type -> state.v1.UpdateStateLabelsResponse
-	47,  // 129: state.v1.StateService.GetLabelPolicy:output_type -> state.v1.GetLabelPolicyResponse
-	49,  // 130: state.v1.StateService.SetLabelPolicy:output_type -> state.v1.SetLabelPolicyResponse
-	51,  // 131: state.v1.StateService.CreateServiceAccount:output_type -> state.v1.CreateServiceAccountResponse
-	54,  // 132: state.v1.StateService.ListServiceAccounts:output_type -> state.v1.ListServiceAccountsResponse
-	56,  // 133: state.v1.StateService.RevokeServiceAccount:output_type -> state.v1.RevokeServiceAccountResponse
-	58,  // 134: state.v1.StateService.RotateServiceAccount:output_type -> state.v1.RotateServiceAccountResponse
-	63,  // 135: state.v1.StateService.CreateRole:output_type -> state.v1.CreateRoleResponse
-	65,  // 136: state.v1.StateService.ListRoles:output_type -> state.v1.ListRolesResponse
-	67,  // 137: state.v1.StateService.UpdateRole:output_type -> state.v1.UpdateRoleResponse
-	69,  // 138: state.v1.StateService.DeleteRole:output_type -> state.v1.DeleteRoleResponse
-	71,  // 139: state.v1.StateService.AssignRole:output_type -> state.v1.AssignRoleResponse
-	73,  // 140: state.v1.StateService.RemoveRole:output_type -> state.v1.RemoveRoleResponse
-	76,  // 141: state.v1.StateService.ListUserRoles:output_type -> state.v1.ListUserRolesResponse
-	78,  // 142: state.v1.StateService.AssignGroupRole:output_type -> state.v1.AssignGroupRoleResponse
-	80,  // 143: state.v1.StateService.RemoveGroupRole:output_type -> state.v1.RemoveGroupRoleResponse
-	83,  // 144: state.v1.StateService.ListGroupRoles:output_type -> state.v1.ListGroupRolesResponse
-	86,  // 145: state.v1.StateService.GetEffectivePermissions:output_type -> state.v1.GetEffectivePermissionsResponse
-	89,  // 146: state.v1.StateService.ListSessions:output_type -> state.v1.ListSessionsResponse
-	91,  // 147: state.v1.StateService.RevokeSession:output_type -> state.v1.RevokeSessionResponse
-	93,  // 148: state.v1.StateService.SetOutputSchema:output_type -> state.v1.SetOutputSchemaResponse
-	95,  // 149: state.v1.StateService.GetOutputSchema:output_type -> state.v1.GetOutputSchemaResponse
-	112, // [112:150] is the sub-list for method output_type
-	74,  // [74:112] is the sub-list for method input_type
-	74,  // [74:74] is the sub-list for extension type_name
-	74,  // [74:74] is the sub-list for extension extendee
-	0,   // [0:74] is the sub-list for field type_name
+	102, // 28: state.v1.OutputKey.validated_at:type_name -> google.protobuf.Timestamp
+	36,  // 29: state.v1.ListStateOutputsResponse.outputs:type_name -> state.v1.OutputKey
+	5,   // 30: state.v1.GetStateInfoResponse.backend_config:type_name -> state.v1.BackendConfig
+	35,  // 31: state.v1.GetStateInfoResponse.dependencies:type_name -> state.v1.DependencyEdge
+	35,  // 32: state.v1.GetStateInfoResponse.dependents:type_name -> state.v1.DependencyEdge
+	36,  // 33: state.v1.GetStateInfoResponse.outputs:type_name -> state.v1.OutputKey
+	102, // 34: state.v1.GetStateInfoResponse.created_at:type_name -> google.protobuf.Timestamp
+	102, // 35: state.v1.GetStateInfoResponse.updated_at:type_name -> google.protobuf.Timestamp
+	98,  // 36: state.v1.GetStateInfoResponse.labels:type_name -> state.v1.GetStateInfoResponse.LabelsEntry
+	35,  // 37: state.v1.ListAllEdgesResponse.edges:type_name -> state.v1.DependencyEdge
+	99,  // 38: state.v1.UpdateStateLabelsRequest.adds:type_name -> state.v1.UpdateStateLabelsRequest.AddsEntry
+	100, // 39: state.v1.UpdateStateLabelsResponse.labels:type_name -> state.v1.UpdateStateLabelsResponse.LabelsEntry
+	102, // 40: state.v1.UpdateStateLabelsResponse.updated_at:type_name -> google.protobuf.Timestamp
+	102, // 41: state.v1.GetLabelPolicyResponse.created_at:type_name -> google.protobuf.Timestamp
+	102, // 42: state.v1.GetLabelPolicyResponse.updated_at:type_name -> google.protobuf.Timestamp
+	102, // 43: state.v1.SetLabelPolicyResponse.updated_at:type_name -> google.protobuf.Timestamp
+	102, // 44: state.v1.CreateServiceAccountResponse.created_at:type_name -> google.protobuf.Timestamp
+	102, // 45: state.v1.ServiceAccountInfo.created_at:type_name -> google.protobuf.Timestamp
+	102, // 46: state.v1.ServiceAccountInfo.last_used_at:type_name -> google.protobuf.Timestamp
+	53,  // 47: state.v1.ListServiceAccountsResponse.service_accounts:type_name -> state.v1.ServiceAccountInfo
+	102, // 48: state.v1.RotateServiceAccountResponse.rotated_at:type_name -> google.protobuf.Timestamp
+	60,  // 49: state.v1.CreateRoleRequest.create_constraints:type_name -> state.v1.CreateConstraints
+	101, // 50: state.v1.CreateConstraints.constraints:type_name -> state.v1.CreateConstraints.ConstraintsEntry
+	60,  // 51: state.v1.RoleInfo.create_constraints:type_name -> state.v1.CreateConstraints
+	102, // 52: state.v1.RoleInfo.created_at:type_name -> google.protobuf.Timestamp
+	102, // 53: state.v1.RoleInfo.updated_at:type_name -> google.protobuf.Timestamp
+	62,  // 54: state.v1.CreateRoleResponse.role:type_name -> state.v1.RoleInfo
+	62,  // 55: state.v1.ListRolesResponse.roles:type_name -> state.v1.RoleInfo
+	60,  // 56: state.v1.UpdateRoleRequest.create_constraints:type_name -> state.v1.CreateConstraints
+	62,  // 57: state.v1.UpdateRoleResponse.role:type_name -> state.v1.RoleInfo
+	102, // 58: state.v1.AssignRoleResponse.assigned_at:type_name -> google.protobuf.Timestamp
+	102, // 59: state.v1.RoleAssignmentInfo.assigned_at:type_name -> google.protobuf.Timestamp
+	75,  // 60: state.v1.ListUserRolesResponse.roles:type_name -> state.v1.RoleAssignmentInfo
+	102, // 61: state.v1.AssignGroupRoleResponse.assigned_at:type_name -> google.protobuf.Timestamp
+	102, // 62: state.v1.GroupRoleAssignmentInfo.assigned_at:type_name -> google.protobuf.Timestamp
+	82,  // 63: state.v1.ListGroupRolesResponse.assignments:type_name -> state.v1.GroupRoleAssignmentInfo
+	60,  // 64: state.v1.EffectivePermissions.effective_create_constraints:type_name -> state.v1.CreateConstraints
+	85,  // 65: state.v1.GetEffectivePermissionsResponse.permissions:type_name -> state.v1.EffectivePermissions
+	102, // 66: state.v1.SessionInfo.created_at:type_name -> google.protobuf.Timestamp
+	102, // 67: state.v1.SessionInfo.last_used_at:type_name -> google.protobuf.Timestamp
+	102, // 68: state.v1.SessionInfo.expires_at:type_name -> google.protobuf.Timestamp
+	88,  // 69: state.v1.ListSessionsResponse.sessions:type_name -> state.v1.SessionInfo
+	43,  // 70: state.v1.StateInfo.LabelsEntry.value:type_name -> state.v1.LabelValue
+	43,  // 71: state.v1.GetStateInfoResponse.LabelsEntry.value:type_name -> state.v1.LabelValue
+	43,  // 72: state.v1.UpdateStateLabelsRequest.AddsEntry.value:type_name -> state.v1.LabelValue
+	43,  // 73: state.v1.UpdateStateLabelsResponse.LabelsEntry.value:type_name -> state.v1.LabelValue
+	61,  // 74: state.v1.CreateConstraints.ConstraintsEntry.value:type_name -> state.v1.CreateConstraint
+	0,   // 75: state.v1.StateService.CreateState:input_type -> state.v1.CreateStateRequest
+	2,   // 76: state.v1.StateService.ListStates:input_type -> state.v1.ListStatesRequest
+	6,   // 77: state.v1.StateService.GetStateConfig:input_type -> state.v1.GetStateConfigRequest
+	8,   // 78: state.v1.StateService.GetStateLock:input_type -> state.v1.GetStateLockRequest
+	12,  // 79: state.v1.StateService.UnlockState:input_type -> state.v1.UnlockStateRequest
+	14,  // 80: state.v1.StateService.AddDependency:input_type -> state.v1.AddDependencyRequest
+	16,  // 81: state.v1.StateService.RemoveDependency:input_type -> state.v1.RemoveDependencyRequest
+	18,  // 82: state.v1.StateService.ListDependencies:input_type -> state.v1.ListDependenciesRequest
+	20,  // 83: state.v1.StateService.ListDependents:input_type -> state.v1.ListDependentsRequest
+	22,  // 84: state.v1.StateService.SearchByOutput:input_type -> state.v1.SearchByOutputRequest
+	24,  // 85: state.v1.StateService.GetTopologicalOrder:input_type -> state.v1.GetTopologicalOrderRequest
+	28,  // 86: state.v1.StateService.GetStateStatus:input_type -> state.v1.GetStateStatusRequest
+	32,  // 87: state.v1.StateService.GetDependencyGraph:input_type -> state.v1.GetDependencyGraphRequest
+	37,  // 88: state.v1.StateService.ListStateOutputs:input_type -> state.v1.ListStateOutputsRequest
+	39,  // 89: state.v1.StateService.GetStateInfo:input_type -> state.v1.GetStateInfoRequest
+	41,  // 90: state.v1.StateService.ListAllEdges:input_type -> state.v1.ListAllEdgesRequest
+	44,  // 91: state.v1.StateService.UpdateStateLabels:input_type -> state.v1.UpdateStateLabelsRequest
+	46,  // 92: state.v1.StateService.GetLabelPolicy:input_type -> state.v1.GetLabelPolicyRequest
+	48,  // 93: state.v1.StateService.SetLabelPolicy:input_type -> state.v1.SetLabelPolicyRequest
+	50,  // 94: state.v1.StateService.CreateServiceAccount:input_type -> state.v1.CreateServiceAccountRequest
+	52,  // 95: state.v1.StateService.ListServiceAccounts:input_type -> state.v1.ListServiceAccountsRequest
+	55,  // 96: state.v1.StateService.RevokeServiceAccount:input_type -> state.v1.RevokeServiceAccountRequest
+	57,  // 97: state.v1.StateService.RotateServiceAccount:input_type -> state.v1.RotateServiceAccountRequest
+	59,  // 98: state.v1.StateService.CreateRole:input_type -> state.v1.CreateRoleRequest
+	64,  // 99: state.v1.StateService.ListRoles:input_type -> state.v1.ListRolesRequest
+	66,  // 100: state.v1.StateService.UpdateRole:input_type -> state.v1.UpdateRoleRequest
+	68,  // 101: state.v1.StateService.DeleteRole:input_type -> state.v1.DeleteRoleRequest
+	70,  // 102: state.v1.StateService.AssignRole:input_type -> state.v1.AssignRoleRequest
+	72,  // 103: state.v1.StateService.RemoveRole:input_type -> state.v1.RemoveRoleRequest
+	74,  // 104: state.v1.StateService.ListUserRoles:input_type -> state.v1.ListUserRolesRequest
+	77,  // 105: state.v1.StateService.AssignGroupRole:input_type -> state.v1.AssignGroupRoleRequest
+	79,  // 106: state.v1.StateService.RemoveGroupRole:input_type -> state.v1.RemoveGroupRoleRequest
+	81,  // 107: state.v1.StateService.ListGroupRoles:input_type -> state.v1.ListGroupRolesRequest
+	84,  // 108: state.v1.StateService.GetEffectivePermissions:input_type -> state.v1.GetEffectivePermissionsRequest
+	87,  // 109: state.v1.StateService.ListSessions:input_type -> state.v1.ListSessionsRequest
+	90,  // 110: state.v1.StateService.RevokeSession:input_type -> state.v1.RevokeSessionRequest
+	92,  // 111: state.v1.StateService.SetOutputSchema:input_type -> state.v1.SetOutputSchemaRequest
+	94,  // 112: state.v1.StateService.GetOutputSchema:input_type -> state.v1.GetOutputSchemaRequest
+	1,   // 113: state.v1.StateService.CreateState:output_type -> state.v1.CreateStateResponse
+	3,   // 114: state.v1.StateService.ListStates:output_type -> state.v1.ListStatesResponse
+	7,   // 115: state.v1.StateService.GetStateConfig:output_type -> state.v1.GetStateConfigResponse
+	11,  // 116: state.v1.StateService.GetStateLock:output_type -> state.v1.GetStateLockResponse
+	13,  // 117: state.v1.StateService.UnlockState:output_type -> state.v1.UnlockStateResponse
+	15,  // 118: state.v1.StateService.AddDependency:output_type -> state.v1.AddDependencyResponse
+	17,  // 119: state.v1.StateService.RemoveDependency:output_type -> state.v1.RemoveDependencyResponse
+	19,  // 120: state.v1.StateService.ListDependencies:output_type -> state.v1.ListDependenciesResponse
+	21,  // 121: state.v1.StateService.ListDependents:output_type -> state.v1.ListDependentsResponse
+	23,  // 122: state.v1.StateService.SearchByOutput:output_type -> state.v1.SearchByOutputResponse
+	25,  // 123: state.v1.StateService.GetTopologicalOrder:output_type -> state.v1.GetTopologicalOrderResponse
+	29,  // 124: state.v1.StateService.GetStateStatus:output_type -> state.v1.GetStateStatusResponse
+	33,  // 125: state.v1.StateService.GetDependencyGraph:output_type -> state.v1.GetDependencyGraphResponse
+	38,  // 126: state.v1.StateService.ListStateOutputs:output_type -> state.v1.ListStateOutputsResponse
+	40,  // 127: state.v1.StateService.GetStateInfo:output_type -> state.v1.GetStateInfoResponse
+	42,  // 128: state.v1.StateService.ListAllEdges:output_type -> state.v1.ListAllEdgesResponse
+	45,  // 129: state.v1.StateService.UpdateStateLabels:output_type -> state.v1.UpdateStateLabelsResponse
+	47,  // 130: state.v1.StateService.GetLabelPolicy:output_type -> state.v1.GetLabelPolicyResponse
+	49,  // 131: state.v1.StateService.SetLabelPolicy:output_type -> state.v1.SetLabelPolicyResponse
+	51,  // 132: state.v1.StateService.CreateServiceAccount:output_type -> state.v1.CreateServiceAccountResponse
+	54,  // 133: state.v1.StateService.ListServiceAccounts:output_type -> state.v1.ListServiceAccountsResponse
+	56,  // 134: state.v1.StateService.RevokeServiceAccount:output_type -> state.v1.RevokeServiceAccountResponse
+	58,  // 135: state.v1.StateService.RotateServiceAccount:output_type -> state.v1.RotateServiceAccountResponse
+	63,  // 136: state.v1.StateService.CreateRole:output_type -> state.v1.CreateRoleResponse
+	65,  // 137: state.v1.StateService.ListRoles:output_type -> state.v1.ListRolesResponse
+	67,  // 138: state.v1.StateService.UpdateRole:output_type -> state.v1.UpdateRoleResponse
+	69,  // 139: state.v1.StateService.DeleteRole:output_type -> state.v1.DeleteRoleResponse
+	71,  // 140: state.v1.StateService.AssignRole:output_type -> state.v1.AssignRoleResponse
+	73,  // 141: state.v1.StateService.RemoveRole:output_type -> state.v1.RemoveRoleResponse
+	76,  // 142: state.v1.StateService.ListUserRoles:output_type -> state.v1.ListUserRolesResponse
+	78,  // 143: state.v1.StateService.AssignGroupRole:output_type -> state.v1.AssignGroupRoleResponse
+	80,  // 144: state.v1.StateService.RemoveGroupRole:output_type -> state.v1.RemoveGroupRoleResponse
+	83,  // 145: state.v1.StateService.ListGroupRoles:output_type -> state.v1.ListGroupRolesResponse
+	86,  // 146: state.v1.StateService.GetEffectivePermissions:output_type -> state.v1.GetEffectivePermissionsResponse
+	89,  // 147: state.v1.StateService.ListSessions:output_type -> state.v1.ListSessionsResponse
+	91,  // 148: state.v1.StateService.RevokeSession:output_type -> state.v1.RevokeSessionResponse
+	93,  // 149: state.v1.StateService.SetOutputSchema:output_type -> state.v1.SetOutputSchemaResponse
+	95,  // 150: state.v1.StateService.GetOutputSchema:output_type -> state.v1.GetOutputSchemaResponse
+	113, // [113:151] is the sub-list for method output_type
+	75,  // [75:113] is the sub-list for method input_type
+	75,  // [75:75] is the sub-list for extension type_name
+	75,  // [75:75] is the sub-list for extension extendee
+	0,   // [0:75] is the sub-list for field type_name
 }
 
 func init() { file_state_v1_state_proto_init() }

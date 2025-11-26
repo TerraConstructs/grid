@@ -67,9 +67,13 @@ type EdgeRepository interface {
 
 // OutputKey represents a Terraform output name and metadata.
 type OutputKey struct {
-	Key        string
-	Sensitive  bool
-	SchemaJSON *string // Optional JSON Schema definition for this output
+	Key              string
+	Sensitive        bool
+	SchemaJSON       *string    // Optional JSON Schema definition for this output
+	SchemaSource     *string    // Schema source: "manual" or "inferred"
+	ValidationStatus *string    // Validation status: "valid", "invalid", or "error"
+	ValidationError  *string    // Validation error message (if validation failed)
+	ValidatedAt      *time.Time // Last validation timestamp
 }
 
 // ========================================
@@ -204,6 +208,16 @@ type StateOutputRepository interface {
 	// Returns empty string if no schema has been set (not an error).
 	// Returns error only for actual database failures.
 	GetOutputSchema(ctx context.Context, stateGUID string, outputKey string) (string, error)
+
+	// SetOutputSchemaWithSource sets or updates the JSON Schema with source tracking.
+	// source must be "manual" or "inferred".
+	// Creates the output record if it doesn't exist (with state_serial=0, sensitive=false).
+	SetOutputSchemaWithSource(ctx context.Context, stateGUID, outputKey, schemaJSON, source string) error
+
+	// GetOutputsWithoutSchema returns output keys that don't have a schema set.
+	// Used by inference service to determine which outputs need schema generation.
+	// Returns empty slice if all outputs have schemas (not an error).
+	GetOutputsWithoutSchema(ctx context.Context, stateGUID string) ([]string, error)
 }
 
 // LabelPolicyRepository exposes persistence operations for label validation policy.

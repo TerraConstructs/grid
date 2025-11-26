@@ -56,7 +56,20 @@ type Service struct {
 	outputRepo repository.StateOutputRepository
 	edgeRepo   repository.EdgeRepository
 	policyRepo repository.LabelPolicyRepository
+	inferrer   SchemaInferrer
 	serverURL  string
+}
+
+// SchemaInferrer defines the interface for schema inference.
+// Defined here to avoid circular dependencies with inference package.
+type SchemaInferrer interface {
+	InferSchemas(ctx context.Context, stateGUID string, outputs map[string]interface{}, needsSchema []string) ([]InferredSchema, error)
+}
+
+// InferredSchema represents a schema generated from output data.
+type InferredSchema struct {
+	OutputKey  string
+	SchemaJSON string
 }
 
 // NewService constructs a new Service instance.
@@ -79,6 +92,12 @@ func (s *Service) WithEdgeRepository(edgeRepo repository.EdgeRepository) *Servic
 // WithPolicyRepository adds the policy repository to the service (optional dependency).
 func (s *Service) WithPolicyRepository(policyRepo repository.LabelPolicyRepository) *Service {
 	s.policyRepo = policyRepo
+	return s
+}
+
+// WithInferrer adds the schema inferrer to the service (optional dependency).
+func (s *Service) WithInferrer(inferrer SchemaInferrer) *Service {
+	s.inferrer = inferrer
 	return s
 }
 
@@ -251,6 +270,44 @@ func (s *Service) UpdateStateContent(ctx context.Context, guid string, content [
 	record, err := s.repo.GetByGUID(ctx, guid)
 	if err != nil {
 		return nil, fmt.Errorf("get updated state: %w", err)
+	}
+
+	// Run schema inference for outputs that don't have schemas (best-effort, async-capable)
+	// FR-025: Never overwrite existing schemas (handled by GetOutputsWithoutSchema)
+	// FR-027: Inference runs only once per output (first upload only)
+	if s.inferrer != nil && s.outputRepo != nil && len(parsed.Values) > 0 {
+		go func() {
+			inferCtx := context.Background() // Detached context for async operation
+
+			// Get outputs that need schema inference
+			needsSchema, err := s.outputRepo.GetOutputsWithoutSchema(inferCtx, guid)
+			if err != nil {
+				// Log error but don't fail state upload
+				fmt.Printf("GetOutputsWithoutSchema failed for state %s: %v\n", guid, err)
+				return
+			}
+
+			if len(needsSchema) == 0 {
+				return // All outputs already have schemas
+			}
+
+			// Infer schemas for outputs that need them
+			inferred, err := s.inferrer.InferSchemas(inferCtx, guid, parsed.Values, needsSchema)
+			if err != nil {
+				// Log error but don't fail state upload
+				fmt.Printf("InferSchemas failed for state %s: %v\n", guid, err)
+				return
+			}
+
+			// Save inferred schemas with source="inferred"
+			for _, schema := range inferred {
+				err := s.outputRepo.SetOutputSchemaWithSource(inferCtx, guid, schema.OutputKey, schema.SchemaJSON, "inferred")
+				if err != nil {
+					// Log error but continue with other schemas
+					fmt.Printf("SetOutputSchemaWithSource failed for output %s in state %s: %v\n", schema.OutputKey, guid, err)
+				}
+			}
+		}()
 	}
 
 	summary := toSummary(record)

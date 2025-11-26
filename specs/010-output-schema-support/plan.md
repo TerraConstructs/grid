@@ -3,7 +3,7 @@
 **Branch**: `010-output-schema-support` | **Date**: 2025-11-25 | **Spec**: [spec.md](./spec.md)
 **Input**: Feature specification from `/specs/010-output-schema-support/spec.md`
 
-**Status**: Phase 1 Complete, Phase 2 Planning
+**Status**: Phase 2A Complete (2025-11-26), Phase 2B In Progress
 
 ## Summary
 
@@ -157,27 +157,25 @@ tests/integration/
 
 ---
 
-### Phase 2A: Schema Inference (FR-019 through FR-028)
+### Phase 2A: Schema Inference (FR-019 through FR-028) - ✅ COMPLETED (2025-11-26)
 
 **Goal**: Automatically generate JSON Schema from output values when no schema exists.
 
-**Key Implementation Points**:
-1. Use `github.com/JLugagne/jsonschema-infer` library (Draft-07 output)
-2. Create inference service in `internal/services/inference/inferrer.go`
-3. Built-in format detection: date-time, email, UUID, IPv4/IPv6, URL
-4. Required field marking (fields present in all samples)
-5. Nested object/array recursion (arbitrary depth)
-6. `schema_source` column: "manual" | "inferred"
-7. Inference runs once per output (first upload only)
-8. Manual schemas always take precedence
+**Implementation Summary**:
+1. ✅ Library: `github.com/JLugagne/jsonschema-infer v0.1.2` (Draft-07 output)
+2. ✅ Service: `cmd/gridapi/internal/services/inference/inferrer.go`
+3. ✅ Format detection: date-time, email, UUID, IPv4/IPv6, URL (built-in)
+4. ✅ Database: `schema_source`, `validation_status`, `validation_error`, `validated_at` columns
+5. ✅ Repository: `SetOutputSchemaWithSource()`, `GetOutputsWithoutSchema()` methods
+6. ✅ Integration: Fire-and-forget async via goroutine in state upload workflow
+7. ✅ Proto/SDK: `schema_source` field added to OutputKey message
+8. ✅ Tests: 10 integration tests passing (TestSchemaInference*)
 
-**Dependencies**:
-```bash
-cd cmd/gridapi
-go get github.com/JLugagne/jsonschema-infer@latest
-```
+**Critical Bug Fixed**: JSON double-encoding in `inferrer.go` - library returns JSON string directly, removed unnecessary `json.Marshal()` call
 
-**Estimated Effort**: 2-3 days (reduced with library support)
+**Tasks Closed**: grid-daf8, grid-5d22, grid-9461, grid-befd, grid-3f9b, grid-1845, grid-d219, grid-aeba, grid-4ab5, grid-1049
+
+**Actual Effort**: 3 days (including bug fix and comprehensive testing)
 
 ### Phase 2B: Schema Validation (FR-029 through FR-035)
 
@@ -314,22 +312,48 @@ Covered by separate design document: `specs/010-output-schema-support/webapp-out
 | SC-009 | Best-effort inference | Try/catch, log, continue |
 | SC-010 | 95% inference accuracy | Type detection, format hints |
 
+## Completion Log
+
+### Phase 2A: Schema Inference - COMPLETED (2025-11-26)
+
+**Summary**: Automatic schema inference from Terraform state output values is now fully operational.
+
+**What Was Built**:
+- Inference service using `jsonschema-infer v0.1.2` library
+- Database schema with `schema_source` and validation metadata columns
+- Repository methods for schema-source-aware operations
+- Fire-and-forget async inference on state upload
+- Proto/SDK extensions for schema source tracking
+- 10 comprehensive integration tests (100% passing)
+
+**Critical Issues Resolved**:
+- Fixed JSON double-encoding bug in `inferrer.go` (library returns JSON string, not object)
+- All inference tests now passing after fix
+
+**Key Learnings**:
+- The `jsonschema-infer` library returns JSON strings directly (not Go structs)
+- Fire-and-forget pattern works well for non-blocking operations
+- Database reset requires using `make db-reset` from project root, not tests directory
+- Architecture layering verified compliant (Services → Repositories)
+
+**Files Modified/Created**:
+- `cmd/gridapi/internal/services/inference/inferrer.go` (new)
+- `cmd/gridapi/internal/migrations/20251125000002_add_schema_source_and_validation.go` (new)
+- `cmd/gridapi/internal/repository/interface.go` (extended)
+- `cmd/gridapi/internal/repository/bun_state_output_repository.go` (extended)
+- `cmd/gridapi/internal/services/state/service.go` (extended)
+- `proto/state/v1/state.proto` (extended)
+- `pkg/sdk/state_types.go` (extended)
+- `tests/integration/output_inference_test.go` (new - 10 tests)
+
 ## Next Steps
 
-1. **Fix Phase 1 Bug** - Schema preservation in `UpsertOutputs` (P0 blocker)
-   - Fix: `bun_state_output_repository.go:27-34` - don't delete outputs with schemas
-   - Verify: 4 existing integration tests pass after fix
-2. Run `/speckit.tasks` to generate Beads task breakdown
-3. **Write Integration Tests First** (TDD per Constitution Principle V)
-   - Create test fixtures for inference/validation scenarios
-   - Write failing tests for Phase 2A (inference)
-   - Write failing tests for Phase 2B (validation)
-   - Write failing tests for Phase 2C (edge status)
-4. Implement Phase 2A (inference) - use `JLugagne/jsonschema-infer`
-   - Run inference tests until green
-5. Implement Phase 2B (validation) - use `santhosh-tekuri/jsonschema/v6`
-   - Run validation tests until green
-6. Implement Phase 2C (edge updates) - add `schema-invalid` status
-   - Run edge status tests until green
-7. Generate TypeScript types via `buf generate`
-8. Update SDK wrappers for new fields (schema_source, validation_status, etc.)
+1. ✅ ~~Fix Phase 1 Bug~~ - COMPLETED
+2. ✅ ~~Implement Phase 2A (inference)~~ - COMPLETED
+3. **Phase 2B: Schema Validation** - IN PROGRESS
+   - Write integration tests first (TDD approach)
+   - Implement validation service with `santhosh-tekuri/jsonschema/v6`
+   - Add background validation job
+   - **Ready Tasks**: grid-c833, grid-bef1, grid-1c39
+4. Implement Phase 2C (edge updates) - add `schema-invalid` status
+5. Implement Phase 3 (webapp UI) - display schema and validation status

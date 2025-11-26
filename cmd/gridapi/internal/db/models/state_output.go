@@ -23,6 +23,24 @@ type StateOutput struct {
 	// Stored as TEXT to allow arbitrary JSON Schema complexity.
 	SchemaJSON  *string   `bun:"schema_json,type:text,nullzero"`
 
+	// SchemaSource indicates whether the schema was manually set or automatically inferred.
+	// Values: "manual" (set via SetOutputSchema), "inferred" (auto-generated from output value)
+	// NULL when no schema exists.
+	SchemaSource *string `bun:"schema_source,type:text,nullzero"`
+
+	// ValidationStatus indicates the result of JSON Schema validation.
+	// Values: "valid" (passed validation), "invalid" (failed validation), "error" (validation error)
+	// NULL when no schema exists or validation hasn't run.
+	ValidationStatus *string `bun:"validation_status,type:text,nullzero"`
+
+	// ValidationError contains the validation error message with JSON path information.
+	// NULL when validation_status is "valid" or hasn't run.
+	ValidationError *string `bun:"validation_error,type:text,nullzero"`
+
+	// ValidatedAt is the timestamp of the last validation run.
+	// NULL when validation hasn't run.
+	ValidatedAt *time.Time `bun:"validated_at,type:timestamptz,nullzero"`
+
 	CreatedAt   time.Time `bun:"created_at,notnull,default:current_timestamp"`
 	UpdatedAt   time.Time `bun:"updated_at,notnull,default:current_timestamp"`
 

@@ -1,8 +1,8 @@
 module github.com/terraconstructs/grid/cmd/gridapi
 
-go 1.24.0
+go 1.24.7
 
-toolchain go1.24.4
+toolchain go1.24.10
 
 require (
 	connectrpc.com/connect v1.19.0
@@ -30,6 +30,7 @@ require (
 )
 
 require (
+	github.com/JLugagne/jsonschema-infer v0.1.2 // indirect
 	github.com/benbjohnson/clock v1.3.5 // indirect
 	github.com/bmatcuk/doublestar/v4 v4.9.1 // indirect
 	github.com/casbin/govaluate v1.3.0 // indirect

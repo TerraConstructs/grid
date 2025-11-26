@@ -68,37 +68,52 @@ bd comments grid-d219
 ## Phases Structure
 
 * **Epic**: `grid-c64a` (Output Schema Support - Phase 2)
-* **Phase 2: Prerequisites**: `grid-5d3e` (Fix Phase 1 bugs)
-* **Phase 2A: Schema Inference**: `grid-daf8` (US5)
-* **Phase 2B: Schema Validation**: `grid-093b` (US6)
+* **Phase 2: Prerequisites**: `grid-5d3e` (Fix Phase 1 bugs) - ✅ **COMPLETED**
+* **Phase 2A: Schema Inference**: `grid-daf8` (US5) - ✅ **COMPLETED** (2025-11-26)
+* **Phase 2B: Schema Validation**: `grid-093b` (US6) - 🔄 **IN PROGRESS**
 * **Phase 2C: Edge Status Updates**: `grid-e70b` (US6)
 * **Phase 3: Webapp UI**: `grid-bfd6` (US7)
 
 ## Implementation Strategy
 
-1. **Phase 2: Prerequisites** (P1)
-   - Fix schema preservation bug in `UpsertOutputs`. **Status: Completed**
+1. **Phase 2: Prerequisites** (P1) - ✅ **COMPLETED**
+   - Fix schema preservation bug in `UpsertOutputs`
+   - All Phase 1 integration tests passing
 
-2. **Phase 2A: Schema Inference** (P2)
-   - Implement automatic schema inference using `jsonschema-infer`.
-   - Add `schema_source` column.
-   - TDD approach: Write integration tests first.
+2. **Phase 2A: Schema Inference** (P2) - ✅ **COMPLETED** (2025-11-26)
+   - ✅ Database migration (schema_source + validation columns)
+   - ✅ Inference service using `jsonschema-infer v0.1.2`
+   - ✅ Repository interface extensions (SetOutputSchemaWithSource, GetOutputsWithoutSchema)
+   - ✅ State upload workflow integration (fire-and-forget async)
+   - ✅ Proto/SDK updates (schema_source field)
+   - ✅ 10 integration tests passing (FR-019 through FR-028)
+   - **Bug Fixed**: JSON double-encoding in inferrer.go
+   - **Tasks Closed**: grid-5d22, grid-9461, grid-befd, grid-3f9b, grid-1845, grid-d219, grid-aeba, grid-4ab5, grid-1049
 
-3. **Phase 2B: Schema Validation** (P2)
-   - Implement validation using `santhosh-tekuri/jsonschema/v6`.
-   - Add background validation job.
-   - TDD approach: Write integration tests first.
+3. **Phase 2B: Schema Validation** (P2) - 🔄 **NEXT**
+   - Implement validation using `santhosh-tekuri/jsonschema/v6`
+   - Add background validation job
+   - TDD approach: Write integration tests first
+   - **Ready Tasks**: grid-c833, grid-bef1, grid-1c39
 
 4. **Phase 2C: Edge Status Updates** (P2)
-   - Add `schema-invalid` edge status.
-   - Update edges based on validation results.
+   - Add `schema-invalid` edge status
+   - Update edges based on validation results
 
 5. **Phase 3: Webapp UI** (P3)
-   - Update `OutputKey` and `EdgeStatus` models.
-   - Add "Outputs" tab to DetailView.
-   - Display validation status and schema preview.
+   - Update `OutputKey` and `EdgeStatus` models
+   - Add "Outputs" tab to DetailView
+   - Display validation status and schema preview
 
 ## Status Tracking
 
 Status is tracked only in Beads. Use `bd ready`, `bd blocked`, `bd stats` to query progress.
 YOU MUST view comments on tasks for implementation details and changes.
+
+Tip: to run integration tests use:
+
+```bash
+# MAKE SURE YOU ARE IN GRIDAPI ROOT DIRECTORY   
+make db-reset && make db-migrate 
+make test-integration 2>&1 | tee /tmp/integration-test-output.txt | grep -E "(^=== RUN|^--- PASS|^--- FAIL|PASS:|FAIL:)"
+```

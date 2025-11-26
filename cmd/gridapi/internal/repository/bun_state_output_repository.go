@@ -110,9 +110,13 @@ func (r *BunStateOutputRepository) GetOutputsByState(ctx context.Context, stateG
 	outputs := make([]OutputKey, len(dbOutputs))
 	for i, dbOut := range dbOutputs {
 		outputs[i] = OutputKey{
-			Key:        dbOut.OutputKey,
-			Sensitive:  dbOut.Sensitive,
-			SchemaJSON: dbOut.SchemaJSON,
+			Key:              dbOut.OutputKey,
+			Sensitive:        dbOut.Sensitive,
+			SchemaJSON:       dbOut.SchemaJSON,
+			SchemaSource:     dbOut.SchemaSource,
+			ValidationStatus: dbOut.ValidationStatus,
+			ValidationError:  dbOut.ValidationError,
+			ValidatedAt:      dbOut.ValidatedAt,
 		}
 	}
 
@@ -191,31 +195,10 @@ func (r *BunStateOutputRepository) DeleteOutputsByState(ctx context.Context, sta
 
 // SetOutputSchema sets or updates the JSON Schema for a specific state output.
 // Creates the output record if it doesn't exist (with state_serial=0, sensitive=false).
+// Always sets schema_source to "manual" since this is an explicit SetOutputSchema call.
 func (r *BunStateOutputRepository) SetOutputSchema(ctx context.Context, stateGUID string, outputKey string, schemaJSON string) error {
-	now := time.Now()
-
-	// Use INSERT ... ON CONFLICT to upsert the schema
-	output := models.StateOutput{
-		StateGUID:   stateGUID,
-		OutputKey:   outputKey,
-		Sensitive:   false, // Default for schema-only outputs
-		StateSerial: 0,     // Default serial for outputs that don't exist in state yet
-		SchemaJSON:  &schemaJSON,
-		CreatedAt:   now,
-		UpdatedAt:   now,
-	}
-
-	_, err := r.db.NewInsert().
-		Model(&output).
-		On("CONFLICT (state_guid, output_key) DO UPDATE").
-		Set("schema_json = EXCLUDED.schema_json").
-		Set("updated_at = EXCLUDED.updated_at").
-		Exec(ctx)
-	if err != nil {
-		return fmt.Errorf("set schema for output %s in state %s: %w", outputKey, stateGUID, err)
-	}
-
-	return nil
+	source := "manual"
+	return r.SetOutputSchemaWithSource(ctx, stateGUID, outputKey, schemaJSON, source)
 }
 
 // GetOutputSchema retrieves the JSON Schema for a specific state output.
@@ -242,4 +225,61 @@ func (r *BunStateOutputRepository) GetOutputSchema(ctx context.Context, stateGUI
 	}
 
 	return *output.SchemaJSON, nil
+}
+
+// SetOutputSchemaWithSource sets or updates the JSON Schema with source tracking.
+// source must be "manual" or "inferred".
+// Creates the output record if it doesn't exist (with state_serial=0, sensitive=false).
+func (r *BunStateOutputRepository) SetOutputSchemaWithSource(ctx context.Context, stateGUID, outputKey, schemaJSON, source string) error {
+	now := time.Now()
+
+	// Use INSERT ... ON CONFLICT to upsert the schema with source
+	output := models.StateOutput{
+		StateGUID:    stateGUID,
+		OutputKey:    outputKey,
+		Sensitive:    false, // Default for schema-only outputs
+		StateSerial:  0,     // Default serial for outputs that don't exist in state yet
+		SchemaJSON:   &schemaJSON,
+		SchemaSource: &source,
+		CreatedAt:    now,
+		UpdatedAt:    now,
+	}
+
+	_, err := r.db.NewInsert().
+		Model(&output).
+		On("CONFLICT (state_guid, output_key) DO UPDATE").
+		Set("schema_json = EXCLUDED.schema_json").
+		Set("schema_source = EXCLUDED.schema_source").
+		Set("updated_at = EXCLUDED.updated_at").
+		Exec(ctx)
+	if err != nil {
+		return fmt.Errorf("set schema with source %s for output %s in state %s: %w", source, outputKey, stateGUID, err)
+	}
+
+	return nil
+}
+
+// GetOutputsWithoutSchema returns output keys that don't have a schema set.
+// Used by inference service to determine which outputs need schema generation.
+// Returns empty slice if all outputs have schemas (not an error).
+func (r *BunStateOutputRepository) GetOutputsWithoutSchema(ctx context.Context, stateGUID string) ([]string, error) {
+	var outputs []models.StateOutput
+	err := r.db.NewSelect().
+		Model(&outputs).
+		Column("output_key").
+		Where("state_guid = ?", stateGUID).
+		Where("schema_json IS NULL").
+		Scan(ctx)
+
+	if err != nil {
+		return nil, fmt.Errorf("get outputs without schema for state %s: %w", stateGUID, err)
+	}
+
+	// Extract output keys
+	keys := make([]string, len(outputs))
+	for i, output := range outputs {
+		keys[i] = output.OutputKey
+	}
+
+	return keys, nil
 }

@@ -166,9 +166,13 @@ type TopologyInput struct {
 
 // OutputKey represents a Terraform output name and metadata.
 type OutputKey struct {
-	Key        string
-	Sensitive  bool
-	SchemaJSON *string // Optional JSON Schema definition for this output
+	Key              string
+	Sensitive        bool
+	SchemaJSON       *string    // Optional JSON Schema definition for this output
+	SchemaSource     *string    // Schema source: "manual" or "inferred"
+	ValidationStatus *string    // Validation status: "valid", "invalid", or "error"
+	ValidationError  *string    // Validation error message (if validation failed)
+	ValidatedAt      *time.Time // Last validation timestamp
 }
 
 // StateInfo provides comprehensive information about a state including dependencies, dependents, and outputs.
@@ -395,6 +399,23 @@ func outputKeyFromProto(pb *statev1.OutputKey) OutputKey {
 	// Include schema if available
 	if pb.SchemaJson != nil && *pb.SchemaJson != "" {
 		out.SchemaJSON = pb.SchemaJson
+	}
+	// Include schema source if available
+	if pb.SchemaSource != nil && *pb.SchemaSource != "" {
+		out.SchemaSource = pb.SchemaSource
+	}
+	// Include validation status if available
+	if pb.ValidationStatus != nil && *pb.ValidationStatus != "" {
+		out.ValidationStatus = pb.ValidationStatus
+	}
+	// Include validation error if available
+	if pb.ValidationError != nil && *pb.ValidationError != "" {
+		out.ValidationError = pb.ValidationError
+	}
+	// Include validated_at if available
+	if pb.ValidatedAt != nil {
+		t := pb.ValidatedAt.AsTime()
+		out.ValidatedAt = &t
 	}
 	return out
 }

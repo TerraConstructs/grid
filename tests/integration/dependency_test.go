@@ -1,11 +1,7 @@
 package integration
 
 import (
-	"bytes"
 	"context"
-	"fmt"
-	"io"
-	"net/http"
 	"os"
 	"path/filepath"
 	"testing"
@@ -455,21 +451,4 @@ func TestGetDependencyGraph(t *testing.T) {
 
 	// Verify producer state has backend config
 	assert.NotEmpty(t, graph.Producers[0].BackendConfig.Address)
-}
-
-// Helper function to POST tfstate to server (Terraform HTTP backend uses POST)
-func putTFState(t *testing.T, guid string, data []byte) {
-	url := fmt.Sprintf("%s/tfstate/%s", serverURL, guid)
-	req, err := http.NewRequest(http.MethodPost, url, bytes.NewReader(data))
-	require.NoError(t, err)
-	req.Header.Set("Content-Type", "application/json")
-
-	resp, err := http.DefaultClient.Do(req)
-	require.NoError(t, err)
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(resp.Body)
-		t.Fatalf("POST tfstate failed with status %d: %s", resp.StatusCode, string(body))
-	}
 }
