@@ -14,7 +14,7 @@ Add comprehensive JSON Schema validation and inference for Terraform/OpenTofu st
 - **Phase 2C**: Dependency edge status updates for schema violations
 - **Phase 3**: Webapp UI for schema and validation display (deferred to separate plan)
 
-Technical approach: Custom schema inference logic + `santhosh-tekuri/jsonschema/v6` for validation, fire-and-forget goroutines for async processing (consistent with existing EdgeUpdateJob pattern).
+Technical approach: `JLugagne/jsonschema-infer` for schema inference + `santhosh-tekuri/jsonschema/v6` for validation, fire-and-forget goroutines for async processing (consistent with existing EdgeUpdateJob pattern).
 
 ## Technical Context
 
@@ -22,7 +22,7 @@ Technical approach: Custom schema inference logic + `santhosh-tekuri/jsonschema/
 **Primary Dependencies**:
 - `github.com/santhosh-tekuri/jsonschema/v6` - JSON Schema validation
 - `github.com/hashicorp/golang-lru/v2` - Schema caching
-- Custom inference implementation (no external library)
+- `github.com/JLugagne/jsonschema-infer` - JSON Schema inference from samples
 
 **Storage**: PostgreSQL (existing), new columns in `state_outputs` table
 **Testing**: Go integration tests (`tests/integration/`), table-driven unit tests
@@ -34,7 +34,7 @@ Technical approach: Custom schema inference logic + `santhosh-tekuri/jsonschema/
 
 ## Constitution Check
 
-*GATE: All principles satisfied - no violations*
+*GATE: All principles satisfied - one pragmatic exception documented*
 
 | Principle | Status | Notes |
 |-----------|--------|-------|
@@ -46,7 +46,9 @@ Technical approach: Custom schema inference logic + `santhosh-tekuri/jsonschema/
 | VI. Versioning & Releases | ✅ | Minor version bump (new fields) |
 | VII. Simplicity & Pragmatism | ✅ | Fire-and-forget, no external queues |
 | VIII. Service Exposure Discipline | ✅ | No new endpoints, uses existing auth |
-| IX. API Server Internal Layering | ✅ | New services in proper layers |
+| IX. API Server Internal Layering | ⚠️ | **Exception**: SchemaValidationJob in server/ to match EdgeUpdateJob pattern (see note below) |
+
+**Note on Principle IX Exception**: SchemaValidationJob will be placed in `internal/server/` to match the existing EdgeUpdateJob pattern (also in server/). While this technically violates "business logic in service layer," Constitution §VII (Simplicity & Pragmatism) prioritizes consistency with production-proven patterns. Both jobs should be moved to service layer together in future refactoring. This is documented technical debt, not a new violation.
 
 ## Project Structure
 
@@ -187,7 +189,7 @@ go get github.com/JLugagne/jsonschema-infer@latest
 3. Fire-and-forget goroutine for async validation
 4. Per-state mutex to prevent concurrent validations
 5. 30-second timeout per validation job
-6. `validation_status`: valid | invalid | error
+6. `validation_status`: valid | invalid | error | not_validated (null when no schema exists)
 7. Structured `validation_error` with JSON path
 8. Best-effort (validation errors don't block uploads)
 

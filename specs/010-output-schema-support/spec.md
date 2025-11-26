@@ -135,7 +135,7 @@ When Terraform uploads new state containing output values, the system should aut
 
 ---
 
-### User Story 6 - Track Dependency Schema Mismatches (Priority: P2) ⏳ PENDING
+### User Story 7 - Track Dependency Schema Mismatches (Priority: P2) ⏳ PENDING
 
 When a state depends on outputs from another state, and those outputs fail schema validation, the dependency edge should be marked with "schema-invalid" status to alert engineers of contract violations.
 
@@ -152,7 +152,7 @@ When a state depends on outputs from another state, and those outputs fail schem
 
 ---
 
-### User Story 7 - View Schemas in Web Interface (Priority: P3) ⏳ PENDING
+### User Story 8 - View Schemas in Web Interface (Priority: P3) ⏳ PENDING
 
 Engineers using the Grid webapp need to view output schemas, validation statuses, and schema-related errors directly in the UI without switching to CLI or SDK.
 

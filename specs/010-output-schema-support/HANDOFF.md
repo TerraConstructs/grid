@@ -249,4 +249,4 @@ All planning artifacts completed in `/specs/010-output-schema-support/`:
 - **Integration Test Plan**: `tests/integration/OUTPUT_SCHEMA_TEST_PLAN.md`
 - **Phase 1 Implementation Guide**: `OUTPUT_SCHEMA_IMPLEMENTATION.md`
 - **Phase 2B Validation Plan**: `OUTPUT_VALIDATION.md`
-- **Webapp UI Design**: `specs/webapp-output-schema-design.md`
+- **Webapp UI Design**: `specs/010-output-schema-support/webapp-output-schema-design.md`

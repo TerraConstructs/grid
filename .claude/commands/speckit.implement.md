@@ -88,6 +88,7 @@ You **MUST** consider the user input before proceeding (if not empty).
    - **Task phases**: Setup, Tests, Core, Integration, Polish
    - **Task dependencies**: Sequential vs parallel execution rules
    - **Task details**: ID, description, file paths, design + acceptance criteria
+   - **Task comments**: Important notes and modifications to original plan
    - **Execution flow**: Order and dependency requirements
 
 6. Execute implementation following the task plan:
@@ -105,13 +106,14 @@ You **MUST** consider the user input before proceeding (if not empty).
    - **Polish and validation**: Unit tests, performance optimization, documentation
 
 8. Progress tracking and error handling:
+   - Find ready tasks using `bd ready --json | jq -r '.[] | select(.labels // [] | contains(["spec:......"])) | select (.issue_type == "task")| [.id, .title] | @tsv'`
    - Update Beads Issues progress with Comments and Progress
    - Report progress after each completed task
    - Halt execution if any sequential task fails
    - For ready tasks, continue with successful tasks, report failed ones
    - Provide clear error messages with context for debugging
    - Suggest next steps if implementation cannot proceed
-   - **IMPORTANT** For completed tasks, make sure to update the Beads task status to "Closed" with relevant comments
+   - **IMPORTANT** For completed tasks, make sure to add relevant comments and update the Beads task status to "Closed"
 
 9. Completion validation:
    - Verify all required tasks are completed
