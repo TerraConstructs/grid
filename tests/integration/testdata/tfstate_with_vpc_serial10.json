@@ -1,0 +1,14 @@
+{
+  "version": 4,
+  "terraform_version": "1.5.0",
+  "serial": 10,
+  "lineage": "test-inference-race",
+  "outputs": {
+    "vpc_id": {
+      "value": "vpc-12345678",
+      "type": "string",
+      "sensitive": false
+    }
+  },
+  "resources": []
+}

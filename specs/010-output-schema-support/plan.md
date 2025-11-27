@@ -184,12 +184,21 @@ tests/integration/
 **Key Implementation Points**:
 1. Validation service using `santhosh-tekuri/jsonschema/v6`
 2. LRU cache for compiled schemas (1000 entries, 5-min TTL)
-3. Fire-and-forget goroutine for async validation
-4. Per-state mutex to prevent concurrent validations
-5. 30-second timeout per validation job
+3. **DESIGN DECISION: In-sync validation** (runs before response, not async)
+   - **Rationale**: Prevents race with EdgeUpdateJob, simpler coordination
+   - **Performance**: <50ms typical latency (acceptable per SC-003)
+   - **Alternative rejected**: Async validation creates race conditions with edge updates
+4. Validation runs AFTER `UpdateContentAndUpsertOutputs`, BEFORE EdgeUpdateJob fires
+5. 30-second timeout per validation operation
 6. `validation_status`: valid | invalid | error | not_validated (null when no schema exists)
 7. Structured `validation_error` with JSON path
-8. Best-effort (validation errors don't block uploads)
+8. Best-effort (validation errors don't block uploads, timeout protection)
+
+**Critical Design Change** (2025-11-27):
+- **Original plan**: Fire-and-forget async validation (like inference)
+- **Updated design**: Synchronous validation before response
+- **Impact**: EdgeUpdateJob guaranteed to read current validation_status
+- **See**: `VALIDATION-DESIGN-ANALYSIS.md` for detailed rationale
 
 **Estimated Effort**: 3-4 days
 
@@ -201,8 +210,17 @@ tests/integration/
 1. Add `schema-invalid` to EdgeStatus enum
 2. Extend EdgeUpdateJob to check validation status
 3. Priority: schema-invalid > missing-output > dirty > clean
-4. Atomic edge status update with validation
-5. Clear status when subsequent validation passes
+4. **Atomic edge status update**: Join `validation_status` in GetOutgoingEdges query
+   - **Query**: `LEFT JOIN state_outputs ON from_state_guid = state_guid AND from_output = output_key`
+   - **Atomicity**: Database MVCC ensures consistent snapshot (validation_status + edge in one read)
+5. Clear status when subsequent validation passes (automatic via priority logic)
+6. EdgeUpdateJob fires AFTER validation completes (sync validation guarantees status written)
+
+**Critical Design Change** (2025-11-27):
+- **Original plan**: Separate async validation + edge jobs (race-prone)
+- **Updated design**: Validation completes before EdgeUpdateJob fires
+- **Repository change**: GetOutgoingEdges extended to GetOutgoingEdgesWithValidation
+- **See**: `VALIDATION-DESIGN-ANALYSIS.md` Problem 4 for atomicity details
 
 **Estimated Effort**: 1-2 days
 

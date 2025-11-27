@@ -41,13 +41,13 @@ func (r *BunStateOutputRepository) UpsertOutputs(ctx context.Context, stateGUID 
 		}
 
 		// Delete old outputs with different serial (cache invalidation)
-		// IMPORTANT: Do NOT delete outputs that have schemas (schema_json IS NOT NULL)
-		// These are user-defined schemas that should persist across state uploads
+		// IMPORTANT: Retain only manual schemas (schema_source='manual')
+		// Inferred schemas are ephemeral and should be purged when output removed
 		_, err = tx.NewDelete().
 			Model((*models.StateOutput)(nil)).
 			Where("state_guid = ?", stateGUID).
 			Where("state_serial != ?", serial).
-			Where("schema_json IS NULL").
+			Where("schema_source IS NULL OR schema_source = ?", "inferred").
 			Exec(ctx)
 		if err != nil {
 			return fmt.Errorf("delete stale outputs: %w", err)
@@ -198,7 +198,8 @@ func (r *BunStateOutputRepository) DeleteOutputsByState(ctx context.Context, sta
 // Always sets schema_source to "manual" since this is an explicit SetOutputSchema call.
 func (r *BunStateOutputRepository) SetOutputSchema(ctx context.Context, stateGUID string, outputKey string, schemaJSON string) error {
 	source := "manual"
-	return r.SetOutputSchemaWithSource(ctx, stateGUID, outputKey, schemaJSON, source)
+	// Use -1 to skip serial check (manual schemas always write)
+	return r.SetOutputSchemaWithSource(ctx, stateGUID, outputKey, schemaJSON, source, -1)
 }
 
 // GetOutputSchema retrieves the JSON Schema for a specific state output.
@@ -230,8 +231,28 @@ func (r *BunStateOutputRepository) GetOutputSchema(ctx context.Context, stateGUI
 // SetOutputSchemaWithSource sets or updates the JSON Schema with source tracking.
 // source must be "manual" or "inferred".
 // Creates the output record if it doesn't exist (with state_serial=0, sensitive=false).
-func (r *BunStateOutputRepository) SetOutputSchemaWithSource(ctx context.Context, stateGUID, outputKey, schemaJSON, source string) error {
+// expectedSerial: For inferred schemas, verifies output still exists at this serial before writing.
+//                 Use -1 for manual schemas to skip serial check (always write).
+func (r *BunStateOutputRepository) SetOutputSchemaWithSource(ctx context.Context, stateGUID, outputKey, schemaJSON, source string, expectedSerial int64) error {
 	now := time.Now()
+
+	// Serial check for inferred schemas to prevent resurrection
+	// (skip check if expectedSerial == -1, used for manual schemas)
+	if expectedSerial >= 0 {
+		var existingOutput models.StateOutput
+		err := r.db.NewSelect().
+			Model(&existingOutput).
+			Where("state_guid = ?", stateGUID).
+			Where("output_key = ?", outputKey).
+			Where("state_serial = ?", expectedSerial).
+			Scan(ctx)
+
+		if err != nil {
+			// Output missing or serial changed, skip write (silent no-op)
+			// This prevents resurrecting outputs removed by newer state uploads
+			return nil
+		}
+	}
 
 	// Use INSERT ... ON CONFLICT to upsert the schema with source
 	output := models.StateOutput{
@@ -282,4 +303,52 @@ func (r *BunStateOutputRepository) GetOutputsWithoutSchema(ctx context.Context, 
 	}
 
 	return keys, nil
+}
+
+// GetSchemasForState returns all output schemas for a state (for validation).
+// Returns map of outputKey -> schemaJSON for outputs that have schemas.
+// Outputs without schemas are not included in the map.
+func (r *BunStateOutputRepository) GetSchemasForState(ctx context.Context, stateGUID string) (map[string]string, error) {
+	var outputs []models.StateOutput
+	err := r.db.NewSelect().
+		Model(&outputs).
+		Column("output_key", "schema_json").
+		Where("state_guid = ?", stateGUID).
+		Where("schema_json IS NOT NULL").
+		Scan(ctx)
+
+	if err != nil {
+		return nil, fmt.Errorf("get schemas for state %s: %w", stateGUID, err)
+	}
+
+	// Build map of output key -> schema JSON
+	schemas := make(map[string]string, len(outputs))
+	for _, output := range outputs {
+		if output.SchemaJSON != nil {
+			schemas[output.OutputKey] = *output.SchemaJSON
+		}
+	}
+
+	return schemas, nil
+}
+
+// UpdateValidationStatus updates the validation status for a specific output.
+// Sets validation_status, validation_error, and validated_at columns.
+// validationError can be nil for "valid" or "not_validated" statuses.
+func (r *BunStateOutputRepository) UpdateValidationStatus(ctx context.Context, stateGUID, outputKey, status string, validationError *string, validatedAt time.Time) error {
+	_, err := r.db.NewUpdate().
+		Model((*models.StateOutput)(nil)).
+		Set("validation_status = ?", status).
+		Set("validation_error = ?", validationError).
+		Set("validated_at = ?", validatedAt).
+		Set("updated_at = ?", validatedAt).
+		Where("state_guid = ?", stateGUID).
+		Where("output_key = ?", outputKey).
+		Exec(ctx)
+
+	if err != nil {
+		return fmt.Errorf("update validation status for output %s in state %s: %w", outputKey, stateGUID, err)
+	}
+
+	return nil
 }

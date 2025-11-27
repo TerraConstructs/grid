@@ -84,7 +84,11 @@ type StateOutput struct {
 
 **Table**: `edges`
 
-**New Status Value**: `schema-invalid`
+**New Status Values**: `clean-invalid`, `dirty-invalid`
+
+**Design Change (2025-11-27)**: Edge status now captures **TWO orthogonal dimensions**:
+1. **Drift**: clean (in_digest == out_digest) vs dirty (in_digest != out_digest)
+2. **Validation**: valid (passes schema) vs invalid (fails schema)
 
 **Go Model** (`internal/db/models/edge.go`):
 
@@ -92,16 +96,25 @@ type StateOutput struct {
 type EdgeStatus string
 
 const (
-    EdgeStatusPending       EdgeStatus = "pending"
-    EdgeStatusDirty         EdgeStatus = "dirty"
-    EdgeStatusClean         EdgeStatus = "clean"
-    EdgeStatusMock          EdgeStatus = "mock"
-    EdgeStatusMissingOutput EdgeStatus = "missing-output"
-    EdgeStatusSchemaInvalid EdgeStatus = "schema-invalid"  // NEW
+    EdgeStatusPending          EdgeStatus = "pending"           // Initial state, no observation yet
+    EdgeStatusClean            EdgeStatus = "clean"             // in_digest == out_digest && valid
+    EdgeStatusCleanInvalid     EdgeStatus = "clean-invalid"     // in_digest == out_digest && invalid (NEW)
+    EdgeStatusDirty            EdgeStatus = "dirty"             // in_digest != out_digest && valid
+    EdgeStatusDirtyInvalid     EdgeStatus = "dirty-invalid"     // in_digest != out_digest && invalid (NEW)
+    EdgeStatusPotentiallyStale EdgeStatus = "potentially-stale" // Transitive upstream dirty
+    EdgeStatusMock             EdgeStatus = "mock"              // Using mock value, real output not yet exists
+    EdgeStatusMissingOutput    EdgeStatus = "missing-output"    // Producer output key removed
 )
 ```
 
-**Note**: No database migration needed - `status` is TEXT type, new value added in application.
+**Composite Status Matrix**:
+
+| Drift / Validation | Valid (passes schema or no schema) | Invalid (fails schema) |
+|--------------------|------------------------------------|------------------------|
+| **Clean** (in_digest == out_digest) | `clean` | `clean-invalid` |
+| **Dirty** (in_digest != out_digest) | `dirty` | `dirty-invalid` |
+
+**Note**: No database migration needed - `status` is TEXT type, new values added in application.
 
 ---
 
@@ -241,20 +254,31 @@ message OutputKey {
 }
 ```
 
-### EdgeStatus Enum (Extended)
+### Edge Message (Extended)
 
 **File**: `proto/state/v1/state.proto`
 
+**Note**: EdgeStatus is stored as `string` (not protobuf enum) in Edge message.
+
 ```protobuf
-enum EdgeStatus {
-  EDGE_STATUS_UNSPECIFIED = 0;
-  EDGE_STATUS_PENDING = 1;
-  EDGE_STATUS_CLEAN = 2;
-  EDGE_STATUS_DIRTY = 3;
-  EDGE_STATUS_POTENTIALLY_STALE = 4;
-  EDGE_STATUS_MOCK = 5;
-  EDGE_STATUS_MISSING_OUTPUT = 6;
-  EDGE_STATUS_SCHEMA_INVALID = 7;  // NEW
+message Edge {
+    // ... other fields ...
+
+    // Status indicates the synchronization and validation state of the edge.
+    // Edge status combines two orthogonal dimensions:
+    // 1. Drift: clean (in_digest == out_digest) vs dirty (in_digest != out_digest)
+    // 2. Validation: valid (passes schema) vs invalid (fails schema)
+    //
+    // Possible values:
+    // - "pending": Initial state, no observation yet
+    // - "clean": in_digest == out_digest && output passes schema validation (or no schema)
+    // - "clean-invalid": in_digest == out_digest && output fails schema validation
+    // - "dirty": in_digest != out_digest && output passes schema validation (or no schema)
+    // - "dirty-invalid": in_digest != out_digest && output fails schema validation
+    // - "potentially-stale": Transitive upstream dirty
+    // - "mock": Using mock_value, real output doesn't exist yet
+    // - "missing-output": Producer doesn't have the required output key
+    string status = 8;
 }
 ```
 
@@ -288,14 +312,16 @@ export interface OutputKey {
   validated_at?: string;
 }
 
+/** Edge synchronization and validation status */
 export type EdgeStatus =
-  | 'pending'
-  | 'clean'
-  | 'dirty'
-  | 'potentially-stale'
-  | 'mock'
-  | 'missing-output'
-  | 'schema-invalid';  // NEW
+  | 'pending'           // Edge created, no digest values yet
+  | 'clean'             // in_digest === out_digest && valid (synchronized & valid)
+  | 'clean-invalid'     // in_digest === out_digest && invalid (synchronized but fails schema)
+  | 'dirty'             // in_digest !== out_digest && valid (out of sync but valid)
+  | 'dirty-invalid'     // in_digest !== out_digest && invalid (out of sync AND fails schema)
+  | 'potentially-stale' // Producer updated, consumer not re-evaluated
+  | 'mock'              // Using mock_value_json
+  | 'missing-output';   // Producer doesn't have required output
 ```
 
 ---
@@ -357,35 +383,68 @@ export type EdgeStatus =
 └──────────────────────────────────────────────────────────────┘
 ```
 
-### Edge Status with Schema Validation
+### Edge Status Derivation (Composite Model)
+
+**Updated 2025-11-27**: Edge status now combines drift and validation dimensions.
 
 ```
-┌──────────────────────────────────────────────────────────────┐
-│              Edge Status Priority                             │
-├──────────────────────────────────────────────────────────────┤
-│                                                               │
-│  [Output Validation Status Check] (highest priority)          │
-│       │                                                       │
-│       ├──[validation_status = "invalid"]──► status = "schema-invalid"
-│       │                                                       │
-│       └──[validation_status ≠ "invalid"]                      │
-│            │                                                  │
-│            ▼                                                  │
-│  [Output Existence Check]                                     │
-│       │                                                       │
-│       ├──[Output missing]──► status = "missing-output"        │
-│       │                                                       │
-│       └──[Output exists]                                      │
-│            │                                                  │
-│            ▼                                                  │
-│  [Fingerprint Check]                                          │
-│       │                                                       │
-│       ├──[Digest changed]──► status = "dirty"                 │
-│       │                                                       │
-│       └──[Digest unchanged]──► status = "clean"               │
-│                                                               │
-└──────────────────────────────────────────────────────────────┘
+┌────────────────────────────────────────────────────────────────┐
+│           Edge Status Derivation Logic                         │
+├────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│  [1. Output Existence Check] (highest priority)                 │
+│       │                                                         │
+│       ├──[Output missing]──► status = "missing-output"          │
+│       │                     (overrides all other checks)        │
+│       │                                                         │
+│       └──[Output exists]                                        │
+│            │                                                    │
+│            ▼                                                    │
+│  [2. Compute Drift Dimension]                                   │
+│       │                                                         │
+│       ├──[in_digest == out_digest]──► drift = "clean"           │
+│       │                                                         │
+│       └──[in_digest != out_digest]──► drift = "dirty"           │
+│            │                                                    │
+│            ▼                                                    │
+│  [3. Compute Validation Dimension]                              │
+│       │                                                         │
+│       ├──[validation_status == "invalid"]──► validation = "invalid"
+│       │                                                         │
+│       └──[validation_status != "invalid" OR NULL]──► validation = "valid"
+│            │                              (no schema = valid)   │
+│            ▼                                                    │
+│  [4. Combine Dimensions]                                        │
+│       │                                                         │
+│       ├──[drift="clean" && validation="valid"]──► "clean"       │
+│       ├──[drift="clean" && validation="invalid"]──► "clean-invalid"
+│       ├──[drift="dirty" && validation="valid"]──► "dirty"       │
+│       └──[drift="dirty" && validation="invalid"]──► "dirty-invalid"
+│                                                                 │
+│  [Special Cases]                                                │
+│   • No observation yet (in_digest=NULL) → "pending"             │
+│   • Mock edge (mock_value set) → "mock"                         │
+│                                                                 │
+└────────────────────────────────────────────────────────────────┘
 ```
+
+**Status Matrix**:
+
+| Condition | Drift | Validation | Result Status |
+|-----------|-------|------------|---------------|
+| Output missing | N/A | N/A | `missing-output` |
+| in == out && valid | clean | valid | `clean` |
+| in == out && invalid | clean | invalid | `clean-invalid` |
+| in != out && valid | dirty | valid | `dirty` |
+| in != out && invalid | dirty | invalid | `dirty-invalid` |
+| No observation | N/A | N/A | `pending` |
+| Mock value | N/A | N/A | `mock` |
+
+**User Experience**:
+- `clean`: "Your dependency is synchronized and valid" ✅
+- `clean-invalid`: "Your dependency is synchronized but violates schema" ⚠️
+- `dirty`: "Your dependency is out of sync (run terraform apply)" 🔄
+- `dirty-invalid`: "Your dependency is out of sync AND violates schema" ❌
 
 ---
 
@@ -405,8 +464,17 @@ export type EdgeStatus =
 - `validation_error` SHOULD be non-NULL when `validation_status` is `"invalid"` or `"error"`
 - `validated_at` MUST be set whenever `validation_status` is non-NULL
 
-### Edge Status
+### Edge Status (Updated 2025-11-27)
 
-- `schema-invalid` status takes priority over fingerprint-based statuses
-- Edge status MUST be updated atomically with validation status
-- Clearing `schema-invalid` requires validation to pass on next state upload
+- Edge status combines **drift** (clean/dirty) and **validation** (valid/invalid) dimensions
+- `missing-output` takes highest priority (overrides drift and validation)
+- Edge status MUST be derived from both `in_digest`/`out_digest` comparison AND `validation_status`
+- Edge status MUST be updated atomically with validation status (via JOIN in query)
+- Validation dimension changes when:
+  - User adds/updates schema on existing output (may transition clean → clean-invalid)
+  - User removes schema (transitions *-invalid → *)
+  - Output value changes and validation re-runs (may transition valid ↔ invalid)
+- Status transitions preserve information about both dimensions:
+  - `clean` → `clean-invalid`: Schema added and output fails (consumer still synchronized)
+  - `dirty-invalid` → `dirty`: Validation passes after schema fix (consumer still stale)
+  - `dirty` → `clean`: Consumer applies terraform (validation already passing)

@@ -153,12 +153,13 @@ func (r *BunStateRepository) UpdateContentAndUpsertOutputs(ctx context.Context, 
 		fmt.Printf("DEBUG bun_state_repository: Total existing schemas: %d\n", len(existingSchemas))
 
 		// 5. Delete old outputs with different serial (cache invalidation)
-		// IMPORTANT: Do NOT delete outputs that have schemas (schema_json IS NOT NULL)
+		// IMPORTANT: Retain only manual schemas (schema_source='manual')
+		// Inferred schemas are ephemeral and should be purged when output removed
 		_, err = tx.NewDelete().
 			Model((*models.StateOutput)(nil)).
 			Where("state_guid = ?", guid).
 			Where("state_serial != ?", serial).
-			Where("schema_json IS NULL").
+			Where("schema_source IS NULL OR schema_source = ?", "inferred").
 			Exec(ctx)
 		if err != nil {
 			return fmt.Errorf("delete stale outputs: %w", err)

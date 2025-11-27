@@ -25,15 +25,17 @@ type StateService interface {
 
 // TerraformHandlers wires the Terraform HTTP Backend REST endpoints
 type TerraformHandlers struct {
-	service     StateService
-	edgeUpdater *EdgeUpdateJob
+	service        StateService
+	edgeUpdater    *EdgeUpdateJob
+	validationJob  *SchemaValidationJob
 }
 
 // NewTerraformHandlers creates a new handler set for Terraform backend operations
-func NewTerraformHandlers(service *statepkg.Service, edgeUpdater *EdgeUpdateJob) *TerraformHandlers {
+func NewTerraformHandlers(service *statepkg.Service, edgeUpdater *EdgeUpdateJob, validationJob *SchemaValidationJob) *TerraformHandlers {
 	return &TerraformHandlers{
-		service:     service,
-		edgeUpdater: edgeUpdater,
+		service:        service,
+		edgeUpdater:    edgeUpdater,
+		validationJob:  validationJob,
 	}
 }
 
@@ -107,6 +109,11 @@ func (h *TerraformHandlers) UpdateState(w http.ResponseWriter, r *http.Request) 
 	// Get lock ID from query parameter (Terraform sends ?ID=lockID when holding lock)
 	lockID := r.URL.Query().Get("ID")
 
+	// NOTE: Terraform serial is a monotonic counter per state; a POST with newSerial < latestSerial
+	// is an out-of-order / stale writer. Today we don’t check for that. If we trust serial, we
+	// should reject or no-op stale POSTs to avoid rolling back state and outputs.
+	// If we accept them, cache/edge updates will treat the stale payload as canonical and can regress consumers.
+
 	// Update state content via service (service will verify lock ID if state is locked)
 	result, err := h.service.UpdateStateContent(r.Context(), guid, body, lockID)
 	if err != nil {
@@ -120,7 +127,16 @@ func (h *TerraformHandlers) UpdateState(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	// Trigger EdgeUpdateJob asynchronously with pre-parsed outputs (best effort, fire-and-forget)
+	// Run schema validation SYNCHRONOUSLY (blocks response by ~10-50ms)
+	// This guarantees validation_status is set before EdgeUpdateJob reads it
+	// Prevents race condition where edge status reads validation_status=NULL
+	if h.validationJob != nil && result.OutputValues != nil {
+		_ = h.validationJob.ValidateOutputs(r.Context(), guid, result.OutputValues)
+		// Errors are logged but don't fail the request (validation is advisory)
+	}
+
+	// Trigger EdgeUpdateJob asynchronously AFTER validation completes
+	// EdgeUpdateJob now reads completed validation_status (guaranteed by ordering)
 	// NOTE: Output caching is now handled synchronously in service.UpdateStateContent
 	// NOTE: Using UpdateEdgesWithOutputs avoids double-parsing of state JSON
 	if h.edgeUpdater != nil && result.OutputValues != nil {

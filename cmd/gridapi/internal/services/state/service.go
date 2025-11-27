@@ -276,6 +276,9 @@ func (s *Service) UpdateStateContent(ctx context.Context, guid string, content [
 	// FR-025: Never overwrite existing schemas (handled by GetOutputsWithoutSchema)
 	// FR-027: Inference runs only once per output (first upload only)
 	if s.inferrer != nil && s.outputRepo != nil && len(parsed.Values) > 0 {
+		// Capture serial at goroutine start to prevent resurrection race condition
+		inferSerial := parsed.Serial
+
 		go func() {
 			inferCtx := context.Background() // Detached context for async operation
 
@@ -300,8 +303,9 @@ func (s *Service) UpdateStateContent(ctx context.Context, guid string, content [
 			}
 
 			// Save inferred schemas with source="inferred"
+			// Pass serial to prevent resurrection if output was removed by newer POST
 			for _, schema := range inferred {
-				err := s.outputRepo.SetOutputSchemaWithSource(inferCtx, guid, schema.OutputKey, schema.SchemaJSON, "inferred")
+				err := s.outputRepo.SetOutputSchemaWithSource(inferCtx, guid, schema.OutputKey, schema.SchemaJSON, "inferred", inferSerial)
 				if err != nil {
 					// Log error but continue with other schemas
 					fmt.Printf("SetOutputSchemaWithSource failed for output %s in state %s: %v\n", schema.OutputKey, guid, err)
