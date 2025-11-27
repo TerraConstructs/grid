@@ -86,8 +86,8 @@
 **Steps**:
 1. Create state via CLI
 2. Create schema JSON file on disk
-3. Run: gridctl state set-output-schema --output-key vpc_id --schema-file schema.json
-4. Run: gridctl state get-output-schema --output-key vpc_id
+3. Run: gridctl state set-output-schema --key vpc_id --schema-file schema.json
+4. Run: gridctl state get-output-schema --key vpc_id
 5. Verify schema matches file content
 
 **Expected**: CLI commands work correctly

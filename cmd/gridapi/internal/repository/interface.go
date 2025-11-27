@@ -38,6 +38,14 @@ type StateRepository interface {
 	ListStatesWithOutputs(ctx context.Context) ([]*models.State, error)
 }
 
+// EdgeWithValidation wraps an Edge with its producer output's validation status.
+// Used by EdgeUpdateJob to atomically read edge and validation data in a single query.
+type EdgeWithValidation struct {
+	Edge             models.Edge
+	ValidationStatus *string // From state_outputs.validation_status
+	ValidationError  *string // From state_outputs.validation_error
+}
+
 // EdgeRepository exposes persistence operations for dependency edges.
 type EdgeRepository interface {
 	// CRUD operations
@@ -60,6 +68,12 @@ type EdgeRepository interface {
 	// GetOutgoingEdgesWithConsumers fetches outgoing edges with consumer state data preloaded.
 	// The ToStateRel field will be populated for each edge.
 	GetOutgoingEdgesWithConsumers(ctx context.Context, fromStateGUID string) ([]*models.Edge, error)
+
+	// GetOutgoingEdgesWithValidation fetches outgoing edges with producer output validation status.
+	// Returns edges with validation_status and validation_error from state_outputs table.
+	// Uses LEFT JOIN semantics: edges without matching outputs have nil validation fields.
+	// Guarantees atomic read (single MVCC snapshot) for consistent edge status computation.
+	GetOutgoingEdgesWithValidation(ctx context.Context, fromStateGUID string) ([]EdgeWithValidation, error)
 
 	// Cycle detection (application-layer pre-check, DB trigger is safety net)
 	WouldCreateCycle(ctx context.Context, fromState, toState string) (bool, error)

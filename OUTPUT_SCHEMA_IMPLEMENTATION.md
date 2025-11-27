@@ -97,14 +97,14 @@ Both methods support `StateReference` (logic_id or guid).
 
 **New Commands:**
 - `set-output-schema`: Sets schema from a JSON file on disk
-  - Flags: `--output-key`, `--schema-file` (required), `--logic-id`, `--guid` (optional)
+  - Flags: `--key`, `--schema-file` (required), `--logic-id`, `--guid` (optional)
   - Supports `.grid` context for state resolution
-  - Usage: `gridctl state set-output-schema --output-key vpc_id --schema-file vpc_schema.json my-state`
+  - Usage: `gridctl state set-output-schema --key vpc_id --schema-file vpc_schema.json my-state`
 
 - `get-output-schema`: Retrieves and displays schema
-  - Flags: `--output-key` (required), `--logic-id`, `--guid` (optional)
+  - Flags: `--key` (required), `--logic-id`, `--guid` (optional)
   - Supports `.grid` context for state resolution
-  - Usage: `gridctl state get-output-schema --output-key vpc_id my-state`
+  - Usage: `gridctl state get-output-schema --key vpc_id my-state`
 
 Both commands registered in `state.go` init function.
 
@@ -178,10 +178,10 @@ cat > vpc_id_schema.json <<EOF
 }
 EOF
 
-gridctl state set-output-schema --output-key vpc_id --schema-file vpc_id_schema.json my-vpc
+gridctl state set-output-schema --key vpc_id --schema-file vpc_id_schema.json my-vpc
 
 # Get schema
-gridctl state get-output-schema --output-key vpc_id my-vpc
+gridctl state get-output-schema --key vpc_id my-vpc
 
 # Now run terraform apply - schema will be preserved
 cd terraform/vpc

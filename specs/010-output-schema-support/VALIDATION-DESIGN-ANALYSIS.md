@@ -753,9 +753,9 @@ func TestEdgeStatusSchemaInvalidThenClears(t *testing.T) {
 
 1. ✅ Update `plan.md` with sync validation decision - **COMPLETED**
 2. ✅ Document composite edge status model - **COMPLETED**
-3. ⏭️ Update task `grid-1c39` (validation job) to reflect sync design
-4. ⏭️ Update task `grid-cc87` (edge update) to include composite status logic
-5. ⏭️ Update task `grid-5d3e` or create new task for purge logic fix
-6. ⏭️ Create task for inference serial check fix
-7. ⏭️ Create task for proto/TS SDK type updates
-8. ⏭️ Create tasks for 4 integration tests (race condition coverage)
+3. ✅ Update task `grid-1c39` (validation job) to reflect sync design
+4. ✅ Update task `grid-cc87` (edge update) to include composite status logic
+5. ✅ Update task `grid-5d3e` or create new task for purge logic fix
+6. ✅ Create task for inference serial check fix
+7. ✅ Create task for proto/TS SDK type updates
+8. ✅ Create tasks for 4 integration tests (race condition coverage)

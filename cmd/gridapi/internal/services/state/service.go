@@ -498,8 +498,13 @@ func (s *Service) GetStateInfo(ctx context.Context, logicID, guid string) (*Stat
 		outputs := make([]repository.OutputKey, len(state.Outputs))
 		for i, out := range state.Outputs {
 			outputs[i] = repository.OutputKey{
-				Key:       out.OutputKey,
-				Sensitive: out.Sensitive,
+				Key:              out.OutputKey,
+				Sensitive:        out.Sensitive,
+				SchemaJSON:       out.SchemaJSON,
+				SchemaSource:     out.SchemaSource,
+				ValidationStatus: out.ValidationStatus,
+				ValidationError:  out.ValidationError,
+				ValidatedAt:      out.ValidatedAt,
 			}
 		}
 		info.Outputs = outputs

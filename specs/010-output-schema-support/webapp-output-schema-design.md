@@ -92,10 +92,10 @@ export interface OutputKey {
   /** JSON Schema definition (optional) */
   schema_json?: string;
 
-  /** Validation status (present if schema is set) */
-  validation_status?: 'valid' | 'invalid' | 'error';
+  /** Validation status: 'valid', 'invalid', 'error', or 'not_validated' */
+  validation_status?: 'valid' | 'invalid' | 'error' | 'not_validated';
 
-  /** Validation error message (present if validation_status != 'valid') */
+  /** Validation error message (only present if validation_status is 'invalid' or 'error') */
   validation_error?: string;
 
   /** Last validation timestamp (ISO 8601) */
@@ -109,13 +109,14 @@ export interface OutputKey {
 
 ```typescript
 export type EdgeStatus =
-  | 'pending'
-  | 'clean'
-  | 'dirty'
-  | 'potentially-stale'
-  | 'mock'
-  | 'missing-output'
-  | 'schema-invalid';  // NEW: Producer output failed schema validation
+  | 'pending'           // Edge created, no digest values yet
+  | 'clean'             // in_digest === out_digest AND valid (synchronized AND valid)
+  | 'clean-invalid'     // NEW in_digest === out_digest AND invalid (synchronized but fails schema)
+  | 'dirty'             // in_digest !== out_digest AND valid (out of sync but valid)
+  | 'dirty-invalid'     // NEW in_digest !== out_digest AND invalid (out of sync AND fails schema)
+  | 'potentially-stale' // Producer updated, consumer not re-evaluated
+  | 'mock'              // Using mock_value_json
+  | 'missing-output';   // Producer doesn't have required output
 ```
 
 #### 1.3 Update Protobuf Adapter

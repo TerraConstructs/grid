@@ -2342,15 +2342,28 @@ func (x *ProducerState) GetBackendConfig() *BackendConfig {
 
 // DependencyEdge represents a directed dependency edge.
 type DependencyEdge struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Id            int64                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
-	FromGuid      string                 `protobuf:"bytes,2,opt,name=from_guid,json=fromGuid,proto3" json:"from_guid,omitempty"`
-	FromLogicId   string                 `protobuf:"bytes,3,opt,name=from_logic_id,json=fromLogicId,proto3" json:"from_logic_id,omitempty"`
-	FromOutput    string                 `protobuf:"bytes,4,opt,name=from_output,json=fromOutput,proto3" json:"from_output,omitempty"`
-	ToGuid        string                 `protobuf:"bytes,5,opt,name=to_guid,json=toGuid,proto3" json:"to_guid,omitempty"`
-	ToLogicId     string                 `protobuf:"bytes,6,opt,name=to_logic_id,json=toLogicId,proto3" json:"to_logic_id,omitempty"`
-	ToInputName   *string                `protobuf:"bytes,7,opt,name=to_input_name,json=toInputName,proto3,oneof" json:"to_input_name,omitempty"`
-	Status        string                 `protobuf:"bytes,8,opt,name=status,proto3" json:"status,omitempty"` // "pending", "clean", "dirty", "potentially-stale", "mock", "missing-output"
+	state       protoimpl.MessageState `protogen:"open.v1"`
+	Id          int64                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
+	FromGuid    string                 `protobuf:"bytes,2,opt,name=from_guid,json=fromGuid,proto3" json:"from_guid,omitempty"`
+	FromLogicId string                 `protobuf:"bytes,3,opt,name=from_logic_id,json=fromLogicId,proto3" json:"from_logic_id,omitempty"`
+	FromOutput  string                 `protobuf:"bytes,4,opt,name=from_output,json=fromOutput,proto3" json:"from_output,omitempty"`
+	ToGuid      string                 `protobuf:"bytes,5,opt,name=to_guid,json=toGuid,proto3" json:"to_guid,omitempty"`
+	ToLogicId   string                 `protobuf:"bytes,6,opt,name=to_logic_id,json=toLogicId,proto3" json:"to_logic_id,omitempty"`
+	ToInputName *string                `protobuf:"bytes,7,opt,name=to_input_name,json=toInputName,proto3,oneof" json:"to_input_name,omitempty"`
+	// Edge status combines two orthogonal dimensions:
+	// 1. Drift: clean (in_digest == out_digest) vs dirty (in_digest != out_digest)
+	// 2. Validation: valid (passes schema) vs invalid (fails schema)
+	//
+	// Possible values:
+	// - "pending": Initial state, no observation yet
+	// - "clean": in_digest == out_digest AND output passes schema validation
+	// - "clean-invalid": in_digest == out_digest AND output fails schema validation
+	// - "dirty": in_digest != out_digest AND output passes schema validation
+	// - "dirty-invalid": in_digest != out_digest AND output fails schema validation
+	// - "potentially-stale": Transitive upstream dirty
+	// - "mock": Using mock_value, real output does not exist yet
+	// - "missing-output": Producer does not have the required output key
+	Status        string                 `protobuf:"bytes,8,opt,name=status,proto3" json:"status,omitempty"`
 	InDigest      *string                `protobuf:"bytes,9,opt,name=in_digest,json=inDigest,proto3,oneof" json:"in_digest,omitempty"`
 	OutDigest     *string                `protobuf:"bytes,10,opt,name=out_digest,json=outDigest,proto3,oneof" json:"out_digest,omitempty"`
 	MockValueJson *string                `protobuf:"bytes,11,opt,name=mock_value_json,json=mockValueJson,proto3,oneof" json:"mock_value_json,omitempty"`

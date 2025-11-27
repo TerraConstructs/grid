@@ -149,8 +149,9 @@ func (v *SchemaValidator) compileSchema(schemaJSON string) (*jsonschema.Schema, 
 	return schema, nil
 }
 
-// formatValidationError formats a validation error into a structured message
-// Extracts JSON path and error details for storage in validation_error column
+// formatValidationError formats a validation error into a structured message per SC-006 and FR-035.
+// Includes: JSON path, error description (with truncation for long messages).
+// Example: "validation failed at '$.vpc_id': does not match pattern '^vpc-[a-f0-9]{8,17}$'"
 func (v *SchemaValidator) formatValidationError(err error) string {
 	ve, ok := err.(*jsonschema.ValidationError)
 	if !ok {
@@ -158,9 +159,35 @@ func (v *SchemaValidator) formatValidationError(err error) string {
 		return err.Error()
 	}
 
-	// Use the built-in Error() method which provides a good formatted message
-	// It includes the JSON path and error description
-	return ve.Error()
+	// Build JSON path from InstanceLocation (e.g., ["", "vpc_id"] -> "$.vpc_id")
+	var path string
+	if len(ve.InstanceLocation) > 0 {
+		// Filter out empty strings and build path
+		var parts []string
+		for _, part := range ve.InstanceLocation {
+			if part != "" {
+				parts = append(parts, part)
+			}
+		}
+		if len(parts) > 0 {
+			path = "$." + strings.Join(parts, ".")
+		} else {
+			path = "$"
+		}
+	} else {
+		path = "$"
+	}
+
+	// Get the error message from the library (includes constraint details)
+	errorMsg := ve.Error()
+
+	// Truncate if message is excessively long (>200 chars)
+	if len(errorMsg) > 200 {
+		errorMsg = errorMsg[:200] + "... (truncated)"
+	}
+
+	// Format structured error with path
+	return fmt.Sprintf("validation failed at '%s': %s", path, errorMsg)
 }
 
 // InvalidateCache removes a schema from the cache

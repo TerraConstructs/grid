@@ -1140,7 +1140,19 @@ export type DependencyEdge = Message<"state.v1.DependencyEdge"> & {
   toInputName?: string;
 
   /**
-   * "pending", "clean", "dirty", "potentially-stale", "mock", "missing-output"
+   * Edge status combines two orthogonal dimensions:
+   * 1. Drift: clean (in_digest == out_digest) vs dirty (in_digest != out_digest)
+   * 2. Validation: valid (passes schema) vs invalid (fails schema)
+   *
+   * Possible values:
+   * - "pending": Initial state, no observation yet
+   * - "clean": in_digest == out_digest AND output passes schema validation
+   * - "clean-invalid": in_digest == out_digest AND output fails schema validation
+   * - "dirty": in_digest != out_digest AND output passes schema validation
+   * - "dirty-invalid": in_digest != out_digest AND output fails schema validation
+   * - "potentially-stale": Transitive upstream dirty
+   * - "mock": Using mock_value, real output does not exist yet
+   * - "missing-output": Producer does not have the required output key
    *
    * @generated from field: string status = 8;
    */

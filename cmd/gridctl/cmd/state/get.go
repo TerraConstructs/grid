@@ -201,11 +201,41 @@ func printState(info *sdk.StateInfo) {
 		fmt.Println("  (none - no Terraform state uploaded yet)")
 	} else {
 		for _, out := range info.Outputs {
+			// Build inline metadata string
+			metaParts := []string{}
+			if out.SchemaSource != nil {
+				metaParts = append(metaParts, fmt.Sprintf("schema=%s", *out.SchemaSource))
+			}
+			if out.ValidationStatus != nil {
+				metaParts = append(metaParts, fmt.Sprintf("validation=%s", *out.ValidationStatus))
+			}
+
+			metaStr := ""
+			if len(metaParts) > 0 {
+				metaStr = ": " + fmt.Sprintf("%s", metaParts[0])
+				if len(metaParts) > 1 {
+					metaStr += ", " + metaParts[1]
+				}
+			} else {
+				metaStr = " (no schema set)"
+			}
+
 			sensitive := ""
 			if out.Sensitive {
 				sensitive = " (⚠️  sensitive)"
 			}
-			fmt.Printf("  %s%s\n", out.Key, sensitive)
+
+			fmt.Printf("  %s%s%s\n", out.Key, metaStr, sensitive)
+
+			// Indented error (4 spaces)
+			if out.ValidationError != nil && *out.ValidationError != "" {
+				fmt.Printf("    error: %s\n", *out.ValidationError)
+			}
+
+			// Indented timestamp (4 spaces)
+			if out.ValidatedAt != nil {
+				fmt.Printf("    validated at: %s\n", out.ValidatedAt.Format("2006-01-02 15:04:05"))
+			}
 		}
 	}
 	fmt.Println()

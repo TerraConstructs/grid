@@ -149,11 +149,18 @@ export interface DependencyEdge {
   updated_at: string;
 }
 
-/** Edge synchronization status */
+/**
+ * Edge synchronization status using a composite model.
+ * Combines two orthogonal dimensions:
+ * 1. Drift: clean (in_digest === out_digest) vs dirty (in_digest !== out_digest)
+ * 2. Validation: valid (passes schema) vs invalid (fails schema)
+ */
 export type EdgeStatus =
   | 'pending'           // Edge created, no digest values yet
-  | 'clean'             // in_digest === out_digest (synchronized)
-  | 'dirty'             // in_digest !== out_digest (out of sync)
+  | 'clean'             // in_digest === out_digest AND valid (synchronized AND valid)
+  | 'clean-invalid'     // in_digest === out_digest AND invalid (synchronized but fails schema)
+  | 'dirty'             // in_digest !== out_digest AND valid (out of sync but valid)
+  | 'dirty-invalid'     // in_digest !== out_digest AND invalid (out of sync AND fails schema)
   | 'potentially-stale' // Producer updated, consumer not re-evaluated
   | 'mock'              // Using mock_value_json
   | 'missing-output';   // Producer doesn't have required output
@@ -165,4 +172,19 @@ export interface OutputKey {
 
   /** Whether output is marked sensitive in Terraform */
   sensitive: boolean;
+
+  /** JSON Schema for output validation (optional) */
+  schema_json?: string;
+
+  /** How the schema was created: 'manual' (user-provided) or 'inferred' (auto-generated) */
+  schema_source?: 'manual' | 'inferred';
+
+  /** Validation status: 'valid', 'invalid', 'error', or 'not_validated' */
+  validation_status?: 'valid' | 'invalid' | 'error' | 'not_validated';
+
+  /** Validation error message (only present if validation_status is 'invalid' or 'error') */
+  validation_error?: string;
+
+  /** Timestamp when validation last ran (ISO 8601) */
+  validated_at?: string;
 }

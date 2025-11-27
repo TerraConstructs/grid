@@ -470,7 +470,7 @@ func TestMode1_OutputSchemaAuthorization(t *testing.T) {
 	setSchemaCmd := exec.CommandContext(ctx, gridctlPath,
 		"state", "set-output-schema",
 		"--logic-id", logicID,
-		"--output-key", "vpc_id",
+		"--key", "vpc_id",
 		"--schema-file", schemaPath,
 		"--server", serverURL,
 		"--token", userTokenResp.AccessToken)
@@ -483,16 +483,16 @@ func TestMode1_OutputSchemaAuthorization(t *testing.T) {
 	getSchemaCmd := exec.CommandContext(ctx, gridctlPath,
 		"state", "get-output-schema",
 		"--logic-id", logicID,
-		"--output-key", "vpc_id",
+		"--key", "vpc_id",
 		"--server", serverURL,
 		"--token", userTokenResp.AccessToken)
 	getOutput, err := getSchemaCmd.CombinedOutput()
 	require.NoError(t, err, "Product engineer should be able to get schema from env=dev state: %s", string(getOutput))
-	
+
 	// Verify schema content
 	schemaBytes, err := os.ReadFile(schemaPath)
 	require.NoError(t, err)
-	
+
 	var expectedSchema, actualSchema map[string]interface{}
 	err = json.Unmarshal(schemaBytes, &expectedSchema)
 	require.NoError(t, err)
@@ -515,7 +515,7 @@ func TestMode1_OutputSchemaAuthorization(t *testing.T) {
 	setProdSchemaCmd := exec.CommandContext(ctx, gridctlPath,
 		"state", "set-output-schema",
 		"--logic-id", prodLogicID,
-		"--output-key", "vpc_id",
+		"--key", "vpc_id",
 		"--schema-file", schemaPath,
 		"--server", serverURL,
 		"--token", adminTokenResp.AccessToken)
@@ -526,7 +526,7 @@ func TestMode1_OutputSchemaAuthorization(t *testing.T) {
 	setUnauthorizedCmd := exec.CommandContext(ctx, gridctlPath,
 		"state", "set-output-schema",
 		"--logic-id", prodLogicID,
-		"--output-key", "vpc_cidr",
+		"--key", "vpc_cidr",
 		"--schema-file", schemaPath,
 		"--server", serverURL,
 		"--token", userTokenResp.AccessToken)
@@ -539,7 +539,7 @@ func TestMode1_OutputSchemaAuthorization(t *testing.T) {
 	getUnauthorizedCmd := exec.CommandContext(ctx, gridctlPath,
 		"state", "get-output-schema",
 		"--logic-id", prodLogicID,
-		"--output-key", "vpc_id",
+		"--key", "vpc_id",
 		"--server", serverURL,
 		"--token", userTokenResp.AccessToken)
 	getUnauthorizedOutput, err := getUnauthorizedCmd.CombinedOutput()

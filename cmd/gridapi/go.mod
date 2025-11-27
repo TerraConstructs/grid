@@ -6,6 +6,7 @@ toolchain go1.24.10
 
 require (
 	connectrpc.com/connect v1.19.0
+	github.com/JLugagne/jsonschema-infer v0.1.2
 	github.com/btcsuite/btcutil v1.0.2
 	github.com/casbin/casbin/v2 v2.128.0
 	github.com/go-chi/chi/v5 v5.2.3
@@ -14,7 +15,9 @@ require (
 	github.com/golang-jwt/jwt/v5 v5.3.0
 	github.com/google/uuid v1.6.0
 	github.com/hashicorp/go-bexpr v0.1.14
+	github.com/hashicorp/golang-lru/v2 v2.0.7
 	github.com/mitchellh/mapstructure v1.4.1
+	github.com/santhosh-tekuri/jsonschema/v6 v6.0.2
 	github.com/spf13/cobra v1.10.1
 	github.com/stretchr/testify v1.11.1
 	github.com/terraconstructs/grid/api v0.0.0
@@ -30,7 +33,6 @@ require (
 )
 
 require (
-	github.com/JLugagne/jsonschema-infer v0.1.2 // indirect
 	github.com/benbjohnson/clock v1.3.5 // indirect
 	github.com/bmatcuk/doublestar/v4 v4.9.1 // indirect
 	github.com/casbin/govaluate v1.3.0 // indirect
@@ -40,7 +42,6 @@ require (
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/goccy/go-json v0.10.2 // indirect
 	github.com/gorilla/securecookie v1.1.2 // indirect
-	github.com/hashicorp/golang-lru/v2 v2.0.7 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/jinzhu/inflection v1.0.0 // indirect
 	github.com/lestrrat-go/backoff/v2 v2.0.8 // indirect
@@ -56,7 +57,6 @@ require (
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/puzpuzpuz/xsync/v3 v3.5.1 // indirect
 	github.com/rs/cors v1.11.1 // indirect
-	github.com/santhosh-tekuri/jsonschema/v6 v6.0.2 // indirect
 	github.com/sirupsen/logrus v1.9.3 // indirect
 	github.com/spf13/pflag v1.0.9 // indirect
 	github.com/stretchr/objx v0.5.2 // indirect

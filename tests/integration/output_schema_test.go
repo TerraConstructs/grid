@@ -361,14 +361,14 @@ func TestSchemaWithGridctl(t *testing.T) {
 	// Set schema via CLI
 	setOutput := mustRunGridctl(t, ctx, "", "state", "set-output-schema",
 		"--logic-id", logicID,
-		"--output-key", "vpc_id",
+		"--key", "vpc_id",
 		"--schema-file", schemaPath)
 	assert.Contains(t, setOutput, "Set schema for output 'vpc_id'", "Schema should be set")
 
 	// Get schema via CLI
 	getOutput := mustRunGridctlStdOut(t, ctx, "", "state", "get-output-schema",
 		"--logic-id", logicID,
-		"--output-key", "vpc_id")
+		"--key", "vpc_id")
 
 	// Verify schema content matches file
 	schemaBytes, err := os.ReadFile(schemaPath)

@@ -90,7 +90,7 @@ Developers consuming Terraform outputs need programmatic access to schemas throu
 **Acceptance Scenarios**:
 
 1. **Given** schemas stored for multiple outputs, **When** developer calls GetOutputSchema via Go SDK for a specific output, **Then** the exact JSON Schema is returned
-2. **Given** the same schemas, **When** developer runs `gridctl state get-output-schema --logic-id my-state --output-key vpc_id`, **Then** the CLI displays the schema in readable JSON format
+2. **Given** the same schemas, **When** developer runs `gridctl state get-output-schema --logic-id my-state --key vpc_id`, **Then** the CLI displays the schema in readable JSON format
 3. **Given** a state with outputs and schemas, **When** developer calls ListStateOutputs via TypeScript SDK, **Then** response includes both output values and associated schemas for each output
 4. **Given** a state referenced by GUID instead of logic-id, **When** developer retrieves schema using GUID, **Then** schema is returned identically as when using logic-id
 5. **Given** context saved in .grid file, **When** developer runs CLI commands without explicit state flags, **Then** commands use context-resolved state reference
@@ -242,7 +242,7 @@ Engineers using the Grid webapp need to view output schemas, validation statuses
 
 - **FR-013**: Go SDK MUST provide `SetOutputSchema` and `GetOutputSchema` client methods
 - **FR-014**: TypeScript SDK MUST provide generated type-safe methods for schema operations via Connect-Web
-- **FR-015**: CLI MUST provide `gridctl state set-output-schema` command accepting `--output-key` and `--schema-file` flags
+- **FR-015**: CLI MUST provide `gridctl state set-output-schema` command accepting `--key` and `--schema-file` flags
 - **FR-016**: CLI MUST provide `gridctl state get-output-schema` command to retrieve and display schemas
 - **FR-017**: CLI commands MUST support state resolution via .grid context files
 - **FR-018**: CLI commands MUST support explicit state reference via `--logic-id` or `--guid` flags
@@ -348,7 +348,7 @@ This section documents known limitations of the current design that are intentio
 # Set schema for all network components
 for env in dev staging prod; do
   gridctl state set-output-schema --logic-id "network-${env}" \
-    --output-key vpc_id --schema-file schemas/network/vpc_id.json
+    --key vpc_id --schema-file schemas/network/vpc_id.json
 done
 ```
 

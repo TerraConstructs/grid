@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -423,9 +424,6 @@ func TestValidationMetadataInResponses(t *testing.T) {
 	assert.NotNil(t, vpcOutput.ValidatedAt, "ListStateOutputs: ValidatedAt should be present")
 
 	// Test 2: GetStateInfo should include validation fields in outputs array
-	// NOTE: This depends on grid-14d1 (Update Connect Handlers for validation fields)
-	// The connect handlers for GetStateInfo need to be updated to map validation fields.
-	// For now, we only verify that ListStateOutputs includes validation fields.
 	stateInfo, err := client.GetStateInfo(ctx, sdk.StateReference{GUID: state.GUID})
 	require.NoError(t, err)
 	require.NotNil(t, stateInfo, "GetStateInfo should return state info")
@@ -440,12 +438,10 @@ func TestValidationMetadataInResponses(t *testing.T) {
 	}
 	require.NotNil(t, vpcInfoOutput, "vpc_id should be in GetStateInfo outputs")
 
-	// TODO(grid-14d1): Enable these assertions after updating Connect handlers
-	// FR-034: All three validation fields should be present in GetStateInfo too
-	// Currently, GetStateInfo handlers don't map validation fields from the database.
-	// Uncomment after grid-14d1 is complete:
-	// assert.NotNil(t, vpcInfoOutput.ValidationStatus, "GetStateInfo: ValidationStatus should be present")
-	// assert.NotNil(t, vpcInfoOutput.ValidatedAt, "GetStateInfo: ValidatedAt should be present")
+	// FR-034: All validation fields should be present in GetStateInfo too
+	assert.NotNil(t, vpcInfoOutput.ValidationStatus, "GetStateInfo: ValidationStatus should be present")
+	assert.Equal(t, "valid", *vpcInfoOutput.ValidationStatus, "GetStateInfo: ValidationStatus should be 'valid'")
+	assert.NotNil(t, vpcInfoOutput.ValidatedAt, "GetStateInfo: ValidatedAt should be present")
 }
 
 // TestValidationTransitionFromInvalidToValid tests that validation status can transition from invalid to valid.
@@ -702,4 +698,118 @@ func TestValidationErrorWithArrayItemViolation(t *testing.T) {
 	// FR-035: Error should mention array context (index or path like /subnet_ids/1)
 	// The exact format depends on jsonschema library implementation
 	assert.NotEmpty(t, errorMsg, "ValidationError should contain details")
+}
+
+// TestValidationErrorStructure tests that validation errors include all required components per SC-006 and FR-035.
+// Validates structured error format: JSON path, expected constraint, actual value, and truncation for long values.
+func TestValidationErrorStructure(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping integration test in short mode")
+	}
+
+	ctx := context.Background()
+	client := newSDKClient()
+
+	t.Run("PatternViolation", func(t *testing.T) {
+		// Create state
+		state, err := client.CreateState(ctx, sdk.CreateStateInput{LogicID: uniqueLogicID("test-error-structure-pattern")})
+		require.NoError(t, err)
+
+		// Set schema with pattern constraint
+		schemaBytes, err := os.ReadFile(filepath.Join("testdata", "schema_pattern_strict.json"))
+		require.NoError(t, err)
+
+		err = client.SetOutputSchema(ctx, sdk.StateReference{GUID: state.GUID}, "vpc_id", string(schemaBytes))
+		require.NoError(t, err)
+
+		// Upload INVALID state
+		invalidStateBytes, err := os.ReadFile(filepath.Join("testdata", "tfstate_invalid_pattern.json"))
+		require.NoError(t, err)
+
+		err = uploadTerraformState(state.GUID, invalidStateBytes)
+		require.NoError(t, err)
+		time.Sleep(100 * time.Millisecond)
+
+		// Verify error structure
+		outputs, err := client.ListStateOutputs(ctx, sdk.StateReference{GUID: state.GUID})
+		require.NoError(t, err)
+
+		var vpcOutput *sdk.OutputKey
+		for i := range outputs {
+			if outputs[i].Key == "vpc_id" {
+				vpcOutput = &outputs[i]
+				break
+			}
+		}
+		require.NotNil(t, vpcOutput)
+
+		require.NotNil(t, vpcOutput.ValidationError, "ValidationError should be set")
+		errorMsg := *vpcOutput.ValidationError
+
+		// SC-006, FR-035: Structured error format
+		// Should include: JSON path, error description
+		assert.Contains(t, errorMsg, "$", "Error should include JSON path marker")
+		assert.Contains(t, errorMsg, "validation failed at", "Error should include failure indicator")
+		assert.Contains(t, errorMsg, "pattern", "Error should mention pattern constraint")
+		assert.Contains(t, errorMsg, "does not match", "Error should describe the validation failure")
+	})
+
+	t.Run("LongValueTruncation", func(t *testing.T) {
+		// Create state
+		state, err := client.CreateState(ctx, sdk.CreateStateInput{LogicID: uniqueLogicID("test-error-truncation")})
+		require.NoError(t, err)
+
+		// Create schema that expects a short string
+		shortStringSchema := `{
+			"$schema": "http://json-schema.org/draft-07/schema#",
+			"type": "string",
+			"maxLength": 10
+		}`
+
+		err = client.SetOutputSchema(ctx, sdk.StateReference{GUID: state.GUID}, "short_string", shortStringSchema)
+		require.NoError(t, err)
+
+		// Create state with a very long string (>100 chars) that violates maxLength
+		longValue := strings.Repeat("a", 150) // 150 chars
+		tfstate := map[string]interface{}{
+			"version":           4,
+			"terraform_version": "1.5.0",
+			"serial":            1,
+			"lineage":           "test-lineage-truncation",
+			"outputs": map[string]interface{}{
+				"short_string": map[string]interface{}{
+					"value": longValue,
+					"type":  "string",
+				},
+			},
+		}
+		tfstateBytes, err := json.Marshal(tfstate)
+		require.NoError(t, err)
+
+		err = uploadTerraformState(state.GUID, tfstateBytes)
+		require.NoError(t, err)
+		time.Sleep(100 * time.Millisecond)
+
+		// Verify truncation
+		outputs, err := client.ListStateOutputs(ctx, sdk.StateReference{GUID: state.GUID})
+		require.NoError(t, err)
+
+		var output *sdk.OutputKey
+		for i := range outputs {
+			if outputs[i].Key == "short_string" {
+				output = &outputs[i]
+				break
+			}
+		}
+		require.NotNil(t, output)
+
+		require.NotNil(t, output.ValidationError)
+		errorMsg := *output.ValidationError
+
+		// FR-035: Error message itself should be truncated for very long errors
+		// The library error format is: "maxLength: got 150, want 10"
+		assert.Contains(t, errorMsg, "maxLength", "Error should mention constraint type")
+		assert.Contains(t, errorMsg, "$", "Error should include JSON path")
+		assert.Less(t, len(errorMsg), 400, "Error message should not be excessively long (truncated if needed)")
+	})
 }

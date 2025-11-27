@@ -59,6 +59,11 @@ function convertProtoOutputKey(output: ProtoOutputKey): OutputKey {
   return {
     key: output.key,
     sensitive: output.sensitive,
+    schema_json: output.schemaJson,
+    schema_source: output.schemaSource as OutputKey['schema_source'],
+    validation_status: output.validationStatus as OutputKey['validation_status'],
+    validation_error: output.validationError,
+    validated_at: output.validatedAt ? timestampToISO(output.validatedAt) : undefined
   };
 }
 

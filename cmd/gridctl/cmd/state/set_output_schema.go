@@ -19,7 +19,7 @@ var (
 )
 
 var setOutputSchemaCmd = &cobra.Command{
-	Use:   "set-output-schema --output-key <key> --schema-file <path> [<logic-id>]",
+	Use:   "set-output-schema --key <key> --schema-file <path> [<logic-id>]",
 	Short: "Set JSON Schema for a state output",
 	Long: `Sets or updates the JSON Schema definition for a specific state output.
 This allows declaring expected output types before the output exists in Terraform state.
@@ -27,7 +27,7 @@ Uses .grid context if no state identifier is provided.`,
 	Args: cobra.MaximumNArgs(1),
 	RunE: func(cobraCmd *cobra.Command, args []string) error {
 		if setSchemaOutputKey == "" {
-			return fmt.Errorf("--output-key is required")
+			return fmt.Errorf("--key is required")
 		}
 		if setSchemaFile == "" {
 			return fmt.Errorf("--schema-file is required")
@@ -87,8 +87,8 @@ Uses .grid context if no state identifier is provided.`,
 func init() {
 	setOutputSchemaCmd.Flags().StringVar(&setSchemaLogicID, "logic-id", "", "State logic ID")
 	setOutputSchemaCmd.Flags().StringVar(&setSchemaGUID, "guid", "", "State GUID")
-	setOutputSchemaCmd.Flags().StringVar(&setSchemaOutputKey, "output-key", "", "Output key name (required)")
+	setOutputSchemaCmd.Flags().StringVar(&setSchemaOutputKey, "key", "", "Output key name (required)")
 	setOutputSchemaCmd.Flags().StringVar(&setSchemaFile, "schema-file", "", "Path to JSON Schema file (required)")
-	setOutputSchemaCmd.MarkFlagRequired("output-key")
+	setOutputSchemaCmd.MarkFlagRequired("key")
 	setOutputSchemaCmd.MarkFlagRequired("schema-file")
 }

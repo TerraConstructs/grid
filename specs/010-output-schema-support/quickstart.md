@@ -31,7 +31,7 @@ terraform apply -auto-approve
 # config = { "region": "us-east-1", "enable_nat": true }
 
 # 4. Check outputs - schemas were auto-inferred
-./bin/gridctl state get vpc-prod --show-outputs
+./bin/gridctl state get vpc-prod
 
 # Output:
 # Outputs (3):
@@ -40,17 +40,19 @@ terraform apply -auto-approve
 #   config: schema=inferred, validation=valid
 
 # 5. View inferred schema for vpc_id
-./bin/gridctl state get-output-schema --output-key vpc_id vpc-prod
+./bin/gridctl state get-output-schema --key vpc_id vpc-prod
 
 # Output:
+# Schema (inferred):
 # {
 #   "type": "string"
 # }
 
 # 6. View inferred schema for config (complex object)
-./bin/gridctl state get-output-schema --output-key config vpc-prod
+./bin/gridctl state get-output-schema --key config vpc-prod
 
 # Output:
+# Schema (inferred):
 # {
 #   "type": "object",
 #   "properties": {
@@ -73,10 +75,10 @@ cat > vpc_schema.json <<EOF
 }
 EOF
 
-./bin/gridctl state set-output-schema --output-key vpc_id --schema-file vpc_schema.json vpc-prod
+./bin/gridctl state set-output-schema --key vpc_id --schema-file vpc_schema.json vpc-prod
 
 # 2. Verify schema source changed to manual
-./bin/gridctl state get vpc-prod --show-outputs
+./bin/gridctl state get vpc-prod
 
 # Output:
 # Outputs (3):
@@ -103,7 +105,7 @@ cat > connection_schema.json <<EOF
 }
 EOF
 
-./bin/gridctl state set-output-schema --output-key connection_string --schema-file connection_schema.json db-prod
+./bin/gridctl state set-output-schema --key connection_string --schema-file connection_schema.json db-prod
 
 # 2. Run Terraform - inference is SKIPPED (schema already exists)
 cd terraform/rds
@@ -111,7 +113,7 @@ cd terraform/rds
 terraform apply -auto-approve
 
 # 3. Verify manual schema preserved (not overwritten by inference)
-./bin/gridctl state get-output-schema --output-key connection_string db-prod
+./bin/gridctl state get-output-schema --key connection_string db-prod
 # Still shows the detailed schema with format, minimum, required fields
 ```
 
@@ -130,19 +132,19 @@ cat > vpc_schema.json <<EOF
 }
 EOF
 
-./bin/gridctl state set-output-schema --output-key vpc_id --schema-file vpc_schema.json vpc-prod
+./bin/gridctl state set-output-schema --key vpc_id --schema-file vpc_schema.json vpc-prod
 
 # 2. Upload state with valid VPC ID
 terraform apply -auto-approve
 # Output: vpc_id = "vpc-abc123456789"
 
 # 3. Check validation status
-./bin/gridctl state get vpc-prod --show-outputs
+./bin/gridctl state get vpc-prod
 
 # Output:
 # Outputs (1):
 #   vpc_id: schema=manual, validation=valid
-#     validated_at: 2025-11-25T10:30:00Z
+#     validated at: 2025-11-25 10:30:00
 ```
 
 ### Scenario 5: Validation Failure
@@ -159,21 +161,56 @@ cat > subnet_schema.json <<EOF
 }
 EOF
 
-./bin/gridctl state set-output-schema --output-key subnet_ids --schema-file subnet_schema.json vpc-prod
+./bin/gridctl state set-output-schema --key subnet_ids --schema-file subnet_schema.json vpc-prod
 
 # 2. Terraform outputs invalid data (hypothetically)
 # Output: subnet_ids = ["invalid-format", "subnet-abc123"]
 
 # 3. Check validation status - FAILED
-./bin/gridctl state get vpc-prod --show-outputs
+./bin/gridctl state get vpc-prod
 
 # Output:
 # Outputs (2):
 #   vpc_id: schema=manual, validation=valid
 #   subnet_ids: schema=manual, validation=invalid
 #     error: value at index 0 does not match pattern "^subnet-[a-f0-9]{8,17}$"
-#     validated_at: 2025-11-25T10:35:00Z
+#     validated at: 2025-11-25 10:35:00
 ```
+
+### Output Display Format
+
+**Default behavior:**
+- All outputs show schema and validation status inline (no flag required)
+- Format: `key: schema=SOURCE, validation=STATUS`
+- Timestamps displayed in human-readable format: `validated at: YYYY-MM-DD HH:MM:SS`
+- Validation errors shown indented (4 spaces) below affected output
+
+**Outputs without schema:**
+```bash
+# Example output when some outputs lack schemas:
+# Outputs (3):
+#   vpc_id: schema=inferred, validation=valid
+#   subnet_ids: schema=manual, validation=invalid
+#     error: pattern mismatch at /items/0
+#     validated at: 2025-11-25 10:35:00
+#   unvalidated_output (no schema set)
+```
+
+**Schema badge in get-output-schema:**
+- Always shows schema source: `Schema (manual):` or `Schema (inferred):`
+- Prepended before JSON output for context
+```bash
+./bin/gridctl state get-output-schema --key vpc_id vpc-prod
+
+# Output:
+# Schema (manual):
+# {
+#   "type": "string",
+#   "pattern": "^vpc-[a-f0-9]{8,17}$"
+# }
+```
+
+---
 
 ### Scenario 6: Dependency Edge Status (schema-invalid)
 
@@ -185,7 +222,7 @@ EOF
 ./bin/gridctl state depend --to app-prod --from vpc-prod --output vpc_id
 
 # 2. When vpc_id fails schema validation, edge status changes
-./bin/gridctl state get app-prod --show-deps
+./bin/gridctl state get app-prod
 
 # Output:
 # Dependencies (1):
@@ -198,7 +235,7 @@ cd terraform/vpc
 terraform apply -auto-approve
 
 # 4. Edge status clears automatically
-./bin/gridctl state get app-prod --show-deps
+./bin/gridctl state get app-prod
 
 # Output:
 # Dependencies (1):
@@ -280,7 +317,7 @@ When viewing a state's detail modal:
 2. State upload succeeds
 3. Output value is non-null
 
-Check: `./bin/gridctl state get-output-schema --output-key <key> <state>`
+Check: `./bin/gridctl state get-output-schema --key <key> <state>`
 
 If schema exists, inference is skipped.
 
@@ -307,7 +344,7 @@ The edge update job runs asynchronously after upload.
 **A**: Yes, set an empty permissive schema:
 ```bash
 echo '{}' > permissive.json
-./bin/gridctl state set-output-schema --output-key <key> --schema-file permissive.json <state>
+./bin/gridctl state set-output-schema --key <key> --schema-file permissive.json <state>
 ```
 
 An empty schema `{}` accepts any value but prevents inference.

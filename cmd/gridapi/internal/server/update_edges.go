@@ -63,12 +63,14 @@ func (j *EdgeUpdateJob) UpdateEdgesWithOutputs(ctx context.Context, stateGUID st
 
 // updateOutgoingEdges updates edges where this state is the producer
 func (j *EdgeUpdateJob) updateOutgoingEdges(ctx context.Context, stateGUID string, outputs map[string]interface{}) error {
-	outgoingEdges, err := j.edgeRepo.GetOutgoingEdges(ctx, stateGUID)
+	edgesWithValidation, err := j.edgeRepo.GetOutgoingEdgesWithValidation(ctx, stateGUID)
 	if err != nil {
-		return fmt.Errorf("get outgoing edges: %w", err)
+		return fmt.Errorf("get outgoing edges with validation: %w", err)
 	}
 
-	for _, edge := range outgoingEdges {
+	for _, edgeVal := range edgesWithValidation {
+		edge := edgeVal.Edge
+
 		// Check if output still exists in tfstate
 		outputValue, outputExists := outputs[edge.FromOutput]
 
@@ -104,17 +106,26 @@ func (j *EdgeUpdateJob) updateOutgoingEdges(ctx context.Context, stateGUID strin
 			continue
 		}
 
-		// Check if producer output changed
-		if edge.InDigest != newDigest {
-			edge.InDigest = newDigest
-			now := time.Now()
-			edge.LastInAt = &now
+		// Compute new status using composite model (drift × validation)
+		newStatus := deriveEdgeStatusWithValidation(newDigest, edge.OutDigest, edgeVal.ValidationStatus, true)
 
-			// Recompute status vs consumer observation
-			edge.Status = deriveEdgeStatus(newDigest, edge.OutDigest)
+		// Check if producer output changed OR validation status changed
+		digestChanged := (edge.InDigest != newDigest)
+		statusChanged := (edge.Status != newStatus)
+
+		if digestChanged || statusChanged {
+			// Update digest if it changed
+			if digestChanged {
+				edge.InDigest = newDigest
+				now := time.Now()
+				edge.LastInAt = &now
+			}
+
+			// Always update status to new computed value
+			edge.Status = newStatus
 
 			if err := j.edgeRepo.Update(ctx, &edge); err != nil {
-				log.Printf("EdgeUpdateJob: failed to update edge %d digest: %v", edge.ID, err)
+				log.Printf("EdgeUpdateJob: failed to update edge %d: %v", edge.ID, err)
 			}
 		}
 	}
@@ -136,7 +147,14 @@ func (j *EdgeUpdateJob) updateIncomingEdges(ctx context.Context, stateGUID strin
 			edge.OutDigest = edge.InDigest
 			now := time.Now()
 			edge.LastOutAt = &now
-			edge.Status = models.EdgeStatusClean
+
+			// Transition to clean status, preserving validation dimension
+			// dirty-invalid → clean-invalid, dirty → clean
+			if edge.Status == models.EdgeStatusDirtyInvalid {
+				edge.Status = models.EdgeStatusCleanInvalid
+			} else {
+				edge.Status = models.EdgeStatusClean
+			}
 
 			if err := j.edgeRepo.Update(ctx, &edge); err != nil {
 				log.Printf("EdgeUpdateJob: failed to update edge %d observation: %v", edge.ID, err)
@@ -147,16 +165,47 @@ func (j *EdgeUpdateJob) updateIncomingEdges(ctx context.Context, stateGUID strin
 	return nil
 }
 
-// deriveEdgeStatus computes edge status based on in_digest and out_digest
-func deriveEdgeStatus(inDigest, outDigest string) models.EdgeStatus {
+// deriveEdgeStatusWithValidation computes edge status using composite model.
+// Combines two orthogonal dimensions: drift (in_digest vs out_digest) and validation (schema compliance).
+// Parameters:
+//   - inDigest: producer's current output fingerprint
+//   - outDigest: consumer's observed fingerprint
+//   - validationStatus: validation_status from state_outputs (nil if no schema or not validated)
+//   - outputExists: whether the output key exists in producer's tfstate
+// Returns:
+//   - missing-output: if output doesn't exist (highest priority)
+//   - clean: in_digest == out_digest AND (valid OR no schema)
+//   - clean-invalid: in_digest == out_digest AND invalid
+//   - dirty: in_digest != out_digest AND (valid OR no schema)
+//   - dirty-invalid: in_digest != out_digest AND invalid
+//   - pending: no in_digest yet
+func deriveEdgeStatusWithValidation(inDigest, outDigest string, validationStatus *string, outputExists bool) models.EdgeStatus {
+	// Priority 1: Output existence (overrides everything)
+	if !outputExists {
+		return models.EdgeStatusMissingOutput
+	}
+
+	// Priority 2: Pending state (no producer data yet)
 	if inDigest == "" {
 		return models.EdgeStatusPending
 	}
-	if outDigest == "" {
+
+	// Compute drift dimension
+	isDirty := (outDigest == "" || inDigest != outDigest)
+
+	// Compute validation dimension
+	isInvalid := (validationStatus != nil && *validationStatus == "invalid")
+
+	// Composite matrix: drift × validation
+	if isDirty && isInvalid {
+		return models.EdgeStatusDirtyInvalid
+	}
+	if isDirty {
 		return models.EdgeStatusDirty
 	}
-	if inDigest == outDigest {
-		return models.EdgeStatusClean
+	if isInvalid {
+		return models.EdgeStatusCleanInvalid
 	}
-	return models.EdgeStatusDirty
+	return models.EdgeStatusClean
 }
+
