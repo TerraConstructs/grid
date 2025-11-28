@@ -1,7 +1,22 @@
 {
-  "release-type": "simple",
+  "$schema": "https://raw.githubusercontent.com/googleapis/release-please/main/schemas/config.json",
+  "packages": {
+    ".": {
+      "release-type": "go",
+      "package-name": "grid",
+      "changelog-path": "CHANGELOG.md",
+      "extra-files": [
+        "cmd/gridapi/version.go",
+        "cmd/gridctl/version.go",
+        "js/sdk/package.json",
+        "webapp/package.json"
+      ]
+    }
+  },
+  "separate-pull-requests": false,
   "bump-minor-pre-major": true,
   "bump-patch-for-minor-pre-major": true,
+  "pull-request-title-pattern": "chore: release ${version}",
   "changelog-sections": [
     {
       "type": "feat",
@@ -10,6 +25,14 @@
     {
       "type": "fix",
       "section": "Bug Fixes"
+    },
+    {
+      "type": "perf",
+      "section": "Performance Improvements"
+    },
+    {
+      "type": "deps",
+      "section": "Dependencies"
     },
     {
       "type": "chore",
@@ -36,10 +59,5 @@
       "section": "Continuous Integration",
       "hidden": false
     }
-  ],
-  "extra-files": [
-    "cmd/gridapi/version.go",
-    "cmd/gridctl/version.go",
-    "js/sdk/package.json"
   ]
 }
