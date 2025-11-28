@@ -1,0 +1,14 @@
+{
+  "version": 4,
+  "terraform_version": "1.5.0",
+  "serial": 1,
+  "lineage": "test-datetime-inference",
+  "outputs": {
+    "created_at": {
+      "value": "2025-11-25T15:30:00Z",
+      "type": "string",
+      "sensitive": false
+    }
+  },
+  "resources": []
+}

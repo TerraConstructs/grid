@@ -1,0 +1,16 @@
+{
+  "version": 4,
+  "terraform_version": "1.5.0",
+  "serial": 2,
+  "lineage": "test-lineage-invalid",
+  "outputs": {
+    "vpc_id": {
+      "value": "invalid-vpc-format",
+      "type": "string"
+    },
+    "subnet_ids": {
+      "value": ["subnet-abc123def456", "invalid-subnet-format"],
+      "type": ["list", "string"]
+    }
+  }
+}

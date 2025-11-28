@@ -485,10 +485,31 @@ func (h *StateServiceHandler) ListStateOutputs(
 	// Convert to proto
 	protoOutputs := make([]*statev1.OutputKey, len(outputs))
 	for i, out := range outputs {
-		protoOutputs[i] = &statev1.OutputKey{
+		protoOut := &statev1.OutputKey{
 			Key:       out.Key,
 			Sensitive: out.Sensitive,
 		}
+		// Include schema if available
+		if out.SchemaJSON != nil && *out.SchemaJSON != "" {
+			protoOut.SchemaJson = out.SchemaJSON
+		}
+		// Include schema source if available
+		if out.SchemaSource != nil && *out.SchemaSource != "" {
+			protoOut.SchemaSource = out.SchemaSource
+		}
+		// Include validation status if available
+		if out.ValidationStatus != nil && *out.ValidationStatus != "" {
+			protoOut.ValidationStatus = out.ValidationStatus
+		}
+		// Include validation error if available
+		if out.ValidationError != nil && *out.ValidationError != "" {
+			protoOut.ValidationError = out.ValidationError
+		}
+		// Include validated_at if available
+		if out.ValidatedAt != nil {
+			protoOut.ValidatedAt = timestamppb.New(*out.ValidatedAt)
+		}
+		protoOutputs[i] = protoOut
 	}
 
 	resp := &statev1.ListStateOutputsResponse{
@@ -544,10 +565,31 @@ func (h *StateServiceHandler) GetStateInfo(
 	// Convert outputs to proto
 	protoOutputs := make([]*statev1.OutputKey, len(info.Outputs))
 	for i, out := range info.Outputs {
-		protoOutputs[i] = &statev1.OutputKey{
+		protoOut := &statev1.OutputKey{
 			Key:       out.Key,
 			Sensitive: out.Sensitive,
 		}
+		// Include schema if available
+		if out.SchemaJSON != nil && *out.SchemaJSON != "" {
+			protoOut.SchemaJson = out.SchemaJSON
+		}
+		// Include schema source if available
+		if out.SchemaSource != nil && *out.SchemaSource != "" {
+			protoOut.SchemaSource = out.SchemaSource
+		}
+		// Include validation status if available
+		if out.ValidationStatus != nil && *out.ValidationStatus != "" {
+			protoOut.ValidationStatus = out.ValidationStatus
+		}
+		// Include validation error if available
+		if out.ValidationError != nil && *out.ValidationError != "" {
+			protoOut.ValidationError = out.ValidationError
+		}
+		// Include validated_at if available
+		if out.ValidatedAt != nil {
+			protoOut.ValidatedAt = timestamppb.New(*out.ValidatedAt)
+		}
+		protoOutputs[i] = protoOut
 	}
 
 	// Convert labels to proto
@@ -719,4 +761,108 @@ func (h *StateServiceHandler) filterEdgesByRoleScopes(ctx context.Context, edges
 	}
 
 	return filtered, nil
+}
+
+// SetOutputSchema sets or updates the JSON Schema for a specific state output.
+// After setting the schema, triggers validation for that output if it has a value.
+func (h *StateServiceHandler) SetOutputSchema(
+	ctx context.Context,
+	req *connect.Request[statev1.SetOutputSchemaRequest],
+) (*connect.Response[statev1.SetOutputSchemaResponse], error) {
+	// Resolve state GUID from logic_id or guid
+	var guid, logicID string
+	if state, ok := req.Msg.State.(*statev1.SetOutputSchemaRequest_StateLogicId); ok {
+		logicID = state.StateLogicId
+		// Resolve logic_id to guid
+		stateGUID, _, err := h.service.GetStateConfig(ctx, logicID)
+		if err != nil {
+			return nil, mapServiceError(err)
+		}
+		guid = stateGUID
+	} else if state, ok := req.Msg.State.(*statev1.SetOutputSchemaRequest_StateGuid); ok {
+		guid = state.StateGuid
+		// Get logic_id for response
+		stateRecord, err := h.service.GetStateByGUID(ctx, guid)
+		if err != nil {
+			return nil, mapServiceError(err)
+		}
+		logicID = stateRecord.LogicID
+	} else {
+		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("state reference required (state_logic_id or state_guid)"))
+	}
+
+	// Set schema and check if output has a value (uses outputs table, not state content)
+	// This follows proper layering: handler delegates business logic to service
+	outputExists, err := h.service.SetOutputSchemaAndCheckExists(ctx, guid, req.Msg.OutputKey, req.Msg.SchemaJson)
+	if err != nil {
+		return nil, mapServiceError(err)
+	}
+
+	// Trigger validation if output exists with a real value (state_serial > 0)
+	// Handler only coordinates the job invocation; business logic is in the service
+	if h.validationJob != nil && outputExists {
+		// Trigger async validation for this output
+		go func() {
+			// Get the output value from state via service
+			val, err := h.service.GetStateOutputValue(context.Background(), guid, req.Msg.OutputKey)
+			if err != nil || val == nil {
+				return // Can't get value, validation can't run
+			}
+
+			// Validate this single output against the schema we just set
+			_ = h.validationJob.ValidateOutputs(context.Background(), guid, map[string]any{req.Msg.OutputKey: val})
+		}()
+	}
+
+	resp := &statev1.SetOutputSchemaResponse{
+		Success:      true,
+		StateGuid:    guid,
+		StateLogicId: logicID,
+		OutputKey:    req.Msg.OutputKey,
+	}
+
+	return connect.NewResponse(resp), nil
+}
+
+// GetOutputSchema retrieves the JSON Schema for a specific state output.
+func (h *StateServiceHandler) GetOutputSchema(
+	ctx context.Context,
+	req *connect.Request[statev1.GetOutputSchemaRequest],
+) (*connect.Response[statev1.GetOutputSchemaResponse], error) {
+	// Resolve state GUID from logic_id or guid
+	var guid, logicID string
+	if state, ok := req.Msg.State.(*statev1.GetOutputSchemaRequest_StateLogicId); ok {
+		logicID = state.StateLogicId
+		// Resolve logic_id to guid
+		stateGUID, _, err := h.service.GetStateConfig(ctx, logicID)
+		if err != nil {
+			return nil, mapServiceError(err)
+		}
+		guid = stateGUID
+	} else if state, ok := req.Msg.State.(*statev1.GetOutputSchemaRequest_StateGuid); ok {
+		guid = state.StateGuid
+		// Get logic_id for response
+		stateRecord, err := h.service.GetStateByGUID(ctx, guid)
+		if err != nil {
+			return nil, mapServiceError(err)
+		}
+		logicID = stateRecord.LogicID
+	} else {
+		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("state reference required (state_logic_id or state_guid)"))
+	}
+
+	// Get the schema via service
+	schemaJSON, err := h.service.GetOutputSchema(ctx, guid, req.Msg.OutputKey)
+	if err != nil {
+		return nil, mapServiceError(err)
+	}
+
+	resp := &statev1.GetOutputSchemaResponse{
+		StateGuid:    guid,
+		StateLogicId: logicID,
+		OutputKey:    req.Msg.OutputKey,
+		SchemaJson:   schemaJSON,
+	}
+
+	return connect.NewResponse(resp), nil
 }

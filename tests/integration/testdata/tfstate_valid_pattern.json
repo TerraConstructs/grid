@@ -1,0 +1,16 @@
+{
+  "version": 4,
+  "terraform_version": "1.5.0",
+  "serial": 1,
+  "lineage": "test-lineage-valid",
+  "outputs": {
+    "vpc_id": {
+      "value": "vpc-0123456789abcdef",
+      "type": "string"
+    },
+    "subnet_ids": {
+      "value": ["subnet-abc123def456", "subnet-789def012345"],
+      "type": ["list", "string"]
+    }
+  }
+}

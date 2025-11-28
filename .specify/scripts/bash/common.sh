@@ -62,6 +62,31 @@ has_git() {
     git rev-parse --show-toplevel >/dev/null 2>&1
 }
 
+# Check if current branch is mapped in specs/branch-map.json
+check_mapped_branch() {
+	local branch="$1"
+	local repo_root="$2"
+	local mapping_file="$repo_root/specs/branch-map.json"
+	if [[ ! -f "$mapping_file" ]]; then
+		echo "Mapping file not found: $mapping_file" >&2
+		return 1
+	fi
+	local mapped_branch
+	mapped_branch=$(get_mapped_branch "$branch" "$repo_root")
+	if [[ -z "$mapped_branch" ]]; then
+		echo "ERROR: Current branch '$branch' is not mapped in $mapping_file" >&2
+		return 1
+	fi
+	return 0
+}
+
+get_mapped_branch() {
+	local branch="$1"
+	local repo_root="$2"
+	local mapping_file="$repo_root/specs/branch-map.json"
+	jq -r --arg branch "$branch" '.[$branch] // empty' "$mapping_file"
+}
+
 check_feature_branch() {
     local branch="$1"
     local has_git_repo="$2"
@@ -71,6 +96,20 @@ check_feature_branch() {
         echo "[specify] Warning: Git repository not detected; skipped branch validation" >&2
         return 0
     fi
+
+    if [[ "$branch" =~ ^[0-9]{3}- ]]; then
+        return 0
+    fi
+
+	# Check if branch is mapped in branch-map.json
+	local repo_root=$(get_repo_root)
+	echo "[specify] Checking branch mapping for '$branch'..." >&2
+	if check_mapped_branch "$branch" "$repo_root"; then
+		echo "[specify] Branch '$branch' is mapped." >&2
+		branch=$(get_mapped_branch "$branch" "$repo_root")
+	else
+		echo "[specify] No mapping, keep branch as '$branch'." >&2
+	fi
 
     if [[ ! "$branch" =~ ^[0-9]{3}- ]]; then
         echo "ERROR: Not on a feature branch. Current branch: $branch" >&2
@@ -91,6 +130,12 @@ get_feature_paths() {
     if has_git; then
         has_git_repo="true"
     fi
+
+
+	# Check if branch is mapped in branch-map.json
+	local repo_root=$(get_repo_root)
+	check_mapped_branch "$current_branch" "$repo_root" || return 1
+	current_branch=$(get_mapped_branch "$current_branch" "$repo_root")
 
     local feature_dir=$(get_feature_dir "$repo_root" "$current_branch")
 

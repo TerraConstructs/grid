@@ -133,40 +133,88 @@ func (r *BunStateRepository) UpdateContentAndUpsertOutputs(ctx context.Context, 
 			return fmt.Errorf("state with guid '%s' not found", guid)
 		}
 
-		// 4. Delete old outputs with different serial (cache invalidation)
-		_, err = tx.NewDelete().
-			Model((*models.StateOutput)(nil)).
-			Where("state_guid = ?", guid).
-			Where("state_serial != ?", serial).
-			Exec(ctx)
-		if err != nil {
-			return fmt.Errorf("delete stale outputs: %w", err)
+		// 4. Build set of new output keys for quick lookup
+		newOutputKeys := make(map[string]bool, len(outputs))
+		for _, out := range outputs {
+			newOutputKeys[out.Key] = true
 		}
 
-		// 5. Insert new outputs (if any)
+		// 5. Fetch ALL existing outputs for this state
+		var existingOutputs []models.StateOutput
+		err = tx.NewSelect().
+			Model(&existingOutputs).
+			Where("state_guid = ?", guid).
+			Scan(ctx)
+		if err != nil {
+			return fmt.Errorf("fetch existing outputs: %w", err)
+		}
+
+		// Build map of output_key -> full existing output data
+		existingByKey := make(map[string]*models.StateOutput, len(existingOutputs))
+		for i := range existingOutputs {
+			existingByKey[existingOutputs[i].OutputKey] = &existingOutputs[i]
+		}
+
+		// 6. Delete outputs that no longer exist in the new upload
+		// Only delete inferred schemas; manual schemas are retained as orphans
+		for _, existing := range existingOutputs {
+			if !newOutputKeys[existing.OutputKey] {
+				// Output no longer exists in Terraform state
+				if existing.SchemaSource == nil || *existing.SchemaSource == "inferred" {
+					// Delete inferred/no-schema outputs that were removed
+					_, err = tx.NewDelete().
+						Model((*models.StateOutput)(nil)).
+						Where("state_guid = ?", guid).
+						Where("output_key = ?", existing.OutputKey).
+						Exec(ctx)
+					if err != nil {
+						return fmt.Errorf("delete removed output %s: %w", existing.OutputKey, err)
+					}
+				}
+				// Manual schemas are kept as orphans (output may return later)
+			}
+		}
+
+		// 7. Upsert outputs (if any)
 		if len(outputs) > 0 {
 			outputModels := make([]models.StateOutput, 0, len(outputs))
 			for _, out := range outputs {
-				outputModels = append(outputModels, models.StateOutput{
+				model := models.StateOutput{
 					StateGUID:   guid,
 					OutputKey:   out.Key,
 					Sensitive:   out.Sensitive,
 					StateSerial: serial,
 					CreatedAt:   now,
 					UpdatedAt:   now,
-				})
+				}
+				// Preserve existing schema metadata if output already exists
+				// Fix for grid-58bb: Preserve ALL schema metadata fields
+				if existing, ok := existingByKey[out.Key]; ok {
+					model.SchemaJSON = existing.SchemaJSON
+					model.SchemaSource = existing.SchemaSource
+					model.ValidationStatus = existing.ValidationStatus
+					model.ValidationError = existing.ValidationError
+					model.ValidatedAt = existing.ValidatedAt
+				}
+				outputModels = append(outputModels, model)
 			}
 
 			// Use ON CONFLICT DO UPDATE for idempotency
+			// Fix for grid-58bb: Update ALL schema metadata fields
 			_, err = tx.NewInsert().
 				Model(&outputModels).
 				On("CONFLICT (state_guid, output_key) DO UPDATE").
 				Set("sensitive = EXCLUDED.sensitive").
 				Set("state_serial = EXCLUDED.state_serial").
 				Set("updated_at = EXCLUDED.updated_at").
+				Set("schema_json = EXCLUDED.schema_json").
+				Set("schema_source = EXCLUDED.schema_source").
+				Set("validation_status = EXCLUDED.validation_status").
+				Set("validation_error = EXCLUDED.validation_error").
+				Set("validated_at = EXCLUDED.validated_at").
 				Exec(ctx)
 			if err != nil {
-				return fmt.Errorf("insert outputs: %w", err)
+				return fmt.Errorf("upsert outputs: %w", err)
 			}
 		}
 

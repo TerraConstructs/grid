@@ -9,13 +9,18 @@ import (
 	"github.com/uptrace/bun"
 )
 
-// EdgeStatus represents the current status of a dependency edge
+// EdgeStatus represents the current status of a dependency edge.
+// Edge status uses a composite model with two orthogonal dimensions:
+// 1. Drift: clean (in_digest == out_digest) vs dirty (in_digest != out_digest)
+// 2. Validation: valid (passes schema) vs invalid (fails schema)
 type EdgeStatus string
 
 const (
 	EdgeStatusPending          EdgeStatus = "pending"           // Initial state, no observation yet
-	EdgeStatusClean            EdgeStatus = "clean"             // in_digest == out_digest
-	EdgeStatusDirty            EdgeStatus = "dirty"             // in_digest != out_digest
+	EdgeStatusClean            EdgeStatus = "clean"             // in_digest == out_digest AND output passes schema validation
+	EdgeStatusCleanInvalid     EdgeStatus = "clean-invalid"     // in_digest == out_digest AND output fails schema validation
+	EdgeStatusDirty            EdgeStatus = "dirty"             // in_digest != out_digest AND output passes schema validation
+	EdgeStatusDirtyInvalid     EdgeStatus = "dirty-invalid"     // in_digest != out_digest AND output fails schema validation
 	EdgeStatusPotentiallyStale EdgeStatus = "potentially-stale" // Transitive upstream dirty
 	EdgeStatusMock             EdgeStatus = "mock"              // Using mock value, real output not yet exists
 	EdgeStatusMissingOutput    EdgeStatus = "missing-output"    // Producer output key removed
@@ -40,8 +45,9 @@ type Edge struct {
 	UpdatedAt   time.Time  `bun:"updated_at,notnull,default:current_timestamp"`
 
 	// Relationships for eager loading (populated only when using Relation())
-	FromStateRel *State `bun:"rel:belongs-to,join:from_state=guid"`
-	ToStateRel   *State `bun:"rel:belongs-to,join:to_state=guid"`
+	FromStateRel   *State        `bun:"rel:belongs-to,join:from_state=guid"`
+	ToStateRel     *State        `bun:"rel:belongs-to,join:to_state=guid"`
+	ProducerOutput *StateOutput  `bun:"rel:belongs-to,join:from_state=state_guid,join:from_output=output_key"`
 }
 
 var slugRegex = regexp.MustCompile(`^[a-z0-9_-]+$`)

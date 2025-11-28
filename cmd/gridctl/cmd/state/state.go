@@ -32,6 +32,8 @@ func init() {
 	StateCmd.AddCommand(getCmd)
 	StateCmd.AddCommand(setCmd)
 	StateCmd.AddCommand(initCmd)
+	StateCmd.AddCommand(setOutputSchemaCmd)
+	StateCmd.AddCommand(getOutputSchemaCmd)
 }
 
 // SetServerURL sets the server URL for all state commands

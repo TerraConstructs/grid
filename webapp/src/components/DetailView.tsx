@@ -1,7 +1,8 @@
 import type { StateInfo } from '@tcons/grid';
-import { X, Database, ArrowRight, ArrowLeft, Lock, ExternalLink, Tag } from 'lucide-react';
+import { X, Database, ArrowRight, ArrowLeft, Lock, ExternalLink, Tag, Package } from 'lucide-react';
 import { useState } from 'react';
 import { LabelList } from './LabelList';
+import { OutputCard } from './OutputCard';
 
 interface DetailViewProps {
   state: StateInfo;
@@ -12,15 +13,20 @@ interface DetailViewProps {
 const getEdgeStatusColor = (status: string): string => {
   const colors: Record<string, string> = {
     clean: 'text-green-600 bg-green-50 border-green-200',
+    'clean-invalid': 'text-red-600 bg-red-50 border-red-200',
     dirty: 'text-orange-600 bg-orange-50 border-orange-200',
+    'dirty-invalid': 'text-red-600 bg-red-50 border-red-200',
     pending: 'text-blue-600 bg-blue-50 border-blue-200',
     'potentially-stale': 'text-yellow-600 bg-yellow-50 border-yellow-200',
+    'schema-invalid': 'text-red-600 bg-red-50 border-red-200',
+    'missing-output': 'text-red-700 bg-red-100 border-red-300',
+    mock: 'text-purple-600 bg-purple-50 border-purple-200',
   };
   return colors[status] || 'text-gray-600 bg-gray-50 border-gray-200';
 };
 
 export function DetailView({ state, onClose, onNavigate }: DetailViewProps) {
-  const [activeTab, setActiveTab] = useState<'overview' | 'dependencies' | 'dependents' | 'labels'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'outputs' | 'dependencies' | 'dependents' | 'labels'>('overview');
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
@@ -45,6 +51,7 @@ export function DetailView({ state, onClose, onNavigate }: DetailViewProps) {
           <nav className="flex gap-1 px-4">
             {[
               { id: 'overview', label: 'Overview', icon: Database },
+              { id: 'outputs', label: `Outputs (${state.outputs.length})`, icon: Package },
               { id: 'labels', label: `Labels (${Object.keys(state.labels || {}).length})`, icon: Tag },
               { id: 'dependencies', label: `Dependencies (${state.dependencies.length})`, icon: ArrowLeft },
               { id: 'dependents', label: `Dependents (${state.dependents.length})`, icon: ArrowRight },
@@ -125,25 +132,18 @@ export function DetailView({ state, onClose, onNavigate }: DetailViewProps) {
                   </div>
                 </div>
               </div>
+            </div>
+          )}
 
-              <div>
-                <h3 className="text-xs font-medium text-gray-500 mb-2">Outputs ({state.outputs.length})</h3>
-                <div className="grid grid-cols-2 gap-2">
-                  {state.outputs.map((output) => (
-                    <div
-                      key={output.key}
-                      className="flex items-center justify-between bg-gray-50 rounded-lg px-3 py-2"
-                    >
-                      <code className="text-sm text-purple-600">{output.key}</code>
-                      {output.sensitive && (
-                        <span className="text-xs bg-red-100 text-red-700 px-2 py-0.5 rounded">
-                          sensitive
-                        </span>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              </div>
+          {activeTab === 'outputs' && (
+            <div className="space-y-3">
+              {state.outputs.length === 0 ? (
+                <p className="text-gray-500 text-center py-8">No outputs defined</p>
+              ) : (
+                state.outputs.map((output) => (
+                  <OutputCard key={output.key} output={output} />
+                ))
+              )}
             </div>
           )}
 

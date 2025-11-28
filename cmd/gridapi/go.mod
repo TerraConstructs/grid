@@ -1,11 +1,12 @@
 module github.com/terraconstructs/grid/cmd/gridapi
 
-go 1.24.0
+go 1.24.7
 
-toolchain go1.24.4
+toolchain go1.24.10
 
 require (
 	connectrpc.com/connect v1.19.0
+	github.com/JLugagne/jsonschema-infer v0.1.2
 	github.com/btcsuite/btcutil v1.0.2
 	github.com/casbin/casbin/v2 v2.128.0
 	github.com/go-chi/chi/v5 v5.2.3
@@ -14,7 +15,9 @@ require (
 	github.com/golang-jwt/jwt/v5 v5.3.0
 	github.com/google/uuid v1.6.0
 	github.com/hashicorp/go-bexpr v0.1.14
+	github.com/hashicorp/golang-lru/v2 v2.0.7
 	github.com/mitchellh/mapstructure v1.4.1
+	github.com/santhosh-tekuri/jsonschema/v6 v6.0.2
 	github.com/spf13/cobra v1.10.1
 	github.com/stretchr/testify v1.11.1
 	github.com/terraconstructs/grid/api v0.0.0

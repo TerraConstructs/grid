@@ -116,6 +116,12 @@ describe('Dashboard manual refresh', () => {
     await waitFor(() => {
       expect(getStateInfo).toHaveBeenCalledWith('app/prod');
       expect(screen.getByRole('heading', { name: 'app/prod' })).toBeInTheDocument();
+    });
+
+    // Outputs are now in a dedicated tab
+    await userEvent.click(screen.getByRole('button', { name: /Outputs/ }));
+
+    await waitFor(() => {
       expect(screen.getByText('service_url')).toBeInTheDocument();
       expect(screen.queryByText('db_password')).not.toBeInTheDocument();
     });
@@ -128,6 +134,9 @@ describe('Dashboard manual refresh', () => {
       expect(getAllEdges).toHaveBeenCalledTimes(2);
       expect(getStateInfo).toHaveBeenCalledTimes(2);
     });
+
+    // After refresh, click Outputs tab again to see updated outputs
+    await userEvent.click(screen.getByRole('button', { name: /Outputs/ }));
 
     await waitFor(() => {
       expect(screen.getByRole('heading', { name: 'app/prod' })).toBeInTheDocument();

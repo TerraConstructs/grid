@@ -134,6 +134,12 @@ const (
 	// StateServiceRevokeSessionProcedure is the fully-qualified name of the StateService's
 	// RevokeSession RPC.
 	StateServiceRevokeSessionProcedure = "/state.v1.StateService/RevokeSession"
+	// StateServiceSetOutputSchemaProcedure is the fully-qualified name of the StateService's
+	// SetOutputSchema RPC.
+	StateServiceSetOutputSchemaProcedure = "/state.v1.StateService/SetOutputSchema"
+	// StateServiceGetOutputSchemaProcedure is the fully-qualified name of the StateService's
+	// GetOutputSchema RPC.
+	StateServiceGetOutputSchemaProcedure = "/state.v1.StateService/GetOutputSchema"
 )
 
 // StateServiceClient is a client for the state.v1.StateService service.
@@ -211,6 +217,11 @@ type StateServiceClient interface {
 	// Session Management
 	ListSessions(context.Context, *connect.Request[v1.ListSessionsRequest]) (*connect.Response[v1.ListSessionsResponse], error)
 	RevokeSession(context.Context, *connect.Request[v1.RevokeSessionRequest]) (*connect.Response[v1.RevokeSessionResponse], error)
+	// SetOutputSchema publishes or updates a JSON Schema for a specific state output.
+	// This allows clients to declare expected output types before the output exists.
+	SetOutputSchema(context.Context, *connect.Request[v1.SetOutputSchemaRequest]) (*connect.Response[v1.SetOutputSchemaResponse], error)
+	// GetOutputSchema retrieves the JSON Schema for a specific state output.
+	GetOutputSchema(context.Context, *connect.Request[v1.GetOutputSchemaRequest]) (*connect.Response[v1.GetOutputSchemaResponse], error)
 }
 
 // NewStateServiceClient constructs a client for the state.v1.StateService service. By default, it
@@ -440,6 +451,18 @@ func NewStateServiceClient(httpClient connect.HTTPClient, baseURL string, opts .
 			connect.WithSchema(stateServiceMethods.ByName("RevokeSession")),
 			connect.WithClientOptions(opts...),
 		),
+		setOutputSchema: connect.NewClient[v1.SetOutputSchemaRequest, v1.SetOutputSchemaResponse](
+			httpClient,
+			baseURL+StateServiceSetOutputSchemaProcedure,
+			connect.WithSchema(stateServiceMethods.ByName("SetOutputSchema")),
+			connect.WithClientOptions(opts...),
+		),
+		getOutputSchema: connect.NewClient[v1.GetOutputSchemaRequest, v1.GetOutputSchemaResponse](
+			httpClient,
+			baseURL+StateServiceGetOutputSchemaProcedure,
+			connect.WithSchema(stateServiceMethods.ByName("GetOutputSchema")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
@@ -481,6 +504,8 @@ type stateServiceClient struct {
 	getEffectivePermissions *connect.Client[v1.GetEffectivePermissionsRequest, v1.GetEffectivePermissionsResponse]
 	listSessions            *connect.Client[v1.ListSessionsRequest, v1.ListSessionsResponse]
 	revokeSession           *connect.Client[v1.RevokeSessionRequest, v1.RevokeSessionResponse]
+	setOutputSchema         *connect.Client[v1.SetOutputSchemaRequest, v1.SetOutputSchemaResponse]
+	getOutputSchema         *connect.Client[v1.GetOutputSchemaRequest, v1.GetOutputSchemaResponse]
 }
 
 // CreateState calls state.v1.StateService.CreateState.
@@ -663,6 +688,16 @@ func (c *stateServiceClient) RevokeSession(ctx context.Context, req *connect.Req
 	return c.revokeSession.CallUnary(ctx, req)
 }
 
+// SetOutputSchema calls state.v1.StateService.SetOutputSchema.
+func (c *stateServiceClient) SetOutputSchema(ctx context.Context, req *connect.Request[v1.SetOutputSchemaRequest]) (*connect.Response[v1.SetOutputSchemaResponse], error) {
+	return c.setOutputSchema.CallUnary(ctx, req)
+}
+
+// GetOutputSchema calls state.v1.StateService.GetOutputSchema.
+func (c *stateServiceClient) GetOutputSchema(ctx context.Context, req *connect.Request[v1.GetOutputSchemaRequest]) (*connect.Response[v1.GetOutputSchemaResponse], error) {
+	return c.getOutputSchema.CallUnary(ctx, req)
+}
+
 // StateServiceHandler is an implementation of the state.v1.StateService service.
 type StateServiceHandler interface {
 	// CreateState creates a new state with client-generated GUID and logic ID.
@@ -738,6 +773,11 @@ type StateServiceHandler interface {
 	// Session Management
 	ListSessions(context.Context, *connect.Request[v1.ListSessionsRequest]) (*connect.Response[v1.ListSessionsResponse], error)
 	RevokeSession(context.Context, *connect.Request[v1.RevokeSessionRequest]) (*connect.Response[v1.RevokeSessionResponse], error)
+	// SetOutputSchema publishes or updates a JSON Schema for a specific state output.
+	// This allows clients to declare expected output types before the output exists.
+	SetOutputSchema(context.Context, *connect.Request[v1.SetOutputSchemaRequest]) (*connect.Response[v1.SetOutputSchemaResponse], error)
+	// GetOutputSchema retrieves the JSON Schema for a specific state output.
+	GetOutputSchema(context.Context, *connect.Request[v1.GetOutputSchemaRequest]) (*connect.Response[v1.GetOutputSchemaResponse], error)
 }
 
 // NewStateServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -963,6 +1003,18 @@ func NewStateServiceHandler(svc StateServiceHandler, opts ...connect.HandlerOpti
 		connect.WithSchema(stateServiceMethods.ByName("RevokeSession")),
 		connect.WithHandlerOptions(opts...),
 	)
+	stateServiceSetOutputSchemaHandler := connect.NewUnaryHandler(
+		StateServiceSetOutputSchemaProcedure,
+		svc.SetOutputSchema,
+		connect.WithSchema(stateServiceMethods.ByName("SetOutputSchema")),
+		connect.WithHandlerOptions(opts...),
+	)
+	stateServiceGetOutputSchemaHandler := connect.NewUnaryHandler(
+		StateServiceGetOutputSchemaProcedure,
+		svc.GetOutputSchema,
+		connect.WithSchema(stateServiceMethods.ByName("GetOutputSchema")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/state.v1.StateService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case StateServiceCreateStateProcedure:
@@ -1037,6 +1089,10 @@ func NewStateServiceHandler(svc StateServiceHandler, opts ...connect.HandlerOpti
 			stateServiceListSessionsHandler.ServeHTTP(w, r)
 		case StateServiceRevokeSessionProcedure:
 			stateServiceRevokeSessionHandler.ServeHTTP(w, r)
+		case StateServiceSetOutputSchemaProcedure:
+			stateServiceSetOutputSchemaHandler.ServeHTTP(w, r)
+		case StateServiceGetOutputSchemaProcedure:
+			stateServiceGetOutputSchemaHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -1188,4 +1244,12 @@ func (UnimplementedStateServiceHandler) ListSessions(context.Context, *connect.R
 
 func (UnimplementedStateServiceHandler) RevokeSession(context.Context, *connect.Request[v1.RevokeSessionRequest]) (*connect.Response[v1.RevokeSessionResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("state.v1.StateService.RevokeSession is not implemented"))
+}
+
+func (UnimplementedStateServiceHandler) SetOutputSchema(context.Context, *connect.Request[v1.SetOutputSchemaRequest]) (*connect.Response[v1.SetOutputSchemaResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("state.v1.StateService.SetOutputSchema is not implemented"))
+}
+
+func (UnimplementedStateServiceHandler) GetOutputSchema(context.Context, *connect.Request[v1.GetOutputSchemaRequest]) (*connect.Response[v1.GetOutputSchemaResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("state.v1.StateService.GetOutputSchema is not implemented"))
 }

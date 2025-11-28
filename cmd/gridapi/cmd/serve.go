@@ -21,7 +21,9 @@ import (
 	"github.com/terraconstructs/grid/cmd/gridapi/internal/server"
 	"github.com/terraconstructs/grid/cmd/gridapi/internal/services/dependency"
 	"github.com/terraconstructs/grid/cmd/gridapi/internal/services/iam"
+	"github.com/terraconstructs/grid/cmd/gridapi/internal/services/inference"
 	"github.com/terraconstructs/grid/cmd/gridapi/internal/services/state"
+	"github.com/terraconstructs/grid/cmd/gridapi/internal/services/validation"
 	"golang.org/x/net/http2"
 	"golang.org/x/net/http2/h2c"
 )
@@ -53,14 +55,26 @@ var serveCmd = &cobra.Command{
 		groupRoleRepo := repository.NewBunGroupRoleRepository(db)
 		revokedJTIRepo := repository.NewBunRevokedJTIRepository(db)
 
+		// Initialize inference service
+		inferrer := inference.NewInferrer()
+
 		// Initialize services
 		svc := state.NewService(stateRepo, cfg.ServerURL).
 			WithOutputRepository(outputRepo).
 			WithEdgeRepository(edgeRepo).
-			WithPolicyRepository(labelPolicyRepo)
+			WithPolicyRepository(labelPolicyRepo).
+			WithInferrer(inferrer)
 		depService := dependency.NewService(edgeRepo, stateRepo).
 			WithOutputRepository(outputRepo)
 		edgeUpdater := server.NewEdgeUpdateJob(edgeRepo, stateRepo)
+
+		// Create validation service and job
+		validator, err := validation.NewSchemaValidator(1000) // LRU cache with 1000 entries
+		if err != nil {
+			return fmt.Errorf("create schema validator: %w", err)
+		}
+		validationJob := server.NewSchemaValidationJob(outputRepo, validator, 0) // 0 = use default 30s timeout
+
 		policyService := state.NewPolicyService(labelPolicyRepo, state.NewPolicyValidator())
 
 		var chiMiddleware []func(http.Handler) http.Handler
@@ -237,6 +251,7 @@ var serveCmd = &cobra.Command{
 			Service:             svc,
 			DependencyService:   depService,
 			EdgeUpdater:         edgeUpdater,
+			ValidationJob:       validationJob,
 			PolicyService:       policyService,
 			Provider:            provider,
 			OIDCRouter:          oidcRouter,

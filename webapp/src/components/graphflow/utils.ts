@@ -194,12 +194,22 @@ export function getEdgeColor(status: string): string {
   switch (status) {
     case 'clean':
       return '#10b981'; // green-500
+    case 'clean-invalid':
+      return '#ef4444'; // red-500 - synchronized but invalid
     case 'dirty':
       return '#f59e0b'; // amber-500
+    case 'dirty-invalid':
+      return '#ef4444'; // red-500 - out of sync and invalid
     case 'pending':
       return '#3b82f6'; // blue-500
     case 'potentially-stale':
       return '#f59e0b'; // amber-500
+    case 'schema-invalid':
+      return '#ef4444'; // red-500 - output fails schema validation
+    case 'missing-output':
+      return '#dc2626'; // red-600 - producer output missing
+    case 'mock':
+      return '#6b7280'; // gray-500 - using mock value
     default:
       return '#6b7280'; // gray-500
   }

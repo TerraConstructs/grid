@@ -18,3 +18,6 @@ Notes on changes made to local files compared to upstream [github/spec-kit](http
 - Update to `.specify/scripts/bash/create-new-feature.sh` to accept arguments for branch short name and branch number.
 - Updated `speckit.specify` to use new script arguments.
 - Updated `update-agent-context.sh` with upstream fixes.
+- Added new script `.specify/scripts/bash/adopt-feature-branch.sh` to help adopt existing feature branches (e.g. from https://claude.ia/code)
+- Added new prompt `speckit.adopt` to adopt existing feature branches using the new script.
+- Updated `.specify/scripts/bash/common.sh` to support feature branch mapping for adopted branches.

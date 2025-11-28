@@ -1,0 +1,21 @@
+{
+  "version": 4,
+  "terraform_version": "1.5.0",
+  "serial": 1,
+  "lineage": "test-lineage-vpc-schema",
+  "outputs": {
+    "vpc_id": {
+      "value": "vpc-abc123def456",
+      "type": "string"
+    },
+    "vpc_cidr": {
+      "value": "10.0.0.0/16",
+      "type": "string"
+    },
+    "availability_zones": {
+      "value": ["us-east-1a", "us-east-1b", "us-east-1c"],
+      "type": ["list", "string"]
+    }
+  },
+  "resources": []
+}

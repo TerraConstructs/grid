@@ -224,6 +224,66 @@ func (c *Client) ListStateOutputs(ctx context.Context, ref StateReference) ([]Ou
 	return outputKeysFromProto(resp.Msg.GetOutputs()), nil
 }
 
+// SetOutputSchema sets or updates the JSON Schema for a specific state output.
+// This allows declaring expected output types before the output exists in state.
+func (c *Client) SetOutputSchema(ctx context.Context, ref StateReference, outputKey string, schemaJSON string) error {
+	if ref.LogicID == "" && ref.GUID == "" {
+		return fmt.Errorf("state reference requires guid or logic ID")
+	}
+	if outputKey == "" {
+		return fmt.Errorf("output key is required")
+	}
+	if schemaJSON == "" {
+		return fmt.Errorf("schema JSON is required")
+	}
+
+	req := connect.NewRequest(&statev1.SetOutputSchemaRequest{
+		OutputKey:  outputKey,
+		SchemaJson: schemaJSON,
+	})
+
+	if ref.LogicID != "" {
+		req.Msg.State = &statev1.SetOutputSchemaRequest_StateLogicId{StateLogicId: ref.LogicID}
+	} else {
+		req.Msg.State = &statev1.SetOutputSchemaRequest_StateGuid{StateGuid: ref.GUID}
+	}
+
+	_, err := c.rpc.SetOutputSchema(ctx, req)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// GetOutputSchema retrieves the JSON Schema for a specific state output.
+// Returns empty string if no schema has been set.
+func (c *Client) GetOutputSchema(ctx context.Context, ref StateReference, outputKey string) (string, error) {
+	if ref.LogicID == "" && ref.GUID == "" {
+		return "", fmt.Errorf("state reference requires guid or logic ID")
+	}
+	if outputKey == "" {
+		return "", fmt.Errorf("output key is required")
+	}
+
+	req := connect.NewRequest(&statev1.GetOutputSchemaRequest{
+		OutputKey: outputKey,
+	})
+
+	if ref.LogicID != "" {
+		req.Msg.State = &statev1.GetOutputSchemaRequest_StateLogicId{StateLogicId: ref.LogicID}
+	} else {
+		req.Msg.State = &statev1.GetOutputSchemaRequest_StateGuid{StateGuid: ref.GUID}
+	}
+
+	resp, err := c.rpc.GetOutputSchema(ctx, req)
+	if err != nil {
+		return "", err
+	}
+
+	return resp.Msg.GetSchemaJson(), nil
+}
+
 // UpdateStateLabels mutates labels on an existing state and returns the updated set.
 func (c *Client) UpdateStateLabels(ctx context.Context, input UpdateStateLabelsInput) (*UpdateStateLabelsResult, error) {
 	if input.StateID == "" {

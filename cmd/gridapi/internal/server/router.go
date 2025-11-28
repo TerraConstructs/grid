@@ -25,6 +25,7 @@ type RouterOptions struct {
 	Service             *statepkg.Service
 	DependencyService   *dependency.Service
 	EdgeUpdater         *EdgeUpdateJob
+	ValidationJob       *SchemaValidationJob
 	PolicyService       *statepkg.PolicyService
 	Provider            *auth.Provider
 	RelyingParty        *auth.RelyingParty
@@ -141,7 +142,7 @@ func NewRouter(opts RouterOptions) chi.Router {
 		MountConnectHandlers(r, opts)
 	}
 	if opts.Service != nil && opts.EdgeUpdater != nil {
-		MountTerraformBackend(r, opts.Service, opts.EdgeUpdater)
+		MountTerraformBackend(r, opts.Service, opts.EdgeUpdater, opts.ValidationJob)
 	}
 
 	healthHandler := opts.HealthHandler
@@ -184,6 +185,9 @@ func MountConnectHandlers(r chi.Router, opts RouterOptions) {
 	}
 	if opts.IAMService != nil {
 		stateHandler.WithIAMService(opts.IAMService)
+	}
+	if opts.ValidationJob != nil {
+		stateHandler.WithValidationJob(opts.ValidationJob)
 	}
 	path, handler := statev1connect.NewStateServiceHandler(
 		stateHandler,

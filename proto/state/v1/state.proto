@@ -109,6 +109,15 @@ service StateService {
   // Session Management
   rpc ListSessions(ListSessionsRequest) returns (ListSessionsResponse);
   rpc RevokeSession(RevokeSessionRequest) returns (RevokeSessionResponse);
+
+  // --- Output Schema Management RPCs ---
+
+  // SetOutputSchema publishes or updates a JSON Schema for a specific state output.
+  // This allows clients to declare expected output types before the output exists.
+  rpc SetOutputSchema(SetOutputSchemaRequest) returns (SetOutputSchemaResponse);
+
+  // GetOutputSchema retrieves the JSON Schema for a specific state output.
+  rpc GetOutputSchema(GetOutputSchemaRequest) returns (GetOutputSchemaResponse);
 }
 
 // CreateStateRequest creates a new state using a client-generated GUID.
@@ -404,7 +413,22 @@ message DependencyEdge {
   string to_guid = 5;
   string to_logic_id = 6;
   optional string to_input_name = 7;
-  string status = 8; // "pending", "clean", "dirty", "potentially-stale", "mock", "missing-output"
+
+  // Edge status combines two orthogonal dimensions:
+  // 1. Drift: clean (in_digest == out_digest) vs dirty (in_digest != out_digest)
+  // 2. Validation: valid (passes schema) vs invalid (fails schema)
+  //
+  // Possible values:
+  // - "pending": Initial state, no observation yet
+  // - "clean": in_digest == out_digest AND output passes schema validation
+  // - "clean-invalid": in_digest == out_digest AND output fails schema validation
+  // - "dirty": in_digest != out_digest AND output passes schema validation
+  // - "dirty-invalid": in_digest != out_digest AND output fails schema validation
+  // - "potentially-stale": Transitive upstream dirty
+  // - "mock": Using mock_value, real output does not exist yet
+  // - "missing-output": Producer does not have the required output key
+  string status = 8;
+
   optional string in_digest = 9;
   optional string out_digest = 10;
   optional string mock_value_json = 11;
@@ -424,6 +448,29 @@ message OutputKey {
   // Whether output is marked sensitive in Terraform state metadata
   // Used by CLI to display warning: "⚠️  sensitive" next to output name
   bool sensitive = 2;
+
+  // JSON Schema definition for this output (if one has been set via SetOutputSchema).
+  // This field is optional and only populated when schema metadata is available.
+  // Allows clients to understand the expected type structure without fetching values.
+  optional string schema_json = 3;
+
+  // Schema source indicates whether the schema was manually set or automatically inferred.
+  // Values: "manual" (explicitly set via SetOutputSchema) or "inferred" (auto-generated from output values)
+  // This field is optional and only populated when schema_json is non-null.
+  optional string schema_source = 4;
+
+  // Validation status indicates the result of JSON Schema validation.
+  // Values: "valid" (passed validation), "invalid" (failed validation), "error" (validation system error)
+  // This field is optional and only populated when schema_json is non-null and validation has run.
+  optional string validation_status = 5;
+
+  // Validation error contains the validation error message with JSON path information.
+  // This field is optional and only populated when validation_status is "invalid" or "error".
+  optional string validation_error = 6;
+
+  // Validated at is the timestamp of the last validation run.
+  // This field is optional and only populated when validation has run.
+  optional google.protobuf.Timestamp validated_at = 7;
 }
 
 // ListStateOutputsRequest fetches output keys for a state.
@@ -810,5 +857,59 @@ message RevokeSessionRequest {
 
 message RevokeSessionResponse {
   bool success = 1;
+}
+
+// --- Output Schema Management Messages ---
+
+// SetOutputSchemaRequest publishes or updates a JSON Schema for a specific state output.
+// Allows clients to declare expected output types before the output actually exists.
+message SetOutputSchemaRequest {
+  // State identifier (logic_id or GUID)
+  oneof state {
+    string state_logic_id = 1;
+    string state_guid = 2;
+  }
+
+  // Name of the output (e.g., "vpc_id", "subnet_ids")
+  string output_key = 3;
+
+  // JSON Schema definition for this output (must be valid JSON Schema)
+  // Example: {"type": "string", "pattern": "^vpc-[a-z0-9]+$"}
+  string schema_json = 4;
+}
+
+// SetOutputSchemaResponse confirms schema publication.
+message SetOutputSchemaResponse {
+  bool success = 1;
+
+  // State identifiers for confirmation
+  string state_guid = 2;
+  string state_logic_id = 3;
+  string output_key = 4;
+}
+
+// GetOutputSchemaRequest retrieves the JSON Schema for a specific state output.
+message GetOutputSchemaRequest {
+  // State identifier (logic_id or GUID)
+  oneof state {
+    string state_logic_id = 1;
+    string state_guid = 2;
+  }
+
+  // Name of the output to get schema for
+  string output_key = 3;
+}
+
+// GetOutputSchemaResponse returns the JSON Schema for an output.
+message GetOutputSchemaResponse {
+  // State identifiers
+  string state_guid = 1;
+  string state_logic_id = 2;
+
+  // Output name
+  string output_key = 3;
+
+  // JSON Schema definition (empty string if no schema has been set)
+  string schema_json = 4;
 }
 

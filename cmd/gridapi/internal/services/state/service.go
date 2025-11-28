@@ -3,9 +3,12 @@ package state
 import (
 	"context"
 	"fmt"
+	"regexp"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/santhosh-tekuri/jsonschema/v6"
 
 	"github.com/terraconstructs/grid/cmd/gridapi/internal/db/models"
 	"github.com/terraconstructs/grid/cmd/gridapi/internal/repository"
@@ -56,7 +59,20 @@ type Service struct {
 	outputRepo repository.StateOutputRepository
 	edgeRepo   repository.EdgeRepository
 	policyRepo repository.LabelPolicyRepository
+	inferrer   SchemaInferrer
 	serverURL  string
+}
+
+// SchemaInferrer defines the interface for schema inference.
+// Defined here to avoid circular dependencies with inference package.
+type SchemaInferrer interface {
+	InferSchemas(ctx context.Context, stateGUID string, outputs map[string]interface{}, needsSchema []string) ([]InferredSchema, error)
+}
+
+// InferredSchema represents a schema generated from output data.
+type InferredSchema struct {
+	OutputKey  string
+	SchemaJSON string
 }
 
 // NewService constructs a new Service instance.
@@ -79,6 +95,12 @@ func (s *Service) WithEdgeRepository(edgeRepo repository.EdgeRepository) *Servic
 // WithPolicyRepository adds the policy repository to the service (optional dependency).
 func (s *Service) WithPolicyRepository(policyRepo repository.LabelPolicyRepository) *Service {
 	s.policyRepo = policyRepo
+	return s
+}
+
+// WithInferrer adds the schema inferrer to the service (optional dependency).
+func (s *Service) WithInferrer(inferrer SchemaInferrer) *Service {
+	s.inferrer = inferrer
 	return s
 }
 
@@ -251,6 +273,48 @@ func (s *Service) UpdateStateContent(ctx context.Context, guid string, content [
 	record, err := s.repo.GetByGUID(ctx, guid)
 	if err != nil {
 		return nil, fmt.Errorf("get updated state: %w", err)
+	}
+
+	// Run schema inference for outputs that don't have schemas (best-effort, async-capable)
+	// FR-025: Never overwrite existing schemas (handled by GetOutputsWithoutSchema)
+	// FR-027: Inference runs only once per output (first upload only)
+	if s.inferrer != nil && s.outputRepo != nil && len(parsed.Values) > 0 {
+		// Capture serial at goroutine start to prevent resurrection race condition
+		inferSerial := parsed.Serial
+
+		go func() {
+			inferCtx := context.Background() // Detached context for async operation
+
+			// Get outputs that need schema inference
+			needsSchema, err := s.outputRepo.GetOutputsWithoutSchema(inferCtx, guid)
+			if err != nil {
+				// Log error but don't fail state upload
+				fmt.Printf("GetOutputsWithoutSchema failed for state %s: %v\n", guid, err)
+				return
+			}
+
+			if len(needsSchema) == 0 {
+				return // All outputs already have schemas
+			}
+
+			// Infer schemas for outputs that need them
+			inferred, err := s.inferrer.InferSchemas(inferCtx, guid, parsed.Values, needsSchema)
+			if err != nil {
+				// Log error but don't fail state upload
+				fmt.Printf("InferSchemas failed for state %s: %v\n", guid, err)
+				return
+			}
+
+			// Save inferred schemas with source="inferred"
+			// Pass serial to prevent resurrection if output was removed by newer POST
+			for _, schema := range inferred {
+				err := s.outputRepo.SetOutputSchemaWithSource(inferCtx, guid, schema.OutputKey, schema.SchemaJSON, "inferred", inferSerial)
+				if err != nil {
+					// Log error but continue with other schemas
+					fmt.Printf("SetOutputSchemaWithSource failed for output %s in state %s: %v\n", schema.OutputKey, guid, err)
+				}
+			}
+		}()
 	}
 
 	summary := toSummary(record)
@@ -437,8 +501,13 @@ func (s *Service) GetStateInfo(ctx context.Context, logicID, guid string) (*Stat
 		outputs := make([]repository.OutputKey, len(state.Outputs))
 		for i, out := range state.Outputs {
 			outputs[i] = repository.OutputKey{
-				Key:       out.OutputKey,
-				Sensitive: out.Sensitive,
+				Key:              out.OutputKey,
+				Sensitive:        out.Sensitive,
+				SchemaJSON:       out.SchemaJSON,
+				SchemaSource:     out.SchemaSource,
+				ValidationStatus: out.ValidationStatus,
+				ValidationError:  out.ValidationError,
+				ValidatedAt:      out.ValidatedAt,
 			}
 		}
 		info.Outputs = outputs
@@ -462,4 +531,150 @@ func (s *Service) GetStateInfo(ctx context.Context, logicID, guid string) (*Stat
 	}
 
 	return info, nil
+}
+
+// SetOutputSchema sets or updates the JSON Schema for a specific state output.
+// This allows clients to declare expected output types before the output exists in state.
+func (s *Service) SetOutputSchema(ctx context.Context, guid string, outputKey string, schemaJSON string) error {
+	if s.outputRepo == nil {
+		return fmt.Errorf("output repository not configured")
+	}
+
+	// Validate that state exists
+	_, err := s.repo.GetByGUID(ctx, guid)
+	if err != nil {
+		return fmt.Errorf("state not found: %w", err)
+	}
+
+	// Validate that schemaJSON is not empty
+	if schemaJSON == "" {
+		return fmt.Errorf("schema JSON cannot be empty")
+	}
+
+	// Validate that schemaJSON is a valid JSON Schema
+	if err := validateJSONSchema(schemaJSON); err != nil {
+		return fmt.Errorf("invalid JSON Schema: %w", err)
+	}
+
+	return s.outputRepo.SetOutputSchema(ctx, guid, outputKey, schemaJSON)
+}
+
+// SetOutputSchemaAndCheckExists sets the JSON Schema for an output and returns whether
+// the output currently exists in the Terraform state (state_serial > 0).
+// This allows callers to determine if validation should be triggered immediately.
+// Returns (outputExists, error).
+func (s *Service) SetOutputSchemaAndCheckExists(ctx context.Context, guid string, outputKey string, schemaJSON string) (bool, error) {
+	// First set the schema (validates JSON Schema syntax)
+	if err := s.SetOutputSchema(ctx, guid, outputKey, schemaJSON); err != nil {
+		return false, err
+	}
+
+	if s.outputRepo == nil {
+		return false, fmt.Errorf("output repository not configured")
+	}
+
+	// Query the output to check if it exists in actual state
+	// state_serial > 0 indicates the output exists in Terraform state
+	// state_serial == 0 indicates schema-only (pre-declared)
+	outputs, err := s.outputRepo.GetOutputsByState(ctx, guid)
+	if err != nil {
+		return false, fmt.Errorf("get outputs: %w", err)
+	}
+
+	for i := range outputs {
+		if outputs[i].Key == outputKey && outputs[i].StateSerial > 0 {
+			// Output exists in actual Terraform state, validation can be triggered
+			return true, nil
+		}
+	}
+
+	// Output doesn't exist in state yet (schema was pre-declared, or output doesn't match)
+	return false, nil
+}
+
+// GetStateOutputValue returns the value of a specific output from the state JSON.
+// Returns nil if the output is not found in the state.
+// This is a helper for validation logic that needs the actual output value.
+func (s *Service) GetStateOutputValue(ctx context.Context, guid string, outputKey string) (interface{}, error) {
+	// Fetch state content
+	state, err := s.repo.GetByGUID(ctx, guid)
+	if err != nil {
+		return nil, fmt.Errorf("get state: %w", err)
+	}
+
+	if len(state.StateContent) == 0 {
+		return nil, nil // No state content, no value
+	}
+
+	// Parse output values from state
+	outputs, err := tfstate.ParseOutputs(state.StateContent)
+	if err != nil {
+		return nil, fmt.Errorf("parse state outputs: %w", err)
+	}
+
+	val, ok := outputs[outputKey]
+	if !ok {
+		return nil, nil // Output not found
+	}
+
+	return val, nil
+}
+
+// validateJSONSchema validates that a JSON string is a valid JSON Schema.
+// Uses the same jsonschema library as the validation job (github.com/santhosh-tekuri/jsonschema/v6).
+func validateJSONSchema(schemaJSON string) error {
+	// Parse schema JSON
+	parsed, err := jsonschema.UnmarshalJSON(strings.NewReader(schemaJSON))
+	if err != nil {
+		return fmt.Errorf("parse schema JSON: %w", err)
+	}
+
+	// Create a compiler for this schema
+	compiler := jsonschema.NewCompiler()
+	compiler.DefaultDraft(jsonschema.Draft7)
+
+	// Add schema as a resource
+	schemaURL := "schema.json"
+	if err := compiler.AddResource(schemaURL, parsed); err != nil {
+		return fmt.Errorf("add schema resource: %w", err)
+	}
+
+	// Compile the schema to validate its structure
+	_, err = compiler.Compile(schemaURL)
+	if err != nil {
+		// Clean up file:// paths from jsonschema library error messages
+		errMsg := err.Error()
+		errMsg = cleanSchemaErrorMessage(errMsg)
+		return fmt.Errorf("compile schema: %s", errMsg)
+	}
+
+	return nil
+}
+
+// cleanSchemaErrorMessage removes file:// URLs and cleans up schema compilation errors
+// from the jsonschema library to avoid exposing local filesystem paths.
+func cleanSchemaErrorMessage(errMsg string) string {
+	// Remove file:// URLs from the error message
+	// Typical pattern: "file:///path/to/schema.json#/properties/..."
+	// Replace with just the fragment part or clean message
+	re := regexp.MustCompile(`file://[^\s'"]+`)
+	errMsg = re.ReplaceAllString(errMsg, "schema")
+
+	return errMsg
+}
+
+// GetOutputSchema retrieves the JSON Schema for a specific state output.
+// Returns empty string if no schema has been set.
+func (s *Service) GetOutputSchema(ctx context.Context, guid string, outputKey string) (string, error) {
+	if s.outputRepo == nil {
+		return "", fmt.Errorf("output repository not configured")
+	}
+
+	// Validate that state exists
+	_, err := s.repo.GetByGUID(ctx, guid)
+	if err != nil {
+		return "", fmt.Errorf("state not found: %w", err)
+	}
+
+	return s.outputRepo.GetOutputSchema(ctx, guid, outputKey)
 }

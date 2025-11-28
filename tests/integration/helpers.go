@@ -1,6 +1,7 @@
 package integration
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -61,6 +62,26 @@ func mustRunGridctl(t *testing.T, ctx context.Context, workDir string, args ...s
 	return output
 }
 
+// mustRunGridctlStdOut executes the gridctl CLI with the given arguments and optional working directory returning only the stdout.
+func mustRunGridctlStdOut(t *testing.T, ctx context.Context, workDir string, args ...string) string {
+	output, err := runGridctlStdOut(t, ctx, workDir, args...)
+	if err != nil {
+		t.Fatalf("gridctl %v failed: %v\n%s", args, err, output)
+	}
+	return output
+}
+
+// runGridctlStdOut executes the gridctl CLI with the given arguments and optional working directory returning only the stdout.
+func runGridctlStdOut(t *testing.T, ctx context.Context, workDir string, args ...string) (string, error) {
+	gridctlPath := getGridctlPath(t)
+	fullArgs := append(args, "--server", serverURL)
+	cmd := exec.CommandContext(ctx, gridctlPath, fullArgs...)
+	if workDir != "" {
+		cmd.Dir = workDir
+	}
+	stdout, err := cmd.Output()
+	return string(stdout), err
+}
 func newSDKClient() *sdk.Client {
 	return sdk.NewClient(serverURL)
 }
@@ -122,5 +143,53 @@ func getTerraformAuthEnv(token string) []string {
 	return []string{
 		fmt.Sprintf("TF_HTTP_USERNAME=%s", "gridapi"), // ignored by Grid API
 		fmt.Sprintf("TF_HTTP_PASSWORD=%s", token),
+	}
+}
+
+// uploadTerraformState uploads Terraform state JSON to the given state GUID
+// This simulates a Terraform/OpenTofu HTTP backend state upload (POST to /tfstate/{guid})
+func uploadTerraformState(stateGUID string, stateJSON []byte) error {
+	url := fmt.Sprintf("%s/tfstate/%s", serverURL, stateGUID)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(stateJSON))
+	if err != nil {
+		return fmt.Errorf("failed to create POST request: %w", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		return fmt.Errorf("failed to execute POST request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return fmt.Errorf("unexpected status code %d: %s", resp.StatusCode, string(body))
+	}
+
+	return nil
+}
+
+// TODO: Clean up - duplicate of uploadTerraformState
+
+// Helper function to POST tfstate to server (Terraform HTTP backend uses POST)
+func putTFState(t *testing.T, guid string, data []byte) {
+	url := fmt.Sprintf("%s/tfstate/%s", serverURL, guid)
+	req, err := http.NewRequest(http.MethodPost, url, bytes.NewReader(data))
+	require.NoError(t, err)
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := http.DefaultClient.Do(req)
+	require.NoError(t, err)
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		t.Fatalf("POST tfstate failed with status %d: %s", resp.StatusCode, string(body))
 	}
 }

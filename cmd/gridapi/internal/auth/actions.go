@@ -63,6 +63,12 @@ const (
 
 	// StateOutputRead allows reading specific output values from a state
 	StateOutputRead = "state-output:read"
+
+	// StateOutputSchemaWrite allows setting/updating JSON Schema for a state output
+	StateOutputSchemaWrite = "state-output:schema-write"
+
+	// StateOutputSchemaRead allows reading JSON Schema for a state output
+	StateOutputSchemaRead = "state-output:schema-read"
 )
 
 // Policy Actions (label validation)
@@ -164,8 +170,10 @@ func ValidateAction(action string) bool {
 		DependencyListAll: true,
 		DependencyDelete:  true,
 		// State Outputs
-		StateOutputList: true,
-		StateOutputRead: true,
+		StateOutputList:        true,
+		StateOutputRead:        true,
+		StateOutputSchemaWrite: true,
+		StateOutputSchemaRead:  true,
 		// Policy
 		PolicyRead:  true,
 		PolicyWrite: true,
@@ -202,7 +210,7 @@ func ExpandWildcard(action string) []string {
 	case DependencyWildcard:
 		return []string{DependencyCreate, DependencyRead, DependencyList, DependencyListAll, DependencyDelete}
 	case StateOutputWildcard:
-		return []string{StateOutputList, StateOutputRead}
+		return []string{StateOutputList, StateOutputRead, StateOutputSchemaWrite, StateOutputSchemaRead}
 	case PolicyWildcard:
 		return []string{PolicyRead, PolicyWrite}
 	case AdminWildcard:

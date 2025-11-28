@@ -2342,15 +2342,28 @@ func (x *ProducerState) GetBackendConfig() *BackendConfig {
 
 // DependencyEdge represents a directed dependency edge.
 type DependencyEdge struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Id            int64                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
-	FromGuid      string                 `protobuf:"bytes,2,opt,name=from_guid,json=fromGuid,proto3" json:"from_guid,omitempty"`
-	FromLogicId   string                 `protobuf:"bytes,3,opt,name=from_logic_id,json=fromLogicId,proto3" json:"from_logic_id,omitempty"`
-	FromOutput    string                 `protobuf:"bytes,4,opt,name=from_output,json=fromOutput,proto3" json:"from_output,omitempty"`
-	ToGuid        string                 `protobuf:"bytes,5,opt,name=to_guid,json=toGuid,proto3" json:"to_guid,omitempty"`
-	ToLogicId     string                 `protobuf:"bytes,6,opt,name=to_logic_id,json=toLogicId,proto3" json:"to_logic_id,omitempty"`
-	ToInputName   *string                `protobuf:"bytes,7,opt,name=to_input_name,json=toInputName,proto3,oneof" json:"to_input_name,omitempty"`
-	Status        string                 `protobuf:"bytes,8,opt,name=status,proto3" json:"status,omitempty"` // "pending", "clean", "dirty", "potentially-stale", "mock", "missing-output"
+	state       protoimpl.MessageState `protogen:"open.v1"`
+	Id          int64                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
+	FromGuid    string                 `protobuf:"bytes,2,opt,name=from_guid,json=fromGuid,proto3" json:"from_guid,omitempty"`
+	FromLogicId string                 `protobuf:"bytes,3,opt,name=from_logic_id,json=fromLogicId,proto3" json:"from_logic_id,omitempty"`
+	FromOutput  string                 `protobuf:"bytes,4,opt,name=from_output,json=fromOutput,proto3" json:"from_output,omitempty"`
+	ToGuid      string                 `protobuf:"bytes,5,opt,name=to_guid,json=toGuid,proto3" json:"to_guid,omitempty"`
+	ToLogicId   string                 `protobuf:"bytes,6,opt,name=to_logic_id,json=toLogicId,proto3" json:"to_logic_id,omitempty"`
+	ToInputName *string                `protobuf:"bytes,7,opt,name=to_input_name,json=toInputName,proto3,oneof" json:"to_input_name,omitempty"`
+	// Edge status combines two orthogonal dimensions:
+	// 1. Drift: clean (in_digest == out_digest) vs dirty (in_digest != out_digest)
+	// 2. Validation: valid (passes schema) vs invalid (fails schema)
+	//
+	// Possible values:
+	// - "pending": Initial state, no observation yet
+	// - "clean": in_digest == out_digest AND output passes schema validation
+	// - "clean-invalid": in_digest == out_digest AND output fails schema validation
+	// - "dirty": in_digest != out_digest AND output passes schema validation
+	// - "dirty-invalid": in_digest != out_digest AND output fails schema validation
+	// - "potentially-stale": Transitive upstream dirty
+	// - "mock": Using mock_value, real output does not exist yet
+	// - "missing-output": Producer does not have the required output key
+	Status        string                 `protobuf:"bytes,8,opt,name=status,proto3" json:"status,omitempty"`
 	InDigest      *string                `protobuf:"bytes,9,opt,name=in_digest,json=inDigest,proto3,oneof" json:"in_digest,omitempty"`
 	OutDigest     *string                `protobuf:"bytes,10,opt,name=out_digest,json=outDigest,proto3,oneof" json:"out_digest,omitempty"`
 	MockValueJson *string                `protobuf:"bytes,11,opt,name=mock_value_json,json=mockValueJson,proto3,oneof" json:"mock_value_json,omitempty"`
@@ -2504,7 +2517,25 @@ type OutputKey struct {
 	Key string `protobuf:"bytes,1,opt,name=key,proto3" json:"key,omitempty"`
 	// Whether output is marked sensitive in Terraform state metadata
 	// Used by CLI to display warning: "⚠️  sensitive" next to output name
-	Sensitive     bool `protobuf:"varint,2,opt,name=sensitive,proto3" json:"sensitive,omitempty"`
+	Sensitive bool `protobuf:"varint,2,opt,name=sensitive,proto3" json:"sensitive,omitempty"`
+	// JSON Schema definition for this output (if one has been set via SetOutputSchema).
+	// This field is optional and only populated when schema metadata is available.
+	// Allows clients to understand the expected type structure without fetching values.
+	SchemaJson *string `protobuf:"bytes,3,opt,name=schema_json,json=schemaJson,proto3,oneof" json:"schema_json,omitempty"`
+	// Schema source indicates whether the schema was manually set or automatically inferred.
+	// Values: "manual" (explicitly set via SetOutputSchema) or "inferred" (auto-generated from output values)
+	// This field is optional and only populated when schema_json is non-null.
+	SchemaSource *string `protobuf:"bytes,4,opt,name=schema_source,json=schemaSource,proto3,oneof" json:"schema_source,omitempty"`
+	// Validation status indicates the result of JSON Schema validation.
+	// Values: "valid" (passed validation), "invalid" (failed validation), "error" (validation system error)
+	// This field is optional and only populated when schema_json is non-null and validation has run.
+	ValidationStatus *string `protobuf:"bytes,5,opt,name=validation_status,json=validationStatus,proto3,oneof" json:"validation_status,omitempty"`
+	// Validation error contains the validation error message with JSON path information.
+	// This field is optional and only populated when validation_status is "invalid" or "error".
+	ValidationError *string `protobuf:"bytes,6,opt,name=validation_error,json=validationError,proto3,oneof" json:"validation_error,omitempty"`
+	// Validated at is the timestamp of the last validation run.
+	// This field is optional and only populated when validation has run.
+	ValidatedAt   *timestamppb.Timestamp `protobuf:"bytes,7,opt,name=validated_at,json=validatedAt,proto3,oneof" json:"validated_at,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -2551,6 +2582,41 @@ func (x *OutputKey) GetSensitive() bool {
 		return x.Sensitive
 	}
 	return false
+}
+
+func (x *OutputKey) GetSchemaJson() string {
+	if x != nil && x.SchemaJson != nil {
+		return *x.SchemaJson
+	}
+	return ""
+}
+
+func (x *OutputKey) GetSchemaSource() string {
+	if x != nil && x.SchemaSource != nil {
+		return *x.SchemaSource
+	}
+	return ""
+}
+
+func (x *OutputKey) GetValidationStatus() string {
+	if x != nil && x.ValidationStatus != nil {
+		return *x.ValidationStatus
+	}
+	return ""
+}
+
+func (x *OutputKey) GetValidationError() string {
+	if x != nil && x.ValidationError != nil {
+		return *x.ValidationError
+	}
+	return ""
+}
+
+func (x *OutputKey) GetValidatedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.ValidatedAt
+	}
+	return nil
 }
 
 // ListStateOutputsRequest fetches output keys for a state.
@@ -5758,6 +5824,347 @@ func (x *RevokeSessionResponse) GetSuccess() bool {
 	return false
 }
 
+// SetOutputSchemaRequest publishes or updates a JSON Schema for a specific state output.
+// Allows clients to declare expected output types before the output actually exists.
+type SetOutputSchemaRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// State identifier (logic_id or GUID)
+	//
+	// Types that are valid to be assigned to State:
+	//
+	//	*SetOutputSchemaRequest_StateLogicId
+	//	*SetOutputSchemaRequest_StateGuid
+	State isSetOutputSchemaRequest_State `protobuf_oneof:"state"`
+	// Name of the output (e.g., "vpc_id", "subnet_ids")
+	OutputKey string `protobuf:"bytes,3,opt,name=output_key,json=outputKey,proto3" json:"output_key,omitempty"`
+	// JSON Schema definition for this output (must be valid JSON Schema)
+	// Example: {"type": "string", "pattern": "^vpc-[a-z0-9]+$"}
+	SchemaJson    string `protobuf:"bytes,4,opt,name=schema_json,json=schemaJson,proto3" json:"schema_json,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SetOutputSchemaRequest) Reset() {
+	*x = SetOutputSchemaRequest{}
+	mi := &file_state_v1_state_proto_msgTypes[92]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SetOutputSchemaRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SetOutputSchemaRequest) ProtoMessage() {}
+
+func (x *SetOutputSchemaRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_state_v1_state_proto_msgTypes[92]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SetOutputSchemaRequest.ProtoReflect.Descriptor instead.
+func (*SetOutputSchemaRequest) Descriptor() ([]byte, []int) {
+	return file_state_v1_state_proto_rawDescGZIP(), []int{92}
+}
+
+func (x *SetOutputSchemaRequest) GetState() isSetOutputSchemaRequest_State {
+	if x != nil {
+		return x.State
+	}
+	return nil
+}
+
+func (x *SetOutputSchemaRequest) GetStateLogicId() string {
+	if x != nil {
+		if x, ok := x.State.(*SetOutputSchemaRequest_StateLogicId); ok {
+			return x.StateLogicId
+		}
+	}
+	return ""
+}
+
+func (x *SetOutputSchemaRequest) GetStateGuid() string {
+	if x != nil {
+		if x, ok := x.State.(*SetOutputSchemaRequest_StateGuid); ok {
+			return x.StateGuid
+		}
+	}
+	return ""
+}
+
+func (x *SetOutputSchemaRequest) GetOutputKey() string {
+	if x != nil {
+		return x.OutputKey
+	}
+	return ""
+}
+
+func (x *SetOutputSchemaRequest) GetSchemaJson() string {
+	if x != nil {
+		return x.SchemaJson
+	}
+	return ""
+}
+
+type isSetOutputSchemaRequest_State interface {
+	isSetOutputSchemaRequest_State()
+}
+
+type SetOutputSchemaRequest_StateLogicId struct {
+	StateLogicId string `protobuf:"bytes,1,opt,name=state_logic_id,json=stateLogicId,proto3,oneof"`
+}
+
+type SetOutputSchemaRequest_StateGuid struct {
+	StateGuid string `protobuf:"bytes,2,opt,name=state_guid,json=stateGuid,proto3,oneof"`
+}
+
+func (*SetOutputSchemaRequest_StateLogicId) isSetOutputSchemaRequest_State() {}
+
+func (*SetOutputSchemaRequest_StateGuid) isSetOutputSchemaRequest_State() {}
+
+// SetOutputSchemaResponse confirms schema publication.
+type SetOutputSchemaResponse struct {
+	state   protoimpl.MessageState `protogen:"open.v1"`
+	Success bool                   `protobuf:"varint,1,opt,name=success,proto3" json:"success,omitempty"`
+	// State identifiers for confirmation
+	StateGuid     string `protobuf:"bytes,2,opt,name=state_guid,json=stateGuid,proto3" json:"state_guid,omitempty"`
+	StateLogicId  string `protobuf:"bytes,3,opt,name=state_logic_id,json=stateLogicId,proto3" json:"state_logic_id,omitempty"`
+	OutputKey     string `protobuf:"bytes,4,opt,name=output_key,json=outputKey,proto3" json:"output_key,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SetOutputSchemaResponse) Reset() {
+	*x = SetOutputSchemaResponse{}
+	mi := &file_state_v1_state_proto_msgTypes[93]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SetOutputSchemaResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SetOutputSchemaResponse) ProtoMessage() {}
+
+func (x *SetOutputSchemaResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_state_v1_state_proto_msgTypes[93]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SetOutputSchemaResponse.ProtoReflect.Descriptor instead.
+func (*SetOutputSchemaResponse) Descriptor() ([]byte, []int) {
+	return file_state_v1_state_proto_rawDescGZIP(), []int{93}
+}
+
+func (x *SetOutputSchemaResponse) GetSuccess() bool {
+	if x != nil {
+		return x.Success
+	}
+	return false
+}
+
+func (x *SetOutputSchemaResponse) GetStateGuid() string {
+	if x != nil {
+		return x.StateGuid
+	}
+	return ""
+}
+
+func (x *SetOutputSchemaResponse) GetStateLogicId() string {
+	if x != nil {
+		return x.StateLogicId
+	}
+	return ""
+}
+
+func (x *SetOutputSchemaResponse) GetOutputKey() string {
+	if x != nil {
+		return x.OutputKey
+	}
+	return ""
+}
+
+// GetOutputSchemaRequest retrieves the JSON Schema for a specific state output.
+type GetOutputSchemaRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// State identifier (logic_id or GUID)
+	//
+	// Types that are valid to be assigned to State:
+	//
+	//	*GetOutputSchemaRequest_StateLogicId
+	//	*GetOutputSchemaRequest_StateGuid
+	State isGetOutputSchemaRequest_State `protobuf_oneof:"state"`
+	// Name of the output to get schema for
+	OutputKey     string `protobuf:"bytes,3,opt,name=output_key,json=outputKey,proto3" json:"output_key,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetOutputSchemaRequest) Reset() {
+	*x = GetOutputSchemaRequest{}
+	mi := &file_state_v1_state_proto_msgTypes[94]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetOutputSchemaRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetOutputSchemaRequest) ProtoMessage() {}
+
+func (x *GetOutputSchemaRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_state_v1_state_proto_msgTypes[94]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetOutputSchemaRequest.ProtoReflect.Descriptor instead.
+func (*GetOutputSchemaRequest) Descriptor() ([]byte, []int) {
+	return file_state_v1_state_proto_rawDescGZIP(), []int{94}
+}
+
+func (x *GetOutputSchemaRequest) GetState() isGetOutputSchemaRequest_State {
+	if x != nil {
+		return x.State
+	}
+	return nil
+}
+
+func (x *GetOutputSchemaRequest) GetStateLogicId() string {
+	if x != nil {
+		if x, ok := x.State.(*GetOutputSchemaRequest_StateLogicId); ok {
+			return x.StateLogicId
+		}
+	}
+	return ""
+}
+
+func (x *GetOutputSchemaRequest) GetStateGuid() string {
+	if x != nil {
+		if x, ok := x.State.(*GetOutputSchemaRequest_StateGuid); ok {
+			return x.StateGuid
+		}
+	}
+	return ""
+}
+
+func (x *GetOutputSchemaRequest) GetOutputKey() string {
+	if x != nil {
+		return x.OutputKey
+	}
+	return ""
+}
+
+type isGetOutputSchemaRequest_State interface {
+	isGetOutputSchemaRequest_State()
+}
+
+type GetOutputSchemaRequest_StateLogicId struct {
+	StateLogicId string `protobuf:"bytes,1,opt,name=state_logic_id,json=stateLogicId,proto3,oneof"`
+}
+
+type GetOutputSchemaRequest_StateGuid struct {
+	StateGuid string `protobuf:"bytes,2,opt,name=state_guid,json=stateGuid,proto3,oneof"`
+}
+
+func (*GetOutputSchemaRequest_StateLogicId) isGetOutputSchemaRequest_State() {}
+
+func (*GetOutputSchemaRequest_StateGuid) isGetOutputSchemaRequest_State() {}
+
+// GetOutputSchemaResponse returns the JSON Schema for an output.
+type GetOutputSchemaResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// State identifiers
+	StateGuid    string `protobuf:"bytes,1,opt,name=state_guid,json=stateGuid,proto3" json:"state_guid,omitempty"`
+	StateLogicId string `protobuf:"bytes,2,opt,name=state_logic_id,json=stateLogicId,proto3" json:"state_logic_id,omitempty"`
+	// Output name
+	OutputKey string `protobuf:"bytes,3,opt,name=output_key,json=outputKey,proto3" json:"output_key,omitempty"`
+	// JSON Schema definition (empty string if no schema has been set)
+	SchemaJson    string `protobuf:"bytes,4,opt,name=schema_json,json=schemaJson,proto3" json:"schema_json,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetOutputSchemaResponse) Reset() {
+	*x = GetOutputSchemaResponse{}
+	mi := &file_state_v1_state_proto_msgTypes[95]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetOutputSchemaResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetOutputSchemaResponse) ProtoMessage() {}
+
+func (x *GetOutputSchemaResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_state_v1_state_proto_msgTypes[95]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetOutputSchemaResponse.ProtoReflect.Descriptor instead.
+func (*GetOutputSchemaResponse) Descriptor() ([]byte, []int) {
+	return file_state_v1_state_proto_rawDescGZIP(), []int{95}
+}
+
+func (x *GetOutputSchemaResponse) GetStateGuid() string {
+	if x != nil {
+		return x.StateGuid
+	}
+	return ""
+}
+
+func (x *GetOutputSchemaResponse) GetStateLogicId() string {
+	if x != nil {
+		return x.StateLogicId
+	}
+	return ""
+}
+
+func (x *GetOutputSchemaResponse) GetOutputKey() string {
+	if x != nil {
+		return x.OutputKey
+	}
+	return ""
+}
+
+func (x *GetOutputSchemaResponse) GetSchemaJson() string {
+	if x != nil {
+		return x.SchemaJson
+	}
+	return ""
+}
+
 var File_state_v1_state_proto protoreflect.FileDescriptor
 
 const file_state_v1_state_proto_rawDesc = "" +
@@ -5964,10 +6371,21 @@ const file_state_v1_state_proto_rawDesc = "" +
 	"\v_out_digestB\x12\n" +
 	"\x10_mock_value_jsonB\r\n" +
 	"\v_last_in_atB\x0e\n" +
-	"\f_last_out_at\";\n" +
+	"\f_last_out_at\"\x8f\x03\n" +
 	"\tOutputKey\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x1c\n" +
-	"\tsensitive\x18\x02 \x01(\bR\tsensitive\"U\n" +
+	"\tsensitive\x18\x02 \x01(\bR\tsensitive\x12$\n" +
+	"\vschema_json\x18\x03 \x01(\tH\x00R\n" +
+	"schemaJson\x88\x01\x01\x12(\n" +
+	"\rschema_source\x18\x04 \x01(\tH\x01R\fschemaSource\x88\x01\x01\x120\n" +
+	"\x11validation_status\x18\x05 \x01(\tH\x02R\x10validationStatus\x88\x01\x01\x12.\n" +
+	"\x10validation_error\x18\x06 \x01(\tH\x03R\x0fvalidationError\x88\x01\x01\x12B\n" +
+	"\fvalidated_at\x18\a \x01(\v2\x1a.google.protobuf.TimestampH\x04R\vvalidatedAt\x88\x01\x01B\x0e\n" +
+	"\f_schema_jsonB\x10\n" +
+	"\x0e_schema_sourceB\x14\n" +
+	"\x12_validation_statusB\x13\n" +
+	"\x11_validation_errorB\x0f\n" +
+	"\r_validated_at\"U\n" +
 	"\x17ListStateOutputsRequest\x12\x1b\n" +
 	"\blogic_id\x18\x01 \x01(\tH\x00R\alogicId\x12\x14\n" +
 	"\x04guid\x18\x02 \x01(\tH\x00R\x04guidB\a\n" +
@@ -6226,7 +6644,38 @@ const file_state_v1_state_proto_rawDesc = "" +
 	"\n" +
 	"session_id\x18\x01 \x01(\tR\tsessionId\"1\n" +
 	"\x15RevokeSessionResponse\x12\x18\n" +
-	"\asuccess\x18\x01 \x01(\bR\asuccess2\x94\x18\n" +
+	"\asuccess\x18\x01 \x01(\bR\asuccess\"\xaa\x01\n" +
+	"\x16SetOutputSchemaRequest\x12&\n" +
+	"\x0estate_logic_id\x18\x01 \x01(\tH\x00R\fstateLogicId\x12\x1f\n" +
+	"\n" +
+	"state_guid\x18\x02 \x01(\tH\x00R\tstateGuid\x12\x1d\n" +
+	"\n" +
+	"output_key\x18\x03 \x01(\tR\toutputKey\x12\x1f\n" +
+	"\vschema_json\x18\x04 \x01(\tR\n" +
+	"schemaJsonB\a\n" +
+	"\x05state\"\x97\x01\n" +
+	"\x17SetOutputSchemaResponse\x12\x18\n" +
+	"\asuccess\x18\x01 \x01(\bR\asuccess\x12\x1d\n" +
+	"\n" +
+	"state_guid\x18\x02 \x01(\tR\tstateGuid\x12$\n" +
+	"\x0estate_logic_id\x18\x03 \x01(\tR\fstateLogicId\x12\x1d\n" +
+	"\n" +
+	"output_key\x18\x04 \x01(\tR\toutputKey\"\x89\x01\n" +
+	"\x16GetOutputSchemaRequest\x12&\n" +
+	"\x0estate_logic_id\x18\x01 \x01(\tH\x00R\fstateLogicId\x12\x1f\n" +
+	"\n" +
+	"state_guid\x18\x02 \x01(\tH\x00R\tstateGuid\x12\x1d\n" +
+	"\n" +
+	"output_key\x18\x03 \x01(\tR\toutputKeyB\a\n" +
+	"\x05state\"\x9e\x01\n" +
+	"\x17GetOutputSchemaResponse\x12\x1d\n" +
+	"\n" +
+	"state_guid\x18\x01 \x01(\tR\tstateGuid\x12$\n" +
+	"\x0estate_logic_id\x18\x02 \x01(\tR\fstateLogicId\x12\x1d\n" +
+	"\n" +
+	"output_key\x18\x03 \x01(\tR\toutputKey\x12\x1f\n" +
+	"\vschema_json\x18\x04 \x01(\tR\n" +
+	"schemaJson2\xc4\x19\n" +
 	"\fStateService\x12J\n" +
 	"\vCreateState\x12\x1c.state.v1.CreateStateRequest\x1a\x1d.state.v1.CreateStateResponse\x12G\n" +
 	"\n" +
@@ -6269,7 +6718,9 @@ const file_state_v1_state_proto_rawDesc = "" +
 	"\x0eListGroupRoles\x12\x1f.state.v1.ListGroupRolesRequest\x1a .state.v1.ListGroupRolesResponse\x12n\n" +
 	"\x17GetEffectivePermissions\x12(.state.v1.GetEffectivePermissionsRequest\x1a).state.v1.GetEffectivePermissionsResponse\x12M\n" +
 	"\fListSessions\x12\x1d.state.v1.ListSessionsRequest\x1a\x1e.state.v1.ListSessionsResponse\x12P\n" +
-	"\rRevokeSession\x12\x1e.state.v1.RevokeSessionRequest\x1a\x1f.state.v1.RevokeSessionResponseB6Z4github.com/terraconstructs/grid/api/state/v1;statev1b\x06proto3"
+	"\rRevokeSession\x12\x1e.state.v1.RevokeSessionRequest\x1a\x1f.state.v1.RevokeSessionResponse\x12V\n" +
+	"\x0fSetOutputSchema\x12 .state.v1.SetOutputSchemaRequest\x1a!.state.v1.SetOutputSchemaResponse\x12V\n" +
+	"\x0fGetOutputSchema\x12 .state.v1.GetOutputSchemaRequest\x1a!.state.v1.GetOutputSchemaResponseB6Z4github.com/terraconstructs/grid/api/state/v1;statev1b\x06proto3"
 
 var (
 	file_state_v1_state_proto_rawDescOnce sync.Once
@@ -6283,7 +6734,7 @@ func file_state_v1_state_proto_rawDescGZIP() []byte {
 	return file_state_v1_state_proto_rawDescData
 }
 
-var file_state_v1_state_proto_msgTypes = make([]protoimpl.MessageInfo, 98)
+var file_state_v1_state_proto_msgTypes = make([]protoimpl.MessageInfo, 102)
 var file_state_v1_state_proto_goTypes = []any{
 	(*CreateStateRequest)(nil),              // 0: state.v1.CreateStateRequest
 	(*CreateStateResponse)(nil),             // 1: state.v1.CreateStateResponse
@@ -6377,23 +6828,27 @@ var file_state_v1_state_proto_goTypes = []any{
 	(*ListSessionsResponse)(nil),            // 89: state.v1.ListSessionsResponse
 	(*RevokeSessionRequest)(nil),            // 90: state.v1.RevokeSessionRequest
 	(*RevokeSessionResponse)(nil),           // 91: state.v1.RevokeSessionResponse
-	nil,                                     // 92: state.v1.CreateStateRequest.LabelsEntry
-	nil,                                     // 93: state.v1.StateInfo.LabelsEntry
-	nil,                                     // 94: state.v1.GetStateInfoResponse.LabelsEntry
-	nil,                                     // 95: state.v1.UpdateStateLabelsRequest.AddsEntry
-	nil,                                     // 96: state.v1.UpdateStateLabelsResponse.LabelsEntry
-	nil,                                     // 97: state.v1.CreateConstraints.ConstraintsEntry
-	(*timestamppb.Timestamp)(nil),           // 98: google.protobuf.Timestamp
+	(*SetOutputSchemaRequest)(nil),          // 92: state.v1.SetOutputSchemaRequest
+	(*SetOutputSchemaResponse)(nil),         // 93: state.v1.SetOutputSchemaResponse
+	(*GetOutputSchemaRequest)(nil),          // 94: state.v1.GetOutputSchemaRequest
+	(*GetOutputSchemaResponse)(nil),         // 95: state.v1.GetOutputSchemaResponse
+	nil,                                     // 96: state.v1.CreateStateRequest.LabelsEntry
+	nil,                                     // 97: state.v1.StateInfo.LabelsEntry
+	nil,                                     // 98: state.v1.GetStateInfoResponse.LabelsEntry
+	nil,                                     // 99: state.v1.UpdateStateLabelsRequest.AddsEntry
+	nil,                                     // 100: state.v1.UpdateStateLabelsResponse.LabelsEntry
+	nil,                                     // 101: state.v1.CreateConstraints.ConstraintsEntry
+	(*timestamppb.Timestamp)(nil),           // 102: google.protobuf.Timestamp
 }
 var file_state_v1_state_proto_depIdxs = []int32{
-	92,  // 0: state.v1.CreateStateRequest.labels:type_name -> state.v1.CreateStateRequest.LabelsEntry
+	96,  // 0: state.v1.CreateStateRequest.labels:type_name -> state.v1.CreateStateRequest.LabelsEntry
 	5,   // 1: state.v1.CreateStateResponse.backend_config:type_name -> state.v1.BackendConfig
 	4,   // 2: state.v1.ListStatesResponse.states:type_name -> state.v1.StateInfo
-	98,  // 3: state.v1.StateInfo.created_at:type_name -> google.protobuf.Timestamp
-	98,  // 4: state.v1.StateInfo.updated_at:type_name -> google.protobuf.Timestamp
-	93,  // 5: state.v1.StateInfo.labels:type_name -> state.v1.StateInfo.LabelsEntry
+	102, // 3: state.v1.StateInfo.created_at:type_name -> google.protobuf.Timestamp
+	102, // 4: state.v1.StateInfo.updated_at:type_name -> google.protobuf.Timestamp
+	97,  // 5: state.v1.StateInfo.labels:type_name -> state.v1.StateInfo.LabelsEntry
 	5,   // 6: state.v1.GetStateConfigResponse.backend_config:type_name -> state.v1.BackendConfig
-	98,  // 7: state.v1.LockInfo.created:type_name -> google.protobuf.Timestamp
+	102, // 7: state.v1.LockInfo.created:type_name -> google.protobuf.Timestamp
 	9,   // 8: state.v1.StateLock.info:type_name -> state.v1.LockInfo
 	10,  // 9: state.v1.GetStateLockResponse.lock:type_name -> state.v1.StateLock
 	10,  // 10: state.v1.UnlockStateResponse.lock:type_name -> state.v1.StateLock
@@ -6405,138 +6860,143 @@ var file_state_v1_state_proto_depIdxs = []int32{
 	27,  // 16: state.v1.Layer.states:type_name -> state.v1.StateRef
 	30,  // 17: state.v1.GetStateStatusResponse.incoming:type_name -> state.v1.IncomingEdgeView
 	31,  // 18: state.v1.GetStateStatusResponse.summary:type_name -> state.v1.StatusSummary
-	98,  // 19: state.v1.IncomingEdgeView.last_in_at:type_name -> google.protobuf.Timestamp
-	98,  // 20: state.v1.IncomingEdgeView.last_out_at:type_name -> google.protobuf.Timestamp
+	102, // 19: state.v1.IncomingEdgeView.last_in_at:type_name -> google.protobuf.Timestamp
+	102, // 20: state.v1.IncomingEdgeView.last_out_at:type_name -> google.protobuf.Timestamp
 	34,  // 21: state.v1.GetDependencyGraphResponse.producers:type_name -> state.v1.ProducerState
 	35,  // 22: state.v1.GetDependencyGraphResponse.edges:type_name -> state.v1.DependencyEdge
 	5,   // 23: state.v1.ProducerState.backend_config:type_name -> state.v1.BackendConfig
-	98,  // 24: state.v1.DependencyEdge.last_in_at:type_name -> google.protobuf.Timestamp
-	98,  // 25: state.v1.DependencyEdge.last_out_at:type_name -> google.protobuf.Timestamp
-	98,  // 26: state.v1.DependencyEdge.created_at:type_name -> google.protobuf.Timestamp
-	98,  // 27: state.v1.DependencyEdge.updated_at:type_name -> google.protobuf.Timestamp
-	36,  // 28: state.v1.ListStateOutputsResponse.outputs:type_name -> state.v1.OutputKey
-	5,   // 29: state.v1.GetStateInfoResponse.backend_config:type_name -> state.v1.BackendConfig
-	35,  // 30: state.v1.GetStateInfoResponse.dependencies:type_name -> state.v1.DependencyEdge
-	35,  // 31: state.v1.GetStateInfoResponse.dependents:type_name -> state.v1.DependencyEdge
-	36,  // 32: state.v1.GetStateInfoResponse.outputs:type_name -> state.v1.OutputKey
-	98,  // 33: state.v1.GetStateInfoResponse.created_at:type_name -> google.protobuf.Timestamp
-	98,  // 34: state.v1.GetStateInfoResponse.updated_at:type_name -> google.protobuf.Timestamp
-	94,  // 35: state.v1.GetStateInfoResponse.labels:type_name -> state.v1.GetStateInfoResponse.LabelsEntry
-	35,  // 36: state.v1.ListAllEdgesResponse.edges:type_name -> state.v1.DependencyEdge
-	95,  // 37: state.v1.UpdateStateLabelsRequest.adds:type_name -> state.v1.UpdateStateLabelsRequest.AddsEntry
-	96,  // 38: state.v1.UpdateStateLabelsResponse.labels:type_name -> state.v1.UpdateStateLabelsResponse.LabelsEntry
-	98,  // 39: state.v1.UpdateStateLabelsResponse.updated_at:type_name -> google.protobuf.Timestamp
-	98,  // 40: state.v1.GetLabelPolicyResponse.created_at:type_name -> google.protobuf.Timestamp
-	98,  // 41: state.v1.GetLabelPolicyResponse.updated_at:type_name -> google.protobuf.Timestamp
-	98,  // 42: state.v1.SetLabelPolicyResponse.updated_at:type_name -> google.protobuf.Timestamp
-	98,  // 43: state.v1.CreateServiceAccountResponse.created_at:type_name -> google.protobuf.Timestamp
-	98,  // 44: state.v1.ServiceAccountInfo.created_at:type_name -> google.protobuf.Timestamp
-	98,  // 45: state.v1.ServiceAccountInfo.last_used_at:type_name -> google.protobuf.Timestamp
-	53,  // 46: state.v1.ListServiceAccountsResponse.service_accounts:type_name -> state.v1.ServiceAccountInfo
-	98,  // 47: state.v1.RotateServiceAccountResponse.rotated_at:type_name -> google.protobuf.Timestamp
-	60,  // 48: state.v1.CreateRoleRequest.create_constraints:type_name -> state.v1.CreateConstraints
-	97,  // 49: state.v1.CreateConstraints.constraints:type_name -> state.v1.CreateConstraints.ConstraintsEntry
-	60,  // 50: state.v1.RoleInfo.create_constraints:type_name -> state.v1.CreateConstraints
-	98,  // 51: state.v1.RoleInfo.created_at:type_name -> google.protobuf.Timestamp
-	98,  // 52: state.v1.RoleInfo.updated_at:type_name -> google.protobuf.Timestamp
-	62,  // 53: state.v1.CreateRoleResponse.role:type_name -> state.v1.RoleInfo
-	62,  // 54: state.v1.ListRolesResponse.roles:type_name -> state.v1.RoleInfo
-	60,  // 55: state.v1.UpdateRoleRequest.create_constraints:type_name -> state.v1.CreateConstraints
-	62,  // 56: state.v1.UpdateRoleResponse.role:type_name -> state.v1.RoleInfo
-	98,  // 57: state.v1.AssignRoleResponse.assigned_at:type_name -> google.protobuf.Timestamp
-	98,  // 58: state.v1.RoleAssignmentInfo.assigned_at:type_name -> google.protobuf.Timestamp
-	75,  // 59: state.v1.ListUserRolesResponse.roles:type_name -> state.v1.RoleAssignmentInfo
-	98,  // 60: state.v1.AssignGroupRoleResponse.assigned_at:type_name -> google.protobuf.Timestamp
-	98,  // 61: state.v1.GroupRoleAssignmentInfo.assigned_at:type_name -> google.protobuf.Timestamp
-	82,  // 62: state.v1.ListGroupRolesResponse.assignments:type_name -> state.v1.GroupRoleAssignmentInfo
-	60,  // 63: state.v1.EffectivePermissions.effective_create_constraints:type_name -> state.v1.CreateConstraints
-	85,  // 64: state.v1.GetEffectivePermissionsResponse.permissions:type_name -> state.v1.EffectivePermissions
-	98,  // 65: state.v1.SessionInfo.created_at:type_name -> google.protobuf.Timestamp
-	98,  // 66: state.v1.SessionInfo.last_used_at:type_name -> google.protobuf.Timestamp
-	98,  // 67: state.v1.SessionInfo.expires_at:type_name -> google.protobuf.Timestamp
-	88,  // 68: state.v1.ListSessionsResponse.sessions:type_name -> state.v1.SessionInfo
-	43,  // 69: state.v1.StateInfo.LabelsEntry.value:type_name -> state.v1.LabelValue
-	43,  // 70: state.v1.GetStateInfoResponse.LabelsEntry.value:type_name -> state.v1.LabelValue
-	43,  // 71: state.v1.UpdateStateLabelsRequest.AddsEntry.value:type_name -> state.v1.LabelValue
-	43,  // 72: state.v1.UpdateStateLabelsResponse.LabelsEntry.value:type_name -> state.v1.LabelValue
-	61,  // 73: state.v1.CreateConstraints.ConstraintsEntry.value:type_name -> state.v1.CreateConstraint
-	0,   // 74: state.v1.StateService.CreateState:input_type -> state.v1.CreateStateRequest
-	2,   // 75: state.v1.StateService.ListStates:input_type -> state.v1.ListStatesRequest
-	6,   // 76: state.v1.StateService.GetStateConfig:input_type -> state.v1.GetStateConfigRequest
-	8,   // 77: state.v1.StateService.GetStateLock:input_type -> state.v1.GetStateLockRequest
-	12,  // 78: state.v1.StateService.UnlockState:input_type -> state.v1.UnlockStateRequest
-	14,  // 79: state.v1.StateService.AddDependency:input_type -> state.v1.AddDependencyRequest
-	16,  // 80: state.v1.StateService.RemoveDependency:input_type -> state.v1.RemoveDependencyRequest
-	18,  // 81: state.v1.StateService.ListDependencies:input_type -> state.v1.ListDependenciesRequest
-	20,  // 82: state.v1.StateService.ListDependents:input_type -> state.v1.ListDependentsRequest
-	22,  // 83: state.v1.StateService.SearchByOutput:input_type -> state.v1.SearchByOutputRequest
-	24,  // 84: state.v1.StateService.GetTopologicalOrder:input_type -> state.v1.GetTopologicalOrderRequest
-	28,  // 85: state.v1.StateService.GetStateStatus:input_type -> state.v1.GetStateStatusRequest
-	32,  // 86: state.v1.StateService.GetDependencyGraph:input_type -> state.v1.GetDependencyGraphRequest
-	37,  // 87: state.v1.StateService.ListStateOutputs:input_type -> state.v1.ListStateOutputsRequest
-	39,  // 88: state.v1.StateService.GetStateInfo:input_type -> state.v1.GetStateInfoRequest
-	41,  // 89: state.v1.StateService.ListAllEdges:input_type -> state.v1.ListAllEdgesRequest
-	44,  // 90: state.v1.StateService.UpdateStateLabels:input_type -> state.v1.UpdateStateLabelsRequest
-	46,  // 91: state.v1.StateService.GetLabelPolicy:input_type -> state.v1.GetLabelPolicyRequest
-	48,  // 92: state.v1.StateService.SetLabelPolicy:input_type -> state.v1.SetLabelPolicyRequest
-	50,  // 93: state.v1.StateService.CreateServiceAccount:input_type -> state.v1.CreateServiceAccountRequest
-	52,  // 94: state.v1.StateService.ListServiceAccounts:input_type -> state.v1.ListServiceAccountsRequest
-	55,  // 95: state.v1.StateService.RevokeServiceAccount:input_type -> state.v1.RevokeServiceAccountRequest
-	57,  // 96: state.v1.StateService.RotateServiceAccount:input_type -> state.v1.RotateServiceAccountRequest
-	59,  // 97: state.v1.StateService.CreateRole:input_type -> state.v1.CreateRoleRequest
-	64,  // 98: state.v1.StateService.ListRoles:input_type -> state.v1.ListRolesRequest
-	66,  // 99: state.v1.StateService.UpdateRole:input_type -> state.v1.UpdateRoleRequest
-	68,  // 100: state.v1.StateService.DeleteRole:input_type -> state.v1.DeleteRoleRequest
-	70,  // 101: state.v1.StateService.AssignRole:input_type -> state.v1.AssignRoleRequest
-	72,  // 102: state.v1.StateService.RemoveRole:input_type -> state.v1.RemoveRoleRequest
-	74,  // 103: state.v1.StateService.ListUserRoles:input_type -> state.v1.ListUserRolesRequest
-	77,  // 104: state.v1.StateService.AssignGroupRole:input_type -> state.v1.AssignGroupRoleRequest
-	79,  // 105: state.v1.StateService.RemoveGroupRole:input_type -> state.v1.RemoveGroupRoleRequest
-	81,  // 106: state.v1.StateService.ListGroupRoles:input_type -> state.v1.ListGroupRolesRequest
-	84,  // 107: state.v1.StateService.GetEffectivePermissions:input_type -> state.v1.GetEffectivePermissionsRequest
-	87,  // 108: state.v1.StateService.ListSessions:input_type -> state.v1.ListSessionsRequest
-	90,  // 109: state.v1.StateService.RevokeSession:input_type -> state.v1.RevokeSessionRequest
-	1,   // 110: state.v1.StateService.CreateState:output_type -> state.v1.CreateStateResponse
-	3,   // 111: state.v1.StateService.ListStates:output_type -> state.v1.ListStatesResponse
-	7,   // 112: state.v1.StateService.GetStateConfig:output_type -> state.v1.GetStateConfigResponse
-	11,  // 113: state.v1.StateService.GetStateLock:output_type -> state.v1.GetStateLockResponse
-	13,  // 114: state.v1.StateService.UnlockState:output_type -> state.v1.UnlockStateResponse
-	15,  // 115: state.v1.StateService.AddDependency:output_type -> state.v1.AddDependencyResponse
-	17,  // 116: state.v1.StateService.RemoveDependency:output_type -> state.v1.RemoveDependencyResponse
-	19,  // 117: state.v1.StateService.ListDependencies:output_type -> state.v1.ListDependenciesResponse
-	21,  // 118: state.v1.StateService.ListDependents:output_type -> state.v1.ListDependentsResponse
-	23,  // 119: state.v1.StateService.SearchByOutput:output_type -> state.v1.SearchByOutputResponse
-	25,  // 120: state.v1.StateService.GetTopologicalOrder:output_type -> state.v1.GetTopologicalOrderResponse
-	29,  // 121: state.v1.StateService.GetStateStatus:output_type -> state.v1.GetStateStatusResponse
-	33,  // 122: state.v1.StateService.GetDependencyGraph:output_type -> state.v1.GetDependencyGraphResponse
-	38,  // 123: state.v1.StateService.ListStateOutputs:output_type -> state.v1.ListStateOutputsResponse
-	40,  // 124: state.v1.StateService.GetStateInfo:output_type -> state.v1.GetStateInfoResponse
-	42,  // 125: state.v1.StateService.ListAllEdges:output_type -> state.v1.ListAllEdgesResponse
-	45,  // 126: state.v1.StateService.UpdateStateLabels:output_type -> state.v1.UpdateStateLabelsResponse
-	47,  // 127: state.v1.StateService.GetLabelPolicy:output_type -> state.v1.GetLabelPolicyResponse
-	49,  // 128: state.v1.StateService.SetLabelPolicy:output_type -> state.v1.SetLabelPolicyResponse
-	51,  // 129: state.v1.StateService.CreateServiceAccount:output_type -> state.v1.CreateServiceAccountResponse
-	54,  // 130: state.v1.StateService.ListServiceAccounts:output_type -> state.v1.ListServiceAccountsResponse
-	56,  // 131: state.v1.StateService.RevokeServiceAccount:output_type -> state.v1.RevokeServiceAccountResponse
-	58,  // 132: state.v1.StateService.RotateServiceAccount:output_type -> state.v1.RotateServiceAccountResponse
-	63,  // 133: state.v1.StateService.CreateRole:output_type -> state.v1.CreateRoleResponse
-	65,  // 134: state.v1.StateService.ListRoles:output_type -> state.v1.ListRolesResponse
-	67,  // 135: state.v1.StateService.UpdateRole:output_type -> state.v1.UpdateRoleResponse
-	69,  // 136: state.v1.StateService.DeleteRole:output_type -> state.v1.DeleteRoleResponse
-	71,  // 137: state.v1.StateService.AssignRole:output_type -> state.v1.AssignRoleResponse
-	73,  // 138: state.v1.StateService.RemoveRole:output_type -> state.v1.RemoveRoleResponse
-	76,  // 139: state.v1.StateService.ListUserRoles:output_type -> state.v1.ListUserRolesResponse
-	78,  // 140: state.v1.StateService.AssignGroupRole:output_type -> state.v1.AssignGroupRoleResponse
-	80,  // 141: state.v1.StateService.RemoveGroupRole:output_type -> state.v1.RemoveGroupRoleResponse
-	83,  // 142: state.v1.StateService.ListGroupRoles:output_type -> state.v1.ListGroupRolesResponse
-	86,  // 143: state.v1.StateService.GetEffectivePermissions:output_type -> state.v1.GetEffectivePermissionsResponse
-	89,  // 144: state.v1.StateService.ListSessions:output_type -> state.v1.ListSessionsResponse
-	91,  // 145: state.v1.StateService.RevokeSession:output_type -> state.v1.RevokeSessionResponse
-	110, // [110:146] is the sub-list for method output_type
-	74,  // [74:110] is the sub-list for method input_type
-	74,  // [74:74] is the sub-list for extension type_name
-	74,  // [74:74] is the sub-list for extension extendee
-	0,   // [0:74] is the sub-list for field type_name
+	102, // 24: state.v1.DependencyEdge.last_in_at:type_name -> google.protobuf.Timestamp
+	102, // 25: state.v1.DependencyEdge.last_out_at:type_name -> google.protobuf.Timestamp
+	102, // 26: state.v1.DependencyEdge.created_at:type_name -> google.protobuf.Timestamp
+	102, // 27: state.v1.DependencyEdge.updated_at:type_name -> google.protobuf.Timestamp
+	102, // 28: state.v1.OutputKey.validated_at:type_name -> google.protobuf.Timestamp
+	36,  // 29: state.v1.ListStateOutputsResponse.outputs:type_name -> state.v1.OutputKey
+	5,   // 30: state.v1.GetStateInfoResponse.backend_config:type_name -> state.v1.BackendConfig
+	35,  // 31: state.v1.GetStateInfoResponse.dependencies:type_name -> state.v1.DependencyEdge
+	35,  // 32: state.v1.GetStateInfoResponse.dependents:type_name -> state.v1.DependencyEdge
+	36,  // 33: state.v1.GetStateInfoResponse.outputs:type_name -> state.v1.OutputKey
+	102, // 34: state.v1.GetStateInfoResponse.created_at:type_name -> google.protobuf.Timestamp
+	102, // 35: state.v1.GetStateInfoResponse.updated_at:type_name -> google.protobuf.Timestamp
+	98,  // 36: state.v1.GetStateInfoResponse.labels:type_name -> state.v1.GetStateInfoResponse.LabelsEntry
+	35,  // 37: state.v1.ListAllEdgesResponse.edges:type_name -> state.v1.DependencyEdge
+	99,  // 38: state.v1.UpdateStateLabelsRequest.adds:type_name -> state.v1.UpdateStateLabelsRequest.AddsEntry
+	100, // 39: state.v1.UpdateStateLabelsResponse.labels:type_name -> state.v1.UpdateStateLabelsResponse.LabelsEntry
+	102, // 40: state.v1.UpdateStateLabelsResponse.updated_at:type_name -> google.protobuf.Timestamp
+	102, // 41: state.v1.GetLabelPolicyResponse.created_at:type_name -> google.protobuf.Timestamp
+	102, // 42: state.v1.GetLabelPolicyResponse.updated_at:type_name -> google.protobuf.Timestamp
+	102, // 43: state.v1.SetLabelPolicyResponse.updated_at:type_name -> google.protobuf.Timestamp
+	102, // 44: state.v1.CreateServiceAccountResponse.created_at:type_name -> google.protobuf.Timestamp
+	102, // 45: state.v1.ServiceAccountInfo.created_at:type_name -> google.protobuf.Timestamp
+	102, // 46: state.v1.ServiceAccountInfo.last_used_at:type_name -> google.protobuf.Timestamp
+	53,  // 47: state.v1.ListServiceAccountsResponse.service_accounts:type_name -> state.v1.ServiceAccountInfo
+	102, // 48: state.v1.RotateServiceAccountResponse.rotated_at:type_name -> google.protobuf.Timestamp
+	60,  // 49: state.v1.CreateRoleRequest.create_constraints:type_name -> state.v1.CreateConstraints
+	101, // 50: state.v1.CreateConstraints.constraints:type_name -> state.v1.CreateConstraints.ConstraintsEntry
+	60,  // 51: state.v1.RoleInfo.create_constraints:type_name -> state.v1.CreateConstraints
+	102, // 52: state.v1.RoleInfo.created_at:type_name -> google.protobuf.Timestamp
+	102, // 53: state.v1.RoleInfo.updated_at:type_name -> google.protobuf.Timestamp
+	62,  // 54: state.v1.CreateRoleResponse.role:type_name -> state.v1.RoleInfo
+	62,  // 55: state.v1.ListRolesResponse.roles:type_name -> state.v1.RoleInfo
+	60,  // 56: state.v1.UpdateRoleRequest.create_constraints:type_name -> state.v1.CreateConstraints
+	62,  // 57: state.v1.UpdateRoleResponse.role:type_name -> state.v1.RoleInfo
+	102, // 58: state.v1.AssignRoleResponse.assigned_at:type_name -> google.protobuf.Timestamp
+	102, // 59: state.v1.RoleAssignmentInfo.assigned_at:type_name -> google.protobuf.Timestamp
+	75,  // 60: state.v1.ListUserRolesResponse.roles:type_name -> state.v1.RoleAssignmentInfo
+	102, // 61: state.v1.AssignGroupRoleResponse.assigned_at:type_name -> google.protobuf.Timestamp
+	102, // 62: state.v1.GroupRoleAssignmentInfo.assigned_at:type_name -> google.protobuf.Timestamp
+	82,  // 63: state.v1.ListGroupRolesResponse.assignments:type_name -> state.v1.GroupRoleAssignmentInfo
+	60,  // 64: state.v1.EffectivePermissions.effective_create_constraints:type_name -> state.v1.CreateConstraints
+	85,  // 65: state.v1.GetEffectivePermissionsResponse.permissions:type_name -> state.v1.EffectivePermissions
+	102, // 66: state.v1.SessionInfo.created_at:type_name -> google.protobuf.Timestamp
+	102, // 67: state.v1.SessionInfo.last_used_at:type_name -> google.protobuf.Timestamp
+	102, // 68: state.v1.SessionInfo.expires_at:type_name -> google.protobuf.Timestamp
+	88,  // 69: state.v1.ListSessionsResponse.sessions:type_name -> state.v1.SessionInfo
+	43,  // 70: state.v1.StateInfo.LabelsEntry.value:type_name -> state.v1.LabelValue
+	43,  // 71: state.v1.GetStateInfoResponse.LabelsEntry.value:type_name -> state.v1.LabelValue
+	43,  // 72: state.v1.UpdateStateLabelsRequest.AddsEntry.value:type_name -> state.v1.LabelValue
+	43,  // 73: state.v1.UpdateStateLabelsResponse.LabelsEntry.value:type_name -> state.v1.LabelValue
+	61,  // 74: state.v1.CreateConstraints.ConstraintsEntry.value:type_name -> state.v1.CreateConstraint
+	0,   // 75: state.v1.StateService.CreateState:input_type -> state.v1.CreateStateRequest
+	2,   // 76: state.v1.StateService.ListStates:input_type -> state.v1.ListStatesRequest
+	6,   // 77: state.v1.StateService.GetStateConfig:input_type -> state.v1.GetStateConfigRequest
+	8,   // 78: state.v1.StateService.GetStateLock:input_type -> state.v1.GetStateLockRequest
+	12,  // 79: state.v1.StateService.UnlockState:input_type -> state.v1.UnlockStateRequest
+	14,  // 80: state.v1.StateService.AddDependency:input_type -> state.v1.AddDependencyRequest
+	16,  // 81: state.v1.StateService.RemoveDependency:input_type -> state.v1.RemoveDependencyRequest
+	18,  // 82: state.v1.StateService.ListDependencies:input_type -> state.v1.ListDependenciesRequest
+	20,  // 83: state.v1.StateService.ListDependents:input_type -> state.v1.ListDependentsRequest
+	22,  // 84: state.v1.StateService.SearchByOutput:input_type -> state.v1.SearchByOutputRequest
+	24,  // 85: state.v1.StateService.GetTopologicalOrder:input_type -> state.v1.GetTopologicalOrderRequest
+	28,  // 86: state.v1.StateService.GetStateStatus:input_type -> state.v1.GetStateStatusRequest
+	32,  // 87: state.v1.StateService.GetDependencyGraph:input_type -> state.v1.GetDependencyGraphRequest
+	37,  // 88: state.v1.StateService.ListStateOutputs:input_type -> state.v1.ListStateOutputsRequest
+	39,  // 89: state.v1.StateService.GetStateInfo:input_type -> state.v1.GetStateInfoRequest
+	41,  // 90: state.v1.StateService.ListAllEdges:input_type -> state.v1.ListAllEdgesRequest
+	44,  // 91: state.v1.StateService.UpdateStateLabels:input_type -> state.v1.UpdateStateLabelsRequest
+	46,  // 92: state.v1.StateService.GetLabelPolicy:input_type -> state.v1.GetLabelPolicyRequest
+	48,  // 93: state.v1.StateService.SetLabelPolicy:input_type -> state.v1.SetLabelPolicyRequest
+	50,  // 94: state.v1.StateService.CreateServiceAccount:input_type -> state.v1.CreateServiceAccountRequest
+	52,  // 95: state.v1.StateService.ListServiceAccounts:input_type -> state.v1.ListServiceAccountsRequest
+	55,  // 96: state.v1.StateService.RevokeServiceAccount:input_type -> state.v1.RevokeServiceAccountRequest
+	57,  // 97: state.v1.StateService.RotateServiceAccount:input_type -> state.v1.RotateServiceAccountRequest
+	59,  // 98: state.v1.StateService.CreateRole:input_type -> state.v1.CreateRoleRequest
+	64,  // 99: state.v1.StateService.ListRoles:input_type -> state.v1.ListRolesRequest
+	66,  // 100: state.v1.StateService.UpdateRole:input_type -> state.v1.UpdateRoleRequest
+	68,  // 101: state.v1.StateService.DeleteRole:input_type -> state.v1.DeleteRoleRequest
+	70,  // 102: state.v1.StateService.AssignRole:input_type -> state.v1.AssignRoleRequest
+	72,  // 103: state.v1.StateService.RemoveRole:input_type -> state.v1.RemoveRoleRequest
+	74,  // 104: state.v1.StateService.ListUserRoles:input_type -> state.v1.ListUserRolesRequest
+	77,  // 105: state.v1.StateService.AssignGroupRole:input_type -> state.v1.AssignGroupRoleRequest
+	79,  // 106: state.v1.StateService.RemoveGroupRole:input_type -> state.v1.RemoveGroupRoleRequest
+	81,  // 107: state.v1.StateService.ListGroupRoles:input_type -> state.v1.ListGroupRolesRequest
+	84,  // 108: state.v1.StateService.GetEffectivePermissions:input_type -> state.v1.GetEffectivePermissionsRequest
+	87,  // 109: state.v1.StateService.ListSessions:input_type -> state.v1.ListSessionsRequest
+	90,  // 110: state.v1.StateService.RevokeSession:input_type -> state.v1.RevokeSessionRequest
+	92,  // 111: state.v1.StateService.SetOutputSchema:input_type -> state.v1.SetOutputSchemaRequest
+	94,  // 112: state.v1.StateService.GetOutputSchema:input_type -> state.v1.GetOutputSchemaRequest
+	1,   // 113: state.v1.StateService.CreateState:output_type -> state.v1.CreateStateResponse
+	3,   // 114: state.v1.StateService.ListStates:output_type -> state.v1.ListStatesResponse
+	7,   // 115: state.v1.StateService.GetStateConfig:output_type -> state.v1.GetStateConfigResponse
+	11,  // 116: state.v1.StateService.GetStateLock:output_type -> state.v1.GetStateLockResponse
+	13,  // 117: state.v1.StateService.UnlockState:output_type -> state.v1.UnlockStateResponse
+	15,  // 118: state.v1.StateService.AddDependency:output_type -> state.v1.AddDependencyResponse
+	17,  // 119: state.v1.StateService.RemoveDependency:output_type -> state.v1.RemoveDependencyResponse
+	19,  // 120: state.v1.StateService.ListDependencies:output_type -> state.v1.ListDependenciesResponse
+	21,  // 121: state.v1.StateService.ListDependents:output_type -> state.v1.ListDependentsResponse
+	23,  // 122: state.v1.StateService.SearchByOutput:output_type -> state.v1.SearchByOutputResponse
+	25,  // 123: state.v1.StateService.GetTopologicalOrder:output_type -> state.v1.GetTopologicalOrderResponse
+	29,  // 124: state.v1.StateService.GetStateStatus:output_type -> state.v1.GetStateStatusResponse
+	33,  // 125: state.v1.StateService.GetDependencyGraph:output_type -> state.v1.GetDependencyGraphResponse
+	38,  // 126: state.v1.StateService.ListStateOutputs:output_type -> state.v1.ListStateOutputsResponse
+	40,  // 127: state.v1.StateService.GetStateInfo:output_type -> state.v1.GetStateInfoResponse
+	42,  // 128: state.v1.StateService.ListAllEdges:output_type -> state.v1.ListAllEdgesResponse
+	45,  // 129: state.v1.StateService.UpdateStateLabels:output_type -> state.v1.UpdateStateLabelsResponse
+	47,  // 130: state.v1.StateService.GetLabelPolicy:output_type -> state.v1.GetLabelPolicyResponse
+	49,  // 131: state.v1.StateService.SetLabelPolicy:output_type -> state.v1.SetLabelPolicyResponse
+	51,  // 132: state.v1.StateService.CreateServiceAccount:output_type -> state.v1.CreateServiceAccountResponse
+	54,  // 133: state.v1.StateService.ListServiceAccounts:output_type -> state.v1.ListServiceAccountsResponse
+	56,  // 134: state.v1.StateService.RevokeServiceAccount:output_type -> state.v1.RevokeServiceAccountResponse
+	58,  // 135: state.v1.StateService.RotateServiceAccount:output_type -> state.v1.RotateServiceAccountResponse
+	63,  // 136: state.v1.StateService.CreateRole:output_type -> state.v1.CreateRoleResponse
+	65,  // 137: state.v1.StateService.ListRoles:output_type -> state.v1.ListRolesResponse
+	67,  // 138: state.v1.StateService.UpdateRole:output_type -> state.v1.UpdateRoleResponse
+	69,  // 139: state.v1.StateService.DeleteRole:output_type -> state.v1.DeleteRoleResponse
+	71,  // 140: state.v1.StateService.AssignRole:output_type -> state.v1.AssignRoleResponse
+	73,  // 141: state.v1.StateService.RemoveRole:output_type -> state.v1.RemoveRoleResponse
+	76,  // 142: state.v1.StateService.ListUserRoles:output_type -> state.v1.ListUserRolesResponse
+	78,  // 143: state.v1.StateService.AssignGroupRole:output_type -> state.v1.AssignGroupRoleResponse
+	80,  // 144: state.v1.StateService.RemoveGroupRole:output_type -> state.v1.RemoveGroupRoleResponse
+	83,  // 145: state.v1.StateService.ListGroupRoles:output_type -> state.v1.ListGroupRolesResponse
+	86,  // 146: state.v1.StateService.GetEffectivePermissions:output_type -> state.v1.GetEffectivePermissionsResponse
+	89,  // 147: state.v1.StateService.ListSessions:output_type -> state.v1.ListSessionsResponse
+	91,  // 148: state.v1.StateService.RevokeSession:output_type -> state.v1.RevokeSessionResponse
+	93,  // 149: state.v1.StateService.SetOutputSchema:output_type -> state.v1.SetOutputSchemaResponse
+	95,  // 150: state.v1.StateService.GetOutputSchema:output_type -> state.v1.GetOutputSchemaResponse
+	113, // [113:151] is the sub-list for method output_type
+	75,  // [75:113] is the sub-list for method input_type
+	75,  // [75:75] is the sub-list for extension type_name
+	75,  // [75:75] is the sub-list for extension extendee
+	0,   // [0:75] is the sub-list for field type_name
 }
 
 func init() { file_state_v1_state_proto_init() }
@@ -6574,6 +7034,7 @@ func file_state_v1_state_proto_init() {
 		(*GetDependencyGraphRequest_Guid)(nil),
 	}
 	file_state_v1_state_proto_msgTypes[35].OneofWrappers = []any{}
+	file_state_v1_state_proto_msgTypes[36].OneofWrappers = []any{}
 	file_state_v1_state_proto_msgTypes[37].OneofWrappers = []any{
 		(*ListStateOutputsRequest_LogicId)(nil),
 		(*ListStateOutputsRequest_Guid)(nil),
@@ -6597,13 +7058,21 @@ func file_state_v1_state_proto_init() {
 	file_state_v1_state_proto_msgTypes[81].OneofWrappers = []any{}
 	file_state_v1_state_proto_msgTypes[85].OneofWrappers = []any{}
 	file_state_v1_state_proto_msgTypes[88].OneofWrappers = []any{}
+	file_state_v1_state_proto_msgTypes[92].OneofWrappers = []any{
+		(*SetOutputSchemaRequest_StateLogicId)(nil),
+		(*SetOutputSchemaRequest_StateGuid)(nil),
+	}
+	file_state_v1_state_proto_msgTypes[94].OneofWrappers = []any{
+		(*GetOutputSchemaRequest_StateLogicId)(nil),
+		(*GetOutputSchemaRequest_StateGuid)(nil),
+	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_state_v1_state_proto_rawDesc), len(file_state_v1_state_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   98,
+			NumMessages:   102,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

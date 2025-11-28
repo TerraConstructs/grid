@@ -38,6 +38,14 @@ type StateRepository interface {
 	ListStatesWithOutputs(ctx context.Context) ([]*models.State, error)
 }
 
+// EdgeWithValidation wraps an Edge with its producer output's validation status.
+// Used by EdgeUpdateJob to atomically read edge and validation data in a single query.
+type EdgeWithValidation struct {
+	Edge             models.Edge
+	ValidationStatus *string // From state_outputs.validation_status
+	ValidationError  *string // From state_outputs.validation_error
+}
+
 // EdgeRepository exposes persistence operations for dependency edges.
 type EdgeRepository interface {
 	// CRUD operations
@@ -61,14 +69,26 @@ type EdgeRepository interface {
 	// The ToStateRel field will be populated for each edge.
 	GetOutgoingEdgesWithConsumers(ctx context.Context, fromStateGUID string) ([]*models.Edge, error)
 
+	// GetOutgoingEdgesWithValidation fetches outgoing edges with producer output validation status.
+	// Returns edges with validation_status and validation_error from state_outputs table.
+	// Uses LEFT JOIN semantics: edges without matching outputs have nil validation fields.
+	// Guarantees atomic read (single MVCC snapshot) for consistent edge status computation.
+	GetOutgoingEdgesWithValidation(ctx context.Context, fromStateGUID string) ([]EdgeWithValidation, error)
+
 	// Cycle detection (application-layer pre-check, DB trigger is safety net)
 	WouldCreateCycle(ctx context.Context, fromState, toState string) (bool, error)
 }
 
 // OutputKey represents a Terraform output name and metadata.
 type OutputKey struct {
-	Key       string
-	Sensitive bool
+	Key        string
+	Sensitive  bool
+	StateSerial int64 // Serial of state this output came from (0 = pre-declared schema, >0 = from Terraform state)
+	SchemaJSON       *string    // Optional JSON Schema definition for this output
+	SchemaSource     *string    // Schema source: "manual" or "inferred"
+	ValidationStatus *string    // Validation status: "valid", "invalid", or "error"
+	ValidationError  *string    // Validation error message (if validation failed)
+	ValidatedAt      *time.Time // Last validation timestamp
 }
 
 // ========================================
@@ -193,6 +213,38 @@ type StateOutputRepository interface {
 	// DeleteOutputsByState removes all cached outputs for a state
 	// Cascade handles this on state deletion, but explicit method useful for testing
 	DeleteOutputsByState(ctx context.Context, stateGUID string) error
+
+	// SetOutputSchema sets or updates the JSON Schema for a specific state output.
+	// Creates the output record if it doesn't exist (with state_serial=0, sensitive=false).
+	// This allows declaring expected outputs before they exist in the Terraform state.
+	SetOutputSchema(ctx context.Context, stateGUID string, outputKey string, schemaJSON string) error
+
+	// GetOutputSchema retrieves the JSON Schema for a specific state output.
+	// Returns empty string if no schema has been set (not an error).
+	// Returns error only for actual database failures.
+	GetOutputSchema(ctx context.Context, stateGUID string, outputKey string) (string, error)
+
+	// SetOutputSchemaWithSource sets or updates the JSON Schema with source tracking.
+	// source must be "manual" or "inferred".
+	// Creates the output record if it doesn't exist (with state_serial=0, sensitive=false).
+	// expectedSerial: For inferred schemas, verifies output still exists at this serial before writing.
+	//                 Use -1 for manual schemas to skip serial check (always write).
+	SetOutputSchemaWithSource(ctx context.Context, stateGUID, outputKey, schemaJSON, source string, expectedSerial int64) error
+
+	// GetOutputsWithoutSchema returns output keys that don't have a schema set.
+	// Used by inference service to determine which outputs need schema generation.
+	// Returns empty slice if all outputs have schemas (not an error).
+	GetOutputsWithoutSchema(ctx context.Context, stateGUID string) ([]string, error)
+
+	// GetSchemasForState returns all output schemas for a state (for validation).
+	// Returns map of outputKey -> schemaJSON for outputs that have schemas.
+	// Outputs without schemas are not included in the map.
+	GetSchemasForState(ctx context.Context, stateGUID string) (map[string]string, error)
+
+	// UpdateValidationStatus updates the validation status for a specific output.
+	// Sets validation_status, validation_error, and validated_at columns.
+	// validationError can be nil for "valid" or "not_validated" statuses.
+	UpdateValidationStatus(ctx context.Context, stateGUID, outputKey, status string, validationError *string, validatedAt time.Time) error
 }
 
 // LabelPolicyRepository exposes persistence operations for label validation policy.

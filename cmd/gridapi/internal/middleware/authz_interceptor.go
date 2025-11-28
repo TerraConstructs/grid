@@ -384,6 +384,65 @@ func NewAuthzInterceptor(deps AuthzDependencies) connect.UnaryInterceptorFunc {
 				labels = make(map[string]any, len(state.Labels))
 				maps.Copy(labels, state.Labels)
 
+			// --- Output Schema Management ---
+			case statev1connect.StateServiceSetOutputSchemaProcedure:
+				obj = auth.ObjectTypeState
+				action = auth.StateOutputSchemaWrite
+				var stateID string
+				r := req.Any().(*statev1.SetOutputSchemaRequest)
+
+				// Handle oneof state (logic_id or guid)
+				switch state := r.State.(type) {
+				case *statev1.SetOutputSchemaRequest_StateLogicId:
+					// Resolve logic_id to GUID
+					guid, _, err := deps.StateService.GetStateConfig(ctx, state.StateLogicId)
+					if err != nil {
+						return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("state not found: %w", err))
+					}
+					stateID = guid
+				case *statev1.SetOutputSchemaRequest_StateGuid:
+					stateID = state.StateGuid
+				default:
+					return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("state reference required (state_logic_id or state_guid)"))
+				}
+
+				// Load state to get labels for authorization
+				state, err := deps.StateService.GetStateByGUID(ctx, stateID)
+				if err != nil {
+					return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("state not found for authz: %w", err))
+				}
+				labels = make(map[string]any, len(state.Labels))
+				maps.Copy(labels, state.Labels)
+
+			case statev1connect.StateServiceGetOutputSchemaProcedure:
+				obj = auth.ObjectTypeState
+				action = auth.StateOutputSchemaRead
+				var stateID string
+				r := req.Any().(*statev1.GetOutputSchemaRequest)
+
+				// Handle oneof state (logic_id or guid)
+				switch state := r.State.(type) {
+				case *statev1.GetOutputSchemaRequest_StateLogicId:
+					// Resolve logic_id to GUID
+					guid, _, err := deps.StateService.GetStateConfig(ctx, state.StateLogicId)
+					if err != nil {
+						return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("state not found: %w", err))
+					}
+					stateID = guid
+				case *statev1.GetOutputSchemaRequest_StateGuid:
+					stateID = state.StateGuid
+				default:
+					return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("state reference required (state_logic_id or state_guid)"))
+				}
+
+				// Load state to get labels for authorization
+				state, err := deps.StateService.GetStateByGUID(ctx, stateID)
+				if err != nil {
+					return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("state not found for authz: %w", err))
+				}
+				labels = make(map[string]any, len(state.Labels))
+				maps.Copy(labels, state.Labels)
+
 			default:
 				// Deny any RPC that is not explicitly listed.
 				return nil, connect.NewError(connect.CodePermissionDenied, fmt.Errorf("access to procedure %s is denied by default policy", procedure))

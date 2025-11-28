@@ -202,6 +202,41 @@ func (r *BunEdgeRepository) GetOutgoingEdgesWithConsumers(ctx context.Context, f
 	return edges, nil
 }
 
+// GetOutgoingEdgesWithValidation fetches outgoing edges with producer output validation status.
+// Uses Bun relation to LEFT JOIN state_outputs table for atomic read (single MVCC snapshot).
+// The ProducerOutput field will be populated for each edge (nil if output doesn't exist).
+func (r *BunEdgeRepository) GetOutgoingEdgesWithValidation(ctx context.Context, fromStateGUID string) ([]EdgeWithValidation, error) {
+	var edges []*models.Edge
+	err := r.db.NewSelect().
+		Model(&edges).
+		Relation("ProducerOutput"). // Eager load validation status from state_outputs
+		Where("from_state = ?", fromStateGUID).
+		Order("created_at ASC").
+		Scan(ctx)
+
+	if err != nil {
+		return nil, fmt.Errorf("query outgoing edges with validation: %w", err)
+	}
+
+	// Transform to EdgeWithValidation
+	result := make([]EdgeWithValidation, len(edges))
+	for i, edge := range edges {
+		result[i] = EdgeWithValidation{
+			Edge:             *edge,
+			ValidationStatus: nil,
+			ValidationError:  nil,
+		}
+
+		// Extract validation fields if ProducerOutput exists
+		if edge.ProducerOutput != nil {
+			result[i].ValidationStatus = edge.ProducerOutput.ValidationStatus
+			result[i].ValidationError = edge.ProducerOutput.ValidationError
+		}
+	}
+
+	return result, nil
+}
+
 // WouldCreateCycle checks if adding an edge from fromState to toState would create a cycle.
 // Uses a recursive CTE to check reachability.
 func (r *BunEdgeRepository) WouldCreateCycle(ctx context.Context, fromState, toState string) (bool, error) {
