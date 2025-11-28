@@ -99,6 +99,9 @@ describe('Dashboard detail view', () => {
       expect(screen.getByRole('heading', { name: 'app/prod' })).toBeInTheDocument();
     });
 
+    // Outputs are now in a dedicated tab
+    await userEvent.click(screen.getByRole('button', { name: /Outputs/ }));
+
     expect(screen.getByText('service_url')).toBeInTheDocument();
     expect(screen.getByText('db_password')).toBeInTheDocument();
     expect(screen.getAllByText('sensitive').length).toBeGreaterThan(0);

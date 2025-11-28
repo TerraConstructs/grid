@@ -27,10 +27,13 @@ const getStatusIcon = (status?: string) => {
 const getEdgeStatusBadge = (status: string) => {
   const styles: Record<string, string> = {
     clean: 'bg-green-100 text-green-800',
+    'clean-invalid': 'bg-red-100 text-red-800 font-bold',
     dirty: 'bg-orange-100 text-orange-800',
+    'dirty-invalid': 'bg-red-100 text-red-800 font-bold',
     pending: 'bg-blue-100 text-blue-800',
     'potentially-stale': 'bg-yellow-100 text-yellow-800',
     mock: 'bg-purple-100 text-purple-800',
+    'schema-invalid': 'bg-red-100 text-red-800 font-bold',
     'missing-output': 'bg-red-100 text-red-800',
   };
 
