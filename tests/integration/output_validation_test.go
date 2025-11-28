@@ -749,7 +749,7 @@ func TestValidationErrorStructure(t *testing.T) {
 		// SC-006, FR-035: Structured error format
 		// Should include: JSON path, error description
 		assert.Contains(t, errorMsg, "$", "Error should include JSON path marker")
-		assert.Contains(t, errorMsg, "validation failed at", "Error should include failure indicator")
+		assert.Contains(t, errorMsg, "at '", "Error should include path indicator")
 		assert.Contains(t, errorMsg, "pattern", "Error should mention pattern constraint")
 		assert.Contains(t, errorMsg, "does not match", "Error should describe the validation failure")
 	})
@@ -811,5 +811,155 @@ func TestValidationErrorStructure(t *testing.T) {
 		assert.Contains(t, errorMsg, "maxLength", "Error should mention constraint type")
 		assert.Contains(t, errorMsg, "$", "Error should include JSON path")
 		assert.Less(t, len(errorMsg), 400, "Error message should not be excessively long (truncated if needed)")
+	})
+}
+
+// TestSetOutputSchemaTriggersValidation tests grid-a966: SetOutputSchema should trigger validation job for existing outputs.
+// When a schema is set on an output that already has a value, validation should run immediately
+// without requiring a terraform refresh.
+func TestSetOutputSchemaTriggersValidation(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping integration test in short mode")
+	}
+
+	ctx := context.Background()
+	client := newSDKClient()
+
+	// Create state
+	state, err := client.CreateState(ctx, sdk.CreateStateInput{LogicID: uniqueLogicID("test-set-schema-triggers-validation")})
+	require.NoError(t, err)
+
+	// Upload Terraform state with an output but NO schema set
+	// Output: vpc_id = "vpc-abc12345" (valid format)
+	tfstate := map[string]any{
+		"version":           4,
+		"terraform_version": "1.5.0",
+		"serial":            1,
+		"lineage":           "test-lineage-grid-a966",
+		"outputs": map[string]any{
+			"vpc_id": map[string]any{
+				"value": "vpc-abc12345",
+				"type":  "string",
+			},
+		},
+	}
+	tfstateBytes, err := json.Marshal(tfstate)
+	require.NoError(t, err)
+
+	err = uploadTerraformState(state.GUID, tfstateBytes)
+	require.NoError(t, err)
+
+	// Wait for initial output to be uploaded
+	time.Sleep(100 * time.Millisecond)
+
+	// Verify output exists but has NO validation status (no schema yet)
+	outputs, err := client.ListStateOutputs(ctx, sdk.StateReference{GUID: state.GUID})
+	require.NoError(t, err)
+	require.GreaterOrEqual(t, len(outputs), 1, "Should have vpc_id output")
+
+	var vpcOutput *sdk.OutputKey
+	for i := range outputs {
+		if outputs[i].Key == "vpc_id" {
+			vpcOutput = &outputs[i]
+			break
+		}
+	}
+	require.NotNil(t, vpcOutput, "vpc_id output should exist")
+
+	// Verify no validation status initially (no schema)
+	// Either ValidationStatus is nil OR it's "not_validated"
+	if vpcOutput.ValidationStatus != nil {
+		assert.Equal(t, "not_validated", *vpcOutput.ValidationStatus, "Should be not_validated before schema is set")
+	}
+
+	// NOW: Set a pattern-matching schema on vpc_id
+	// This should IMMEDIATELY trigger validation
+	schema := `{
+		"type": "string",
+		"pattern": "^vpc-[a-f0-9]+$",
+		"description": "AWS VPC ID"
+	}`
+
+	err = client.SetOutputSchema(ctx, sdk.StateReference{GUID: state.GUID}, "vpc_id", schema)
+	require.NoError(t, err)
+
+	// Wait for validation to complete (it's async-capable but fires immediately)
+	time.Sleep(200 * time.Millisecond)
+
+	// Verify validation ran and PASSED (value matches pattern)
+	outputs, err = client.ListStateOutputs(ctx, sdk.StateReference{GUID: state.GUID})
+	require.NoError(t, err)
+
+	vpcOutput = nil
+	for i := range outputs {
+		if outputs[i].Key == "vpc_id" {
+			vpcOutput = &outputs[i]
+			break
+		}
+	}
+	require.NotNil(t, vpcOutput, "vpc_id output should still exist")
+
+	// CRITICAL: Validation should have run and passed
+	// grid-a966: SetOutputSchema should trigger validation without terraform refresh
+	require.NotNil(t, vpcOutput.ValidationStatus, "ValidationStatus should be set after SetOutputSchema")
+	assert.Equal(t, "valid", *vpcOutput.ValidationStatus, "Validation should pass (value matches pattern)")
+	assert.Nil(t, vpcOutput.ValidationError, "ValidationError should be nil when valid")
+	assert.NotNil(t, vpcOutput.ValidatedAt, "ValidatedAt should be set")
+
+	// Verify schema was stored
+	require.NotNil(t, vpcOutput.SchemaJSON, "SchemaJSON should be set")
+	assert.Contains(t, *vpcOutput.SchemaJSON, "pattern", "Schema should contain pattern constraint")
+
+	t.Run("InvalidOutputAfterSchemaSet", func(t *testing.T) {
+		// Create another state for invalid test
+		state2, err := client.CreateState(ctx, sdk.CreateStateInput{LogicID: uniqueLogicID("test-schema-invalid-after-set")})
+		require.NoError(t, err)
+
+		// Upload Terraform state with INVALID output (doesn't match future schema)
+		tfstate2 := map[string]any{
+			"version":           4,
+			"terraform_version": "1.5.0",
+			"serial":            1,
+			"lineage":           "test-lineage-grid-a966-invalid",
+			"outputs": map[string]any{
+				"vpc_id": map[string]any{
+					"value": "invalid-format", // Doesn't match pattern
+					"type":  "string",
+				},
+			},
+		}
+		tfstateBytes2, err := json.Marshal(tfstate2)
+		require.NoError(t, err)
+
+		err = uploadTerraformState(state2.GUID, tfstateBytes2)
+		require.NoError(t, err)
+
+		time.Sleep(100 * time.Millisecond)
+
+		// Set schema with pattern constraint
+		err = client.SetOutputSchema(ctx, sdk.StateReference{GUID: state2.GUID}, "vpc_id", schema)
+		require.NoError(t, err)
+
+		// Wait for validation to complete
+		time.Sleep(200 * time.Millisecond)
+
+		// Verify validation ran and FAILED
+		outputs, err := client.ListStateOutputs(ctx, sdk.StateReference{GUID: state2.GUID})
+		require.NoError(t, err)
+
+		var vpcOutput2 *sdk.OutputKey
+		for i := range outputs {
+			if outputs[i].Key == "vpc_id" {
+				vpcOutput2 = &outputs[i]
+				break
+			}
+		}
+		require.NotNil(t, vpcOutput2, "vpc_id output should exist")
+
+		// Validation should have run and FAILED
+		require.NotNil(t, vpcOutput2.ValidationStatus, "ValidationStatus should be set")
+		assert.Equal(t, "invalid", *vpcOutput2.ValidationStatus, "Validation should fail (value doesn't match pattern)")
+		assert.NotNil(t, vpcOutput2.ValidationError, "ValidationError should be set")
+		assert.Greater(t, len(*vpcOutput2.ValidationError), 0, "ValidationError message should not be empty")
 	})
 }

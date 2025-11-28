@@ -81,8 +81,9 @@ type EdgeRepository interface {
 
 // OutputKey represents a Terraform output name and metadata.
 type OutputKey struct {
-	Key              string
-	Sensitive        bool
+	Key        string
+	Sensitive  bool
+	StateSerial int64 // Serial of state this output came from (0 = pre-declared schema, >0 = from Terraform state)
 	SchemaJSON       *string    // Optional JSON Schema definition for this output
 	SchemaSource     *string    // Schema source: "manual" or "inferred"
 	ValidationStatus *string    // Validation status: "valid", "invalid", or "error"

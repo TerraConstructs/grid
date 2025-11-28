@@ -764,6 +764,7 @@ func (h *StateServiceHandler) filterEdgesByRoleScopes(ctx context.Context, edges
 }
 
 // SetOutputSchema sets or updates the JSON Schema for a specific state output.
+// After setting the schema, triggers validation for that output if it has a value.
 func (h *StateServiceHandler) SetOutputSchema(
 	ctx context.Context,
 	req *connect.Request[statev1.SetOutputSchemaRequest],
@@ -790,10 +791,27 @@ func (h *StateServiceHandler) SetOutputSchema(
 		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("state reference required (state_logic_id or state_guid)"))
 	}
 
-	// Set the schema via service
-	err := h.service.SetOutputSchema(ctx, guid, req.Msg.OutputKey, req.Msg.SchemaJson)
+	// Set schema and check if output has a value (uses outputs table, not state content)
+	// This follows proper layering: handler delegates business logic to service
+	outputExists, err := h.service.SetOutputSchemaAndCheckExists(ctx, guid, req.Msg.OutputKey, req.Msg.SchemaJson)
 	if err != nil {
 		return nil, mapServiceError(err)
+	}
+
+	// Trigger validation if output exists with a real value (state_serial > 0)
+	// Handler only coordinates the job invocation; business logic is in the service
+	if h.validationJob != nil && outputExists {
+		// Trigger async validation for this output
+		go func() {
+			// Get the output value from state via service
+			val, err := h.service.GetStateOutputValue(context.Background(), guid, req.Msg.OutputKey)
+			if err != nil || val == nil {
+				return // Can't get value, validation can't run
+			}
+
+			// Validate this single output against the schema we just set
+			_ = h.validationJob.ValidateOutputs(context.Background(), guid, map[string]any{req.Msg.OutputKey: val})
+		}()
 	}
 
 	resp := &statev1.SetOutputSchemaResponse{

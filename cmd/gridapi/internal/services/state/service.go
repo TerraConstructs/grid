@@ -3,9 +3,12 @@ package state
 import (
 	"context"
 	"fmt"
+	"regexp"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/santhosh-tekuri/jsonschema/v6"
 
 	"github.com/terraconstructs/grid/cmd/gridapi/internal/db/models"
 	"github.com/terraconstructs/grid/cmd/gridapi/internal/repository"
@@ -548,10 +551,116 @@ func (s *Service) SetOutputSchema(ctx context.Context, guid string, outputKey st
 		return fmt.Errorf("schema JSON cannot be empty")
 	}
 
-	// TODO: Optionally validate that schemaJSON is valid JSON Schema
-	// For now, we just store it as-is
+	// Validate that schemaJSON is a valid JSON Schema
+	if err := validateJSONSchema(schemaJSON); err != nil {
+		return fmt.Errorf("invalid JSON Schema: %w", err)
+	}
 
 	return s.outputRepo.SetOutputSchema(ctx, guid, outputKey, schemaJSON)
+}
+
+// SetOutputSchemaAndCheckExists sets the JSON Schema for an output and returns whether
+// the output currently exists in the Terraform state (state_serial > 0).
+// This allows callers to determine if validation should be triggered immediately.
+// Returns (outputExists, error).
+func (s *Service) SetOutputSchemaAndCheckExists(ctx context.Context, guid string, outputKey string, schemaJSON string) (bool, error) {
+	// First set the schema (validates JSON Schema syntax)
+	if err := s.SetOutputSchema(ctx, guid, outputKey, schemaJSON); err != nil {
+		return false, err
+	}
+
+	if s.outputRepo == nil {
+		return false, fmt.Errorf("output repository not configured")
+	}
+
+	// Query the output to check if it exists in actual state
+	// state_serial > 0 indicates the output exists in Terraform state
+	// state_serial == 0 indicates schema-only (pre-declared)
+	outputs, err := s.outputRepo.GetOutputsByState(ctx, guid)
+	if err != nil {
+		return false, fmt.Errorf("get outputs: %w", err)
+	}
+
+	for i := range outputs {
+		if outputs[i].Key == outputKey && outputs[i].StateSerial > 0 {
+			// Output exists in actual Terraform state, validation can be triggered
+			return true, nil
+		}
+	}
+
+	// Output doesn't exist in state yet (schema was pre-declared, or output doesn't match)
+	return false, nil
+}
+
+// GetStateOutputValue returns the value of a specific output from the state JSON.
+// Returns nil if the output is not found in the state.
+// This is a helper for validation logic that needs the actual output value.
+func (s *Service) GetStateOutputValue(ctx context.Context, guid string, outputKey string) (interface{}, error) {
+	// Fetch state content
+	state, err := s.repo.GetByGUID(ctx, guid)
+	if err != nil {
+		return nil, fmt.Errorf("get state: %w", err)
+	}
+
+	if len(state.StateContent) == 0 {
+		return nil, nil // No state content, no value
+	}
+
+	// Parse output values from state
+	outputs, err := tfstate.ParseOutputs(state.StateContent)
+	if err != nil {
+		return nil, fmt.Errorf("parse state outputs: %w", err)
+	}
+
+	val, ok := outputs[outputKey]
+	if !ok {
+		return nil, nil // Output not found
+	}
+
+	return val, nil
+}
+
+// validateJSONSchema validates that a JSON string is a valid JSON Schema.
+// Uses the same jsonschema library as the validation job (github.com/santhosh-tekuri/jsonschema/v6).
+func validateJSONSchema(schemaJSON string) error {
+	// Parse schema JSON
+	parsed, err := jsonschema.UnmarshalJSON(strings.NewReader(schemaJSON))
+	if err != nil {
+		return fmt.Errorf("parse schema JSON: %w", err)
+	}
+
+	// Create a compiler for this schema
+	compiler := jsonschema.NewCompiler()
+	compiler.DefaultDraft(jsonschema.Draft7)
+
+	// Add schema as a resource
+	schemaURL := "schema.json"
+	if err := compiler.AddResource(schemaURL, parsed); err != nil {
+		return fmt.Errorf("add schema resource: %w", err)
+	}
+
+	// Compile the schema to validate its structure
+	_, err = compiler.Compile(schemaURL)
+	if err != nil {
+		// Clean up file:// paths from jsonschema library error messages
+		errMsg := err.Error()
+		errMsg = cleanSchemaErrorMessage(errMsg)
+		return fmt.Errorf("compile schema: %s", errMsg)
+	}
+
+	return nil
+}
+
+// cleanSchemaErrorMessage removes file:// URLs and cleans up schema compilation errors
+// from the jsonschema library to avoid exposing local filesystem paths.
+func cleanSchemaErrorMessage(errMsg string) string {
+	// Remove file:// URLs from the error message
+	// Typical pattern: "file:///path/to/schema.json#/properties/..."
+	// Replace with just the fragment part or clean message
+	re := regexp.MustCompile(`file://[^\s'"]+`)
+	errMsg = re.ReplaceAllString(errMsg, "schema")
+
+	return errMsg
 }
 
 // GetOutputSchema retrieves the JSON Schema for a specific state output.

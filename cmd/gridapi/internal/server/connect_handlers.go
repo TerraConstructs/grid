@@ -22,12 +22,13 @@ import (
 // StateServiceHandler wires the internal state service to Connect RPC contracts.
 type StateServiceHandler struct {
 	statev1connect.UnimplementedStateServiceHandler
-	service       *statepkg.Service
-	depService    *dependency.Service
-	policyService *statepkg.PolicyService
-	iamService    iamAdminService // Compile-time verified IAM service contract
-	authnDeps     *gridmiddleware.AuthnDependencies
-	cfg           *config.Config
+	service        *statepkg.Service
+	depService     *dependency.Service
+	policyService  *statepkg.PolicyService
+	iamService     iamAdminService // Compile-time verified IAM service contract
+	authnDeps      *gridmiddleware.AuthnDependencies
+	cfg            *config.Config
+	validationJob  *SchemaValidationJob // Optional dependency for schema validation
 }
 
 // NewStateServiceHandler constructs a handler backed by the provided service.
@@ -45,6 +46,13 @@ func (h *StateServiceHandler) WithPolicyService(policyService *statepkg.PolicySe
 // Used to refresh the group→role cache after admin operations.
 func (h *StateServiceHandler) WithIAMService(iamService iamAdminService) *StateServiceHandler {
 	h.iamService = iamService
+	return h
+}
+
+// WithValidationJob adds the validation job to the handler (optional dependency).
+// Used to trigger schema validation when schemas are set or updated.
+func (h *StateServiceHandler) WithValidationJob(validationJob *SchemaValidationJob) *StateServiceHandler {
+	h.validationJob = validationJob
 	return h
 }
 

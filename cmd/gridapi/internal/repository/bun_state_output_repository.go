@@ -23,37 +23,49 @@ func NewBunStateOutputRepository(db *bun.DB) StateOutputRepository {
 // Deletes outputs with mismatched serial, then inserts new outputs.
 func (r *BunStateOutputRepository) UpsertOutputs(ctx context.Context, stateGUID string, serial int64, outputs []OutputKey) error {
 	return r.db.RunInTx(ctx, nil, func(ctx context.Context, tx bun.Tx) error {
-		// Fetch existing schemas for this state before modifying
+		// Build set of new output keys for quick lookup
+		newOutputKeys := make(map[string]bool, len(outputs))
+		for _, out := range outputs {
+			newOutputKeys[out.Key] = true
+		}
+
+		// Fetch ALL existing outputs for this state (not just ones with schemas)
 		var existingOutputs []models.StateOutput
 		err := tx.NewSelect().
 			Model(&existingOutputs).
 			Where("state_guid = ?", stateGUID).
-			Where("schema_json IS NOT NULL").
 			Scan(ctx)
 		if err != nil {
-			return fmt.Errorf("fetch existing schemas: %w", err)
+			return fmt.Errorf("fetch existing outputs: %w", err)
 		}
 
-		// Build map of output_key -> schema_json
-		existingSchemas := make(map[string]*string, len(existingOutputs))
+		// Build map of output_key -> full existing output data
+		existingByKey := make(map[string]*models.StateOutput, len(existingOutputs))
 		for i := range existingOutputs {
-			existingSchemas[existingOutputs[i].OutputKey] = existingOutputs[i].SchemaJSON
+			existingByKey[existingOutputs[i].OutputKey] = &existingOutputs[i]
 		}
 
-		// Delete old outputs with different serial (cache invalidation)
-		// IMPORTANT: Retain only manual schemas (schema_source='manual')
-		// Inferred schemas are ephemeral and should be purged when output removed
-		_, err = tx.NewDelete().
-			Model((*models.StateOutput)(nil)).
-			Where("state_guid = ?", stateGUID).
-			Where("state_serial != ?", serial).
-			Where("schema_source IS NULL OR schema_source = ?", "inferred").
-			Exec(ctx)
-		if err != nil {
-			return fmt.Errorf("delete stale outputs: %w", err)
+		// Delete outputs that no longer exist in the new upload
+		// Only delete inferred schemas; manual schemas are retained as orphans
+		for _, existing := range existingOutputs {
+			if !newOutputKeys[existing.OutputKey] {
+				// Output no longer exists in Terraform state
+				if existing.SchemaSource == nil || *existing.SchemaSource == "inferred" {
+					// Delete inferred/no-schema outputs that were removed
+					_, err = tx.NewDelete().
+						Model((*models.StateOutput)(nil)).
+						Where("state_guid = ?", stateGUID).
+						Where("output_key = ?", existing.OutputKey).
+						Exec(ctx)
+					if err != nil {
+						return fmt.Errorf("delete removed output %s: %w", existing.OutputKey, err)
+					}
+				}
+				// Manual schemas are kept as orphans (output may return later)
+			}
 		}
 
-		// Insert new outputs (skip if empty)
+		// Skip if no outputs to upsert
 		if len(outputs) == 0 {
 			return nil
 		}
@@ -69,15 +81,20 @@ func (r *BunStateOutputRepository) UpsertOutputs(ctx context.Context, stateGUID 
 				CreatedAt:   now,
 				UpdatedAt:   now,
 			}
-			// Preserve existing schema if it exists
-			if existingSchema, ok := existingSchemas[out.Key]; ok {
-				model.SchemaJSON = existingSchema
+			// Preserve existing schema metadata if output already exists
+			// Fix for grid-58bb: Preserve ALL schema metadata fields
+			if existing, ok := existingByKey[out.Key]; ok {
+				model.SchemaJSON = existing.SchemaJSON
+				model.SchemaSource = existing.SchemaSource
+				model.ValidationStatus = existing.ValidationStatus
+				model.ValidationError = existing.ValidationError
+				model.ValidatedAt = existing.ValidatedAt
 			}
 			outputModels = append(outputModels, model)
 		}
 
-		// Use ON CONFLICT DO UPDATE to handle race conditions
-		// Now we can include schema_json in the update since we've preserved it above
+		// Use ON CONFLICT DO UPDATE to upsert
+		// This handles both new outputs and existing outputs with preserved metadata
 		_, err = tx.NewInsert().
 			Model(&outputModels).
 			On("CONFLICT (state_guid, output_key) DO UPDATE").
@@ -85,9 +102,13 @@ func (r *BunStateOutputRepository) UpsertOutputs(ctx context.Context, stateGUID 
 			Set("state_serial = EXCLUDED.state_serial").
 			Set("updated_at = EXCLUDED.updated_at").
 			Set("schema_json = EXCLUDED.schema_json").
+			Set("schema_source = EXCLUDED.schema_source").
+			Set("validation_status = EXCLUDED.validation_status").
+			Set("validation_error = EXCLUDED.validation_error").
+			Set("validated_at = EXCLUDED.validated_at").
 			Exec(ctx)
 		if err != nil {
-			return fmt.Errorf("insert outputs: %w", err)
+			return fmt.Errorf("upsert outputs: %w", err)
 		}
 
 		return nil
@@ -110,9 +131,10 @@ func (r *BunStateOutputRepository) GetOutputsByState(ctx context.Context, stateG
 	outputs := make([]OutputKey, len(dbOutputs))
 	for i, dbOut := range dbOutputs {
 		outputs[i] = OutputKey{
-			Key:              dbOut.OutputKey,
-			Sensitive:        dbOut.Sensitive,
-			SchemaJSON:       dbOut.SchemaJSON,
+			Key:         dbOut.OutputKey,
+			Sensitive:   dbOut.Sensitive,
+			StateSerial: dbOut.StateSerial,
+			SchemaJSON: dbOut.SchemaJSON,
 			SchemaSource:     dbOut.SchemaSource,
 			ValidationStatus: dbOut.ValidationStatus,
 			ValidationError:  dbOut.ValidationError,

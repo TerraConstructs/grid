@@ -186,6 +186,9 @@ func MountConnectHandlers(r chi.Router, opts RouterOptions) {
 	if opts.IAMService != nil {
 		stateHandler.WithIAMService(opts.IAMService)
 	}
+	if opts.ValidationJob != nil {
+		stateHandler.WithValidationJob(opts.ValidationJob)
+	}
 	path, handler := statev1connect.NewStateServiceHandler(
 		stateHandler,
 		connect.WithInterceptors(opts.ConnectInterceptors...),

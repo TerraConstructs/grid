@@ -409,3 +409,87 @@ func TestStateReferenceResolution(t *testing.T) {
 	require.NoError(t, err)
 	assert.JSONEq(t, schema, retrieved2)
 }
+
+// TestInvalidSchemaRejection tests that SetOutputSchema rejects invalid JSON Schema strings.
+// This addresses grid-e903: SetOutputSchema should validate schemas before storing them.
+func TestInvalidSchemaRejection(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping integration test in short mode")
+	}
+
+	ctx := context.Background()
+	client := newSDKClient()
+
+	// Create state with unique logic ID to avoid collisions
+	state, err := client.CreateState(ctx, sdk.CreateStateInput{LogicID: uniqueLogicID("test-invalid-schema-rejection")})
+	require.NoError(t, err)
+
+	t.Run("MalformedJSON", func(t *testing.T) {
+		// Invalid JSON syntax
+		invalidSchema := `{invalid json}`
+
+		err := client.SetOutputSchema(ctx, sdk.StateReference{GUID: state.GUID}, "output1", invalidSchema)
+		require.Error(t, err, "Should reject malformed JSON")
+		assert.Contains(t, err.Error(), "invalid JSON Schema", "Error should mention invalid schema")
+	})
+
+	t.Run("InvalidJSONSchemaType", func(t *testing.T) {
+		// Invalid JSON Schema: "invalid_type" is not a valid JSON Schema type
+		invalidSchema := `{"type": "invalid_type"}`
+
+		err := client.SetOutputSchema(ctx, sdk.StateReference{GUID: state.GUID}, "output2", invalidSchema)
+		require.Error(t, err, "Should reject invalid type keyword")
+		assert.Contains(t, err.Error(), "invalid JSON Schema", "Error should mention invalid schema")
+	})
+
+	t.Run("InvalidConstraintType", func(t *testing.T) {
+		// Invalid JSON Schema: minLength must be a number, not a string
+		invalidSchema := `{"type": "string", "minLength": "not a number"}`
+
+		err := client.SetOutputSchema(ctx, sdk.StateReference{GUID: state.GUID}, "output3", invalidSchema)
+		require.Error(t, err, "Should reject invalid constraint type")
+		assert.Contains(t, err.Error(), "invalid JSON Schema", "Error should mention invalid schema")
+	})
+
+	t.Run("InvalidPropertyDefinition", func(t *testing.T) {
+		// Invalid JSON Schema: properties must be an object, not an array
+		invalidSchema := `{"type": "object", "properties": ["not", "an", "object"]}`
+
+		err := client.SetOutputSchema(ctx, sdk.StateReference{GUID: state.GUID}, "output4", invalidSchema)
+		require.Error(t, err, "Should reject invalid properties definition")
+		assert.Contains(t, err.Error(), "invalid JSON Schema", "Error should mention invalid schema")
+	})
+
+	t.Run("ValidSchemaStillWorks", func(t *testing.T) {
+		// Verify that valid schemas still work after rejecting invalid ones
+		validSchema := `{"type": "string", "pattern": "^vpc-[a-z0-9]+$"}`
+
+		err := client.SetOutputSchema(ctx, sdk.StateReference{GUID: state.GUID}, "vpc_id", validSchema)
+		require.NoError(t, err, "Valid schema should be accepted")
+
+		// Verify schema was stored
+		retrieved, err := client.GetOutputSchema(ctx, sdk.StateReference{GUID: state.GUID}, "vpc_id")
+		require.NoError(t, err)
+		assert.JSONEq(t, validSchema, retrieved, "Valid schema should be retrievable")
+	})
+
+	t.Run("InvalidSchemaNotStored", func(t *testing.T) {
+		// Try to set an invalid schema
+		invalidSchema := `{"type": "invalid_type"}`
+		err := client.SetOutputSchema(ctx, sdk.StateReference{GUID: state.GUID}, "not_stored", invalidSchema)
+		require.Error(t, err, "Invalid schema should be rejected")
+
+		// Verify schema was NOT stored
+		retrieved, err := client.GetOutputSchema(ctx, sdk.StateReference{GUID: state.GUID}, "not_stored")
+		require.NoError(t, err, "GetOutputSchema should succeed even for non-existent output")
+		assert.Empty(t, retrieved, "Invalid schema should not be stored")
+
+		// Verify output does NOT appear in ListStateOutputs
+		outputs, err := client.ListStateOutputs(ctx, sdk.StateReference{GUID: state.GUID})
+		require.NoError(t, err)
+
+		for _, output := range outputs {
+			assert.NotEqual(t, "not_stored", output.Key, "Invalid schema output should not exist")
+		}
+	})
+}

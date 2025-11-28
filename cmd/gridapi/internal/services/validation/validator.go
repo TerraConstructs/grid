@@ -149,45 +149,91 @@ func (v *SchemaValidator) compileSchema(schemaJSON string) (*jsonschema.Schema, 
 	return schema, nil
 }
 
-// formatValidationError formats a validation error into a structured message per SC-006 and FR-035.
-// Includes: JSON path, error description (with truncation for long messages).
-// Example: "validation failed at '$.vpc_id': does not match pattern '^vpc-[a-f0-9]{8,17}$'"
+// formatValidationError traverses the ValidationError tree to extract specific messages
+// without parsing string outputs or scrubbing file paths.
+// Uses the structured fields from jsonschema.ValidationError directly.
 func (v *SchemaValidator) formatValidationError(err error) string {
 	ve, ok := err.(*jsonschema.ValidationError)
 	if !ok {
-		// Not a validation error, return generic message
 		return err.Error()
 	}
 
-	// Build JSON path from InstanceLocation (e.g., ["", "vpc_id"] -> "$.vpc_id")
-	var path string
-	if len(ve.InstanceLocation) > 0 {
-		// Filter out empty strings and build path
-		var parts []string
-		for _, part := range ve.InstanceLocation {
-			if part != "" {
-				parts = append(parts, part)
-			}
+	// 1. Flatten the error tree to get actual validation failures (leaves)
+	leafErrors := getLeafErrors(ve)
+
+	// 2. Format each error into a readable string
+	var messages []string
+	for _, leaf := range leafErrors {
+		// Convert InstanceLocation ([]string path segments) to Dot Notation ("$.a.b")
+		path := jsonPointerToDot(leaf.InstanceLocation)
+
+		// Get the full, formatted error message from the library.
+		// In jsonschema v6, leaf.Message only contains raw arguments (e.g., "150 10").
+		// leaf.Error() returns the full formatted string with proper English descriptions.
+		fullMsg := leaf.Error()
+
+		// Clean the message: remove the "jsonschema: " prefix and the schema location.
+		// The format is typically: "jsonschema: {Location}: {Message}" or "{Location}: {Message}"
+		msg := strings.TrimPrefix(fullMsg, "jsonschema: ")
+
+		// Split by the first ": " to separate the schema path from the actual message.
+		// This robustly handles different schema URL formats (file://, http://, or simple filenames).
+		if i := strings.Index(msg, ": "); i != -1 {
+			msg = msg[i+2:]
 		}
-		if len(parts) > 0 {
-			path = "$." + strings.Join(parts, ".")
-		} else {
-			path = "$"
-		}
-	} else {
-		path = "$"
+
+		messages = append(messages, fmt.Sprintf("at '%s': %s", path, msg))
 	}
 
-	// Get the error message from the library (includes constraint details)
-	errorMsg := ve.Error()
+	// 3. Join multiple errors or just take the first one
+	// Using a semicolon to separate multiple validation errors
+	finalMsg := strings.Join(messages, "; ")
 
-	// Truncate if message is excessively long (>200 chars)
-	if len(errorMsg) > 200 {
-		errorMsg = errorMsg[:200] + "... (truncated)"
+	// Truncate if excessively long
+	if len(finalMsg) > 200 {
+		return finalMsg[:200] + "... (truncated)"
+	}
+	return finalMsg
+}
+
+// getLeafErrors recursively finds the errors that resulted in the validation failure.
+// jsonschema returns a tree; "Causes" hold the detailed errors.
+// A leaf error is one with no causes (the actual validation failure).
+func getLeafErrors(ve *jsonschema.ValidationError) []*jsonschema.ValidationError {
+	// If there are no causes, this is a leaf error (the actual failure)
+	if len(ve.Causes) == 0 {
+		return []*jsonschema.ValidationError{ve}
 	}
 
-	// Format structured error with path
-	return fmt.Sprintf("validation failed at '%s': %s", path, errorMsg)
+	var leaves []*jsonschema.ValidationError
+	for _, cause := range ve.Causes {
+		leaves = append(leaves, getLeafErrors(cause)...)
+	}
+	return leaves
+}
+
+// jsonPointerToDot converts a JSON Pointer path (InstanceLocation []string segments) to Dot notation.
+// Example: []string{"users", "0", "name"} -> "$.users.0.name"
+// Example: []string{} or []string{""} -> "$"
+func jsonPointerToDot(pathSegments []string) string {
+	if len(pathSegments) == 0 {
+		return "$"
+	}
+
+	// Filter out empty segments (InstanceLocation sometimes includes empty strings)
+	var nonEmptySegments []string
+	for _, segment := range pathSegments {
+		if segment != "" {
+			nonEmptySegments = append(nonEmptySegments, segment)
+		}
+	}
+
+	if len(nonEmptySegments) == 0 {
+		return "$"
+	}
+
+	// Join segments with dots
+	return "$." + strings.Join(nonEmptySegments, ".")
 }
 
 // InvalidateCache removes a schema from the cache
