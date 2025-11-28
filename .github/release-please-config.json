@@ -8,7 +8,8 @@
       "extra-files": [
         "cmd/gridapi/version.go",
         "cmd/gridctl/version.go",
-        "js/sdk/package.json"
+        "js/sdk/package.json",
+        "webapp/package.json"
       ]
     }
   },
