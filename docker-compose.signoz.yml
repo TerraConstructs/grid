@@ -1,0 +1,162 @@
+# SigNoz Observability Stack
+# Complete observability platform for logs, traces, and metrics
+#
+# Usage:
+#   docker compose -f docker-compose.signoz.yml up -d
+#   Access UI: http://localhost:3301
+#   OTLP gRPC: localhost:4317
+#   OTLP HTTP: localhost:4318
+#
+# Requirements:
+#   - Docker with 4GB+ memory allocated
+#   - Ports 3301, 4317, 4318 available
+#
+# Configure Grid API to use SigNoz:
+#   export OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4317
+#   export OTEL_EXPORTER_OTLP_PROTOCOL=grpc
+#   export OTEL_EXPORTER_OTLP_INSECURE=true
+
+version: '3.8'
+
+services:
+  # Coordination service for ClickHouse cluster
+  zookeeper:
+    image: bitnami/zookeeper:3.7.1
+    container_name: signoz-zookeeper
+    environment:
+      ALLOW_ANONYMOUS_LOGIN: "yes"
+    ports:
+      - "2181:2181"
+    volumes:
+      - signoz-zookeeper-data:/bitnami/zookeeper
+    networks:
+      - signoz
+    restart: unless-stopped
+
+  # ClickHouse: High-performance columnar database for time-series data
+  # Stores all traces, metrics, and logs with 50% lower resource usage vs Elasticsearch
+  clickhouse:
+    image: clickhouse/clickhouse-server:24.1.2-alpine
+    container_name: signoz-clickhouse
+    environment:
+      CLICKHOUSE_DB: signoz
+      CLICKHOUSE_USER: signoz
+      CLICKHOUSE_PASSWORD: signoz
+    ports:
+      - "9000:9000"   # Native protocol
+      - "8123:8123"   # HTTP API
+    volumes:
+      - signoz-clickhouse-data:/var/lib/clickhouse
+    networks:
+      - signoz
+    depends_on:
+      - zookeeper
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "clickhouse-client", "--query", "SELECT 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  # Query Service: API backend for executing ClickHouse queries
+  query-service:
+    image: signoz/query-service:0.64.0
+    container_name: signoz-query-service
+    environment:
+      - ClickHouseUrl=tcp://clickhouse:9000/?database=signoz&username=signoz&password=signoz
+      - STORAGE=clickhouse
+      - TELEMETRY_ENABLED=true
+      - DEPLOYMENT_TYPE=docker-standalone
+      - ALERTMANAGER_API_PREFIX=http://alertmanager:9093/api/
+    ports:
+      - "8080:8080"
+    networks:
+      - signoz
+    depends_on:
+      clickhouse:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:8080/api/v1/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  # OpenTelemetry Collector: Receives, processes, and exports telemetry data
+  # This is the primary ingestion point for your application's telemetry
+  otel-collector:
+    image: signoz/signoz-otel-collector:0.111.16
+    container_name: signoz-otel-collector
+    command: ["--config=/etc/otel-collector-config.yaml"]
+    environment:
+      - OTEL_RESOURCE_ATTRIBUTES=host.name=signoz-host,os.type=linux
+      - CLICKHOUSE_HOST=clickhouse
+      - CLICKHOUSE_PORT=9000
+      - CLICKHOUSE_DATABASE=signoz
+      - CLICKHOUSE_USER=signoz
+      - CLICKHOUSE_PASSWORD=signoz
+    ports:
+      - "4317:4317"   # OTLP gRPC receiver (recommended for Grid)
+      - "4318:4318"   # OTLP HTTP receiver
+      - "13133:13133" # Health check endpoint
+    volumes:
+      - ./signoz-otel-collector-config.yaml:/etc/otel-collector-config.yaml:ro
+    networks:
+      - signoz
+    depends_on:
+      clickhouse:
+        condition: service_healthy
+      query-service:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:13133/"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  # Frontend: React UI for visualization, service maps, and alerting
+  frontend:
+    image: signoz/frontend:0.64.0
+    container_name: signoz-frontend
+    environment:
+      - FRONTEND_API_ENDPOINT=http://query-service:8080
+    ports:
+      - "3301:3301"
+    networks:
+      - signoz
+    depends_on:
+      query-service:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # AlertManager: Prometheus-based alerting engine
+  alertmanager:
+    image: signoz/alertmanager:0.23.7
+    container_name: signoz-alertmanager
+    ports:
+      - "9093:9093"
+    volumes:
+      - signoz-alertmanager-data:/data
+    networks:
+      - signoz
+    depends_on:
+      query-service:
+        condition: service_healthy
+    restart: unless-stopped
+    command:
+      - --queryService.url=http://query-service:8080
+      - --storage.path=/data
+
+networks:
+  signoz:
+    driver: bridge
+    name: signoz-network
+
+volumes:
+  signoz-zookeeper-data:
+    name: signoz-zookeeper-data
+  signoz-clickhouse-data:
+    name: signoz-clickhouse-data
+  signoz-alertmanager-data:
+    name: signoz-alertmanager-data

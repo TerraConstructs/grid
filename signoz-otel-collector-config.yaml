@@ -1,0 +1,155 @@
+# OpenTelemetry Collector Configuration for SigNoz
+# This configuration receives telemetry from Grid API and exports to ClickHouse
+#
+# Pipeline: Grid API → OTLP Receiver → Batch Processor → ClickHouse Exporter
+#
+# Key Features:
+# - Receives traces, metrics, and logs via OTLP (gRPC and HTTP)
+# - Batches data for efficient export (reduces load on ClickHouse)
+# - Adds resource detection (host, container metadata)
+# - Memory limiter to prevent OOM crashes
+
+receivers:
+  # OTLP Receiver: Accepts traces, metrics, and logs from Grid API
+  otlp:
+    protocols:
+      grpc:
+        endpoint: 0.0.0.0:4317
+        # Max message size: 100MB (for large traces/logs)
+        max_recv_msg_size_mib: 100
+      http:
+        endpoint: 0.0.0.0:4318
+        cors:
+          allowed_origins:
+            - "*"
+
+  # Health Check Receiver: Exposes /healthz endpoint
+  # Used by Docker healthcheck
+  health_check:
+    endpoint: 0.0.0.0:13133
+
+processors:
+  # Batch Processor: Aggregates telemetry before export
+  # Improves performance by reducing number of export requests
+  batch:
+    send_batch_size: 1000        # Send after 1000 items
+    timeout: 10s                  # OR send every 10 seconds
+    send_batch_max_size: 2000    # Maximum batch size
+
+  # Memory Limiter: Prevents collector from running out of memory
+  # Applies backpressure when memory usage is high
+  memory_limiter:
+    check_interval: 1s
+    limit_mib: 1000              # Soft limit: 1GB
+    spike_limit_mib: 200         # Allow 200MB spike
+
+  # Resource Detection: Adds host and container metadata
+  # Enriches telemetry with infrastructure context
+  resourcedetection:
+    detectors: [env, system, docker]
+    timeout: 5s
+    override: false
+
+  # Resource Processor: Add custom resource attributes
+  # Useful for tagging all telemetry from this collector
+  resource:
+    attributes:
+      - key: deployment.environment
+        value: ${env:DEPLOYMENT_ENV}
+        action: upsert
+      - key: service.namespace
+        value: grid
+        action: upsert
+
+  # Attributes Processor: Filter/modify span/log/metric attributes
+  # Example: Remove sensitive data, normalize attribute names
+  attributes:
+    actions:
+      # Remove potential PII from traces
+      - key: http.request.header.authorization
+        action: delete
+      - key: http.request.header.cookie
+        action: delete
+
+exporters:
+  # ClickHouse Exporter: Primary storage for all telemetry
+  # Writes traces, metrics, and logs to ClickHouse database
+  clickhouse:
+    endpoint: tcp://${CLICKHOUSE_HOST}:${CLICKHOUSE_PORT}?database=${CLICKHOUSE_DATABASE}&username=${CLICKHOUSE_USER}&password=${CLICKHOUSE_PASSWORD}
+    timeout: 10s
+    retry_on_failure:
+      enabled: true
+      initial_interval: 5s
+      max_interval: 30s
+      max_elapsed_time: 300s
+    sending_queue:
+      enabled: true
+      num_consumers: 10
+      queue_size: 5000
+
+  # Debug/Logging Exporter: Useful for troubleshooting
+  # Uncomment to see telemetry in collector logs
+  # logging:
+  #   verbosity: detailed
+  #   sampling_initial: 5
+  #   sampling_thereafter: 200
+
+extensions:
+  # Health Check Extension: Provides /healthz endpoint
+  health_check:
+    endpoint: 0.0.0.0:13133
+
+  # Performance Profiler: pprof endpoint for collector diagnostics
+  # Access at http://localhost:1777/debug/pprof
+  pprof:
+    endpoint: 0.0.0.0:1777
+
+  # zPages Extension: Live debugging of collector internals
+  # Access at http://localhost:55679/debug/tracez
+  zpages:
+    endpoint: 0.0.0.0:55679
+
+service:
+  extensions: [health_check, pprof, zpages]
+
+  # Telemetry Pipeline: receiver → processors → exporters
+  pipelines:
+    # Traces Pipeline: Distributed tracing data
+    traces:
+      receivers: [otlp]
+      processors:
+        - memory_limiter
+        - resourcedetection
+        - resource
+        - attributes
+        - batch
+      exporters: [clickhouse]
+
+    # Metrics Pipeline: Time-series metrics data
+    metrics:
+      receivers: [otlp]
+      processors:
+        - memory_limiter
+        - resourcedetection
+        - resource
+        - batch
+      exporters: [clickhouse]
+
+    # Logs Pipeline: Structured log data
+    logs:
+      receivers: [otlp]
+      processors:
+        - memory_limiter
+        - resourcedetection
+        - resource
+        - attributes
+        - batch
+      exporters: [clickhouse]
+
+  # Telemetry for the collector itself (meta-monitoring)
+  telemetry:
+    logs:
+      level: info  # Options: debug, info, warn, error
+    metrics:
+      level: detailed
+      address: 0.0.0.0:8888  # Prometheus metrics endpoint
