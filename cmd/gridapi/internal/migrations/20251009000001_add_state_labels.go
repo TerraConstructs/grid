@@ -16,8 +16,16 @@ func init() {
 func up_20251009000001(ctx context.Context, db *bun.DB) error {
 	fmt.Print(" [up] adding labels column to states...")
 
-	// 1. Add labels column to states table (PostgreSQL)
-	_, err := db.Exec(`ALTER TABLE states ADD COLUMN IF NOT EXISTS labels JSONB NOT NULL DEFAULT '{}'::jsonb`)
+	// 1. Add labels column to states table (database-specific syntax)
+	var addLabelsSQL string
+	if IsPostgreSQL(db) {
+		addLabelsSQL = `ALTER TABLE states ADD COLUMN IF NOT EXISTS labels JSONB NOT NULL DEFAULT '{}'::jsonb`
+	} else {
+		// SQLite: Use TEXT for JSON storage
+		addLabelsSQL = `ALTER TABLE states ADD COLUMN labels TEXT NOT NULL DEFAULT '{}'`
+	}
+
+	_, err := db.Exec(addLabelsSQL)
 	if err != nil {
 		return fmt.Errorf("failed to add labels column: %w", err)
 	}
@@ -34,13 +42,15 @@ func up_20251009000001(ctx context.Context, db *bun.DB) error {
 		return fmt.Errorf("failed to create label_policy table: %w", err)
 	}
 
-	// Ensure policy_json column is JSONB
-	_, err = db.Exec(`ALTER TABLE label_policy ALTER COLUMN policy_json TYPE JSONB USING policy_json::jsonb`)
-	if err != nil {
-		return fmt.Errorf("failed to ensure policy_json column is jsonb: %w", err)
+	// Ensure policy_json column is JSONB (PostgreSQL only)
+	if IsPostgreSQL(db) {
+		_, err = db.Exec(`ALTER TABLE label_policy ALTER COLUMN policy_json TYPE JSONB USING policy_json::jsonb`)
+		if err != nil {
+			return fmt.Errorf("failed to ensure policy_json column is jsonb: %w", err)
+		}
 	}
 
-	// 3. Add single-row constraint (PostgreSQL)
+	// 3. Add single-row constraint
 	_, err = db.Exec(`
 		ALTER TABLE label_policy
 		ADD CONSTRAINT label_policy_single_row CHECK (id = 1)
@@ -49,10 +59,18 @@ func up_20251009000001(ctx context.Context, db *bun.DB) error {
 		return fmt.Errorf("failed to add single-row constraint: %w", err)
 	}
 
-	// 4. Optional: Create GIN index for future SQL push-down optimization
-	_, err = db.Exec(`CREATE INDEX IF NOT EXISTS idx_states_labels_gin ON states USING gin (labels jsonb_path_ops)`)
-	if err != nil {
-		return fmt.Errorf("failed to create GIN index on labels: %w", err)
+	// 4. Create index on labels (PostgreSQL uses GIN, SQLite uses standard index)
+	if IsPostgreSQL(db) {
+		_, err = db.Exec(`CREATE INDEX IF NOT EXISTS idx_states_labels_gin ON states USING gin (labels jsonb_path_ops)`)
+		if err != nil {
+			return fmt.Errorf("failed to create GIN index on labels: %w", err)
+		}
+	} else {
+		// SQLite: Standard index (can still search JSON with json_extract)
+		_, err = db.Exec(`CREATE INDEX IF NOT EXISTS idx_states_labels ON states(labels)`)
+		if err != nil {
+			return fmt.Errorf("failed to create index on labels: %w", err)
+		}
 	}
 
 	fmt.Println(" OK")

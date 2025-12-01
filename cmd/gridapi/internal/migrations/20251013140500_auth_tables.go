@@ -81,11 +81,27 @@ func up_20251013140500(ctx context.Context, db *bun.DB) error {
 	}
 
 	// Add check constraint: exactly one of user_id or service_account_id must be non-null
-	_, err = db.Exec(`
-		ALTER TABLE user_roles
-		ADD CONSTRAINT chk_user_roles_identity_type
-		CHECK ((user_id IS NOT NULL)::int + (service_account_id IS NOT NULL)::int = 1)
-	`)
+	var checkConstraintSQL string
+	if IsPostgreSQL(db) {
+		// PostgreSQL: Use ::int casting
+		checkConstraintSQL = `
+			ALTER TABLE user_roles
+			ADD CONSTRAINT chk_user_roles_identity_type
+			CHECK ((user_id IS NOT NULL)::int + (service_account_id IS NOT NULL)::int = 1)
+		`
+	} else {
+		// SQLite: Use CASE WHEN for boolean to int conversion
+		checkConstraintSQL = `
+			ALTER TABLE user_roles
+			ADD CONSTRAINT chk_user_roles_identity_type
+			CHECK (
+				(CASE WHEN user_id IS NOT NULL THEN 1 ELSE 0 END) +
+				(CASE WHEN service_account_id IS NOT NULL THEN 1 ELSE 0 END) = 1
+			)
+		`
+	}
+
+	_, err = db.Exec(checkConstraintSQL)
 	if err != nil {
 		return fmt.Errorf("failed to add user_roles identity check: %w", err)
 	}
@@ -224,11 +240,26 @@ func up_20251013140500(ctx context.Context, db *bun.DB) error {
 	}
 
 	// Add check constraint: exactly one of user_id or service_account_id must be non-null
-	_, err = db.Exec(`
-		ALTER TABLE sessions
-		ADD CONSTRAINT chk_sessions_identity_type
-		CHECK ((user_id IS NOT NULL)::int + (service_account_id IS NOT NULL)::int = 1)
-	`)
+	if IsPostgreSQL(db) {
+		// PostgreSQL: Use ::int casting
+		checkConstraintSQL = `
+			ALTER TABLE sessions
+			ADD CONSTRAINT chk_sessions_identity_type
+			CHECK ((user_id IS NOT NULL)::int + (service_account_id IS NOT NULL)::int = 1)
+		`
+	} else {
+		// SQLite: Use CASE WHEN for boolean to int conversion
+		checkConstraintSQL = `
+			ALTER TABLE sessions
+			ADD CONSTRAINT chk_sessions_identity_type
+			CHECK (
+				(CASE WHEN user_id IS NOT NULL THEN 1 ELSE 0 END) +
+				(CASE WHEN service_account_id IS NOT NULL THEN 1 ELSE 0 END) = 1
+			)
+		`
+	}
+
+	_, err = db.Exec(checkConstraintSQL)
 	if err != nil {
 		return fmt.Errorf("failed to add sessions identity check: %w", err)
 	}

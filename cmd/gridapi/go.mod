@@ -23,6 +23,7 @@ require (
 	github.com/terraconstructs/grid/api v0.0.0
 	github.com/uptrace/bun v1.2.15
 	github.com/uptrace/bun/dialect/pgdialect v1.2.15
+	github.com/uptrace/bun/dialect/sqlitedialect v1.2.15
 	github.com/uptrace/bun/driver/pgdriver v1.2.15
 	github.com/xenitab/go-oidc-middleware v0.0.44
 	github.com/zitadel/oidc/v3 v3.45.0
@@ -30,6 +31,7 @@ require (
 	golang.org/x/net v0.44.0
 	gonum.org/v1/gonum v0.16.0
 	google.golang.org/protobuf v1.36.9
+	modernc.org/sqlite v1.34.4
 )
 
 require (

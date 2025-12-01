@@ -243,16 +243,37 @@ func (r *BunEdgeRepository) WouldCreateCycle(ctx context.Context, fromState, toS
 	// Check if toState can already reach fromState
 	// If yes, adding fromState -> toState would create a cycle
 	var exists bool
-	err := r.db.NewRaw(`
-		WITH RECURSIVE reachable(node) AS (
-			SELECT ?::uuid AS node
-			UNION ALL
-			SELECT e.to_state
-			FROM edges e
-			JOIN reachable r ON e.from_state = r.node
-		)
-		SELECT EXISTS(SELECT 1 FROM reachable WHERE node = ?::uuid)
-	`, toState, fromState).Scan(ctx, &exists)
+	var err error
+
+	// Database-specific query (PostgreSQL uses ::uuid casting, SQLite doesn't)
+	dialectName := r.db.Dialect().Name()
+
+	if dialectName == "sqlite" {
+		// SQLite: WITH RECURSIVE is supported, but without ::uuid casting
+		// UUIDs are stored as TEXT in SQLite
+		err = r.db.NewRaw(`
+			WITH RECURSIVE reachable(node) AS (
+				SELECT ? AS node
+				UNION ALL
+				SELECT e.to_state
+				FROM edges e
+				JOIN reachable r ON e.from_state = r.node
+			)
+			SELECT EXISTS(SELECT 1 FROM reachable WHERE node = ?)
+		`, toState, fromState).Scan(ctx, &exists)
+	} else {
+		// PostgreSQL: Use ::uuid type casting
+		err = r.db.NewRaw(`
+			WITH RECURSIVE reachable(node) AS (
+				SELECT ?::uuid AS node
+				UNION ALL
+				SELECT e.to_state
+				FROM edges e
+				JOIN reachable r ON e.from_state = r.node
+			)
+			SELECT EXISTS(SELECT 1 FROM reachable WHERE node = ?::uuid)
+		`, toState, fromState).Scan(ctx, &exists)
+	}
 
 	if err != nil {
 		return false, fmt.Errorf("cycle detection query: %w", err)
