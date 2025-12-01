@@ -94,11 +94,40 @@ Validate Terraform outputs against JSON schemas with automatic inference:
 - **Web UI**: Validation status with color-coded indicators, expandable schema viewer, error messages
 
 ### State Dependencies
-Wire dependencies between states for hierarchical infrastructure:
+Wire dependencies between states for hierarchical infrastructure with automatic drift and validation tracking:
+
+#### Core Features
 - **Automatic tracking**: Dependencies inferred from Terraform remote state data sources
-- **Directed acyclic graph**: Detect and prevent circular dependencies
+- **Directed acyclic graph (DAG)**: Detect and prevent circular dependencies
+- **Mock values**: Define dependencies ahead-of-time with mock values before producer outputs exist
 - **CLI management**: `gridctl state add-dependency`, `gridctl state list-dependencies`
-- **Graph visualization**: Interactive dependency graph in web dashboard
+- **Graph visualization**: Interactive dependency graph in web dashboard with status indicators
+
+#### Edge Status (Composite Model)
+Each dependency edge tracks two orthogonal dimensions: **drift** (producer vs consumer synchronization) and **validation** (schema compliance).
+
+**Status Values:**
+- **`pending`**: Initial state, consumer hasn't observed producer output yet
+- **`clean`**: Consumer is up-to-date (`in_digest == out_digest`) AND output passes schema validation
+- **`clean-invalid`**: Consumer is up-to-date (`in_digest == out_digest`) BUT output fails schema validation
+- **`dirty`**: Consumer is stale (`in_digest != out_digest`) AND output passes schema validation
+- **`dirty-invalid`**: Consumer is stale (`in_digest != out_digest`) AND output fails schema validation
+- **`mock`**: Using mock value; producer output doesn't exist yet
+- **`missing-output`**: Producer output key was removed
+- **`potentially-stale`**: Transitive upstream drift (computed via BFS propagation)
+
+**Digest Tracking:**
+- **`in_digest`**: Fingerprint of producer's current output value
+- **`out_digest`**: Fingerprint of value last observed by consumer
+- **Drift detection**: Automatic comparison on every state upload
+
+**State Status (Rollup):**
+Grid computes an overall state status based on incoming dependency edges:
+- **`clean`**: All incoming edges are `clean`
+- **`stale`**: Has at least one incoming `dirty` or `pending` edge (direct dependency drift)
+- **`potentially-stale`**: No direct dirty edges, but has transitive upstream drift (propagated via BFS)
+
+This status is automatically computed and available in `GetStateInfo` RPC responses and the web dashboard.
 
 ### Web Dashboard
 React-based web interface with full feature coverage:
