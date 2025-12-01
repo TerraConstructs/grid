@@ -7,10 +7,14 @@
 Grid is a remote Terraform/OpenTofu state service paired with a friendly CLI that automates backend configuration, dependency wiring, and collaborative workflows.
 
 ## Highlights
-- Remote state API (`gridapi`) that speaks the Terraform HTTP backend protocol and persists state in PostgreSQL
-- Directory-aware CLI (`gridctl`) that creates states, generates backend config, and manages cross-state dependencies
-- Dashboard to visualize states and their dependencies (`webapp`)
-- Go and TypeScript SDKs for programmatic access and automation
+- **Remote State API** (`gridapi`) implementing the Terraform HTTP backend protocol with PostgreSQL persistence
+- **State Labels** with policy-based validation and HashiCorp bexpr filtering for organizing and querying states
+- **OIDC Authentication** supporting both external IdP (Keycloak) and internal IdP modes with JWT/refresh tokens
+- **RBAC Authorization** with group-based roles and label expression matching using Casbin policies
+- **JSON Schema Validation** with automatic inference and validation status surfaced in the web UI
+- **Directory-aware CLI** (`gridctl`) for creating states, managing dependencies, and generating backend configs
+- **Web Dashboard** (`webapp`) with auth flows, label filtering, dependency graphs, and schema validation UI
+- **Go and TypeScript SDKs** for programmatic access and automation
 
 ## Demo
 ![Grid CLI demo showing dependency sync](demo/demo.gif)
@@ -50,6 +54,61 @@ pnpm dev
 
 Grid CLI commands read `.grid/` context in your working directory so repeated calls automatically target the same state. Override with explicit flags whenever needed.
 
+## Features
+
+### State Labels
+Organize and filter states with user-defined labels (string, number, boolean types):
+- **Policy-based validation**: Enforce regex patterns, allowed values, and size limits
+- **HashiCorp bexpr filtering**: Query states with complex expressions like `env == "prod" and region in ["us-west", "us-east"]`
+- **CLI support**: `gridctl state set <id> --label env=prod --label active=true --label -deprecated`
+- **SDK helpers**: `BuildBexprFilter()`, `ConvertLabelsToProto()` for programmatic label management
+
+### Authentication & Authorization
+Flexible OIDC-based authentication with fine-grained RBAC:
+
+#### OIDC Authentication (Mode 1 & Mode 2)
+- **Mode 1 - External IdP**: Grid as Resource Server validating tokens from Keycloak or other OIDC providers
+- **Mode 2 - Internal IdP**: Grid as complete OIDC provider with embedded authorization server
+- **Token support**: JWT access tokens (RS256), refresh tokens, httpOnly cookies for web sessions
+- **Flows**: OAuth2 authorization code with PKCE, client credentials (service accounts), device authorization
+- **Session management**: Database-backed sessions with configurable expiration
+
+#### RBAC with Label Expressions
+- **Group-based roles**: Assign users to groups mapped to roles with specific permissions
+- **Label expression matching**: Policies can match states by label expressions (e.g., `env == "dev"`)
+- **Casbin enforcement**: Policy-based authorization with flexible rule definitions
+- **JIT provisioning**: Automatic user creation on first login with group mapping
+- **Performance optimized**: Lock-free cache reads with atomic.Value (67% faster, 70% fewer DB queries)
+
+### JSON Schema Validation
+Validate Terraform outputs against JSON schemas with automatic inference:
+- **Schema declaration**: Set/get schemas per output via RPC or CLI
+- **Automatic validation**: Validates outputs on Terraform state upload (synchronous, non-blocking)
+- **Schema inference**: Automatically generates schemas from actual output values (asynchronous)
+- **Validation metadata**: Status (`valid`, `invalid`, `not_validated`, `error`) exposed in all RPC responses
+- **Structured errors**: JSON path-specific validation error messages
+- **Source tracking**: Distinguish between `manual` and `inferred` schemas
+- **CLI commands**:
+  - `gridctl state get-output-schema <state> <output>`
+  - `gridctl state set-output-schema <state> <output> --file schema.json`
+- **Web UI**: Validation status with color-coded indicators, expandable schema viewer, error messages
+
+### State Dependencies
+Wire dependencies between states for hierarchical infrastructure:
+- **Automatic tracking**: Dependencies inferred from Terraform remote state data sources
+- **Directed acyclic graph**: Detect and prevent circular dependencies
+- **CLI management**: `gridctl state add-dependency`, `gridctl state list-dependencies`
+- **Graph visualization**: Interactive dependency graph in web dashboard
+
+### Web Dashboard
+React-based web interface with full feature coverage:
+- **Authentication UI**: OAuth2/OIDC login flows with session persistence
+- **State management**: Create, list, view, and filter states
+- **Label filtering**: Interactive label filter builder with expression preview
+- **Schema validation UI**: Color-coded validation status, expandable schemas, error messages with JSON paths
+- **Dependency graph**: Interactive React Flow graph with zoom/pan controls
+- **Responsive design**: Tailwind CSS with mobile-friendly layout
+
 ## Installation
 
 ### Pre-built Binaries
@@ -85,15 +144,219 @@ make build
 
 ```
 .
-├── cmd/gridapi/   # API server entrypoint
-├── cmd/gridctl/   # CLI commands
-├── pkg/sdk/       # Go SDK
-├── js/sdk/        # Generated TypeScript SDK (WIP)
-├── examples/      # Terraform sample projects
-├── demo/          # VHS scripts and rendered assets
-├── webapp/        # Web application for the dashboard
-└── specs/         # Product specifications and UX docs
+├── api/                        # Generated protobuf/Connect code (Go)
+│   └── state/v1/              # State service definitions
+├── proto/                      # Protobuf source definitions
+│   └── state/v1/              # State service .proto files
+├── cmd/
+│   ├── gridapi/               # API server
+│   │   ├── cmd/              # Cobra commands (serve, db)
+│   │   └── internal/         # Server implementation
+│   │       ├── auth/         # OIDC provider implementation
+│   │       ├── config/       # Configuration loading
+│   │       ├── db/           # Database models and provider
+│   │       ├── migrations/   # Schema migrations
+│   │       ├── middleware/   # Auth/authz interceptors
+│   │       ├── repository/   # Data access layer
+│   │       ├── server/       # HTTP handlers (Connect + Terraform)
+│   │       └── services/     # Business logic
+│   │           ├── dependency/
+│   │           ├── graph/
+│   │           ├── iam/      # IAM and authentication services
+│   │           ├── inference/ # Schema inference
+│   │           ├── state/
+│   │           ├── tfstate/
+│   │           └── validation/ # Schema validation
+│   └── gridctl/               # CLI
+│       ├── cmd/              # Cobra commands
+│       └── internal/         # CLI internals
+├── pkg/sdk/                   # Go SDK for Grid API
+├── js/sdk/                    # TypeScript SDK
+│   ├── gen/                  # Generated from protobuf
+│   └── src/                  # SDK helpers and utilities
+├── webapp/                    # React web application
+│   ├── src/
+│   │   ├── components/      # UI components (auth, labels, outputs, graph)
+│   │   ├── context/         # React context providers
+│   │   ├── hooks/           # Custom React hooks
+│   │   ├── services/        # API service layer
+│   │   └── types/           # TypeScript type definitions
+│   └── test/                # Frontend tests
+├── tests/
+│   ├── contract/            # API contract tests
+│   ├── e2e/                 # Playwright end-to-end tests
+│   │   ├── helpers/        # Test helpers (auth, state, keycloak)
+│   │   └── setup/          # Test setup scripts
+│   ├── fixtures/            # Test data (Keycloak realm, schemas, states)
+│   └── integration/         # Go integration tests
+├── examples/                 # Terraform sample projects
+│   └── terraform/
+├── demo/                     # VHS demo scripts and assets
+├── specs/                    # Feature specifications
+│   ├── 005-add-state-dimensions/   # Labels feature
+│   ├── 006-authz-authn-rbac/       # Auth/authz
+│   ├── 007-webapp-auth/            # WebApp authentication
+│   ├── 008-cicd-workflows/
+│   └── 010-output-schema-support/  # Schema validation
+├── scripts/                  # Development and CI scripts
+└── initdb/                   # Database initialization scripts
 ```
+
+## Testing
+
+Grid has comprehensive test coverage across unit, integration, and end-to-end tests. The most critical tests for feature validation are the **integration tests** and **Playwright e2e tests**, both running in CI/CD on every PR.
+
+### Integration Tests
+
+Integration tests use a real PostgreSQL database and automated server setup via `TestMain`. Located in `tests/integration/`.
+
+#### Test Modes
+
+**No Auth Mode** (Default - runs in CI/CD):
+```bash
+make test-integration
+```
+Tests core functionality without authentication:
+- State CRUD operations (`quickstart_test.go`)
+- Labels lifecycle, filtering, policy validation (`labels_test.go`)
+- JSON Schema validation, inference, error handling (`output_validation_test.go`, `output_schema_test.go`)
+- State dependencies and DAG enforcement (`dependency_test.go`)
+- Locking and conflict handling (`lock_conflict_test.go`)
+- Edge status tracking (`edge_status_composite_test.go`)
+
+**Mode 1 - External IdP** (Keycloak-based auth):
+```bash
+make test-integration-mode1
+```
+Requires external Keycloak instance. Tests:
+- Token validation and infrastructure setup (`auth_mode1_test.go`)
+- RBAC with group-based permissions (`auth_mode1_rbac_helpers.go`)
+- Device authorization flow
+- JIT user provisioning
+
+**Mode 2 - Internal IdP** (runs in CI/CD):
+```bash
+make test-integration-mode2
+```
+Grid as complete OIDC provider. Tests:
+- OAuth2/OIDC flows (authorization code, client credentials)
+- Token issuance (access tokens, refresh tokens)
+- Session management (`auth_mode2_test.go`)
+
+#### Key Test Coverage
+
+- **Labels**: 238 lines covering lifecycle, policy validation, bexpr filtering
+- **Schema Validation**: 966 lines covering pass/fail scenarios, error messages, validation metadata
+- **Schema Operations**: 496 lines covering CRUD, pre-declaration, source tracking
+- **Dependencies**: DAG enforcement, circular detection, edge status
+- **Locking**: Pessimistic locking, conflict scenarios, lock metadata
+
+### End-to-End Tests (Playwright)
+
+Browser-based tests using Playwright. Located in `tests/e2e/`.
+
+#### E2E Test Suites
+
+**Default Flow** (No Auth):
+```bash
+pnpm test:e2e
+# or
+npx playwright test --config=playwright.config.ts
+```
+Tests basic web workflows without authentication.
+
+**Auth Flow** (Keycloak SSO):
+```bash
+pnpm test:e2e:auth
+# or
+npx playwright test --config=playwright.config.auth.ts
+```
+Tests OAuth2/OIDC authentication flows with Keycloak:
+- Login/logout flows (`auth-flow.spec.ts`)
+- Session persistence across page reloads
+- Group-based RBAC enforcement
+- JIT user provisioning
+
+**Test Helpers**:
+- `helpers/auth.helpers.ts` - Login, logout, session verification
+- `helpers/keycloak.helpers.ts` - Keycloak user management
+- `helpers/state.helpers.ts` - State creation, verification
+
+### CI/CD Test Coverage
+
+Every PR runs the following tests via `.github/workflows/pr-tests.yml`:
+
+1. **unit-tests**: Go unit tests (no external dependencies)
+2. **integration-tests**: No-auth integration tests with PostgreSQL
+3. **integration-tests-mode2**: Mode 2 (internal IdP) integration tests
+4. **frontend-tests**: Webapp build and tests
+5. **js-sdk-tests**: TypeScript SDK tests
+6. **go-lint**: golangci-lint
+7. **buf-lint**: Protobuf linting
+8. **buf-breaking**: Breaking change detection
+
+**Note**: Mode 1 (Keycloak) integration tests and auth e2e tests require external infrastructure and do not run in CI/CD automatically.
+
+### Running Tests Locally
+
+```bash
+# Unit tests (no dependencies)
+make test-unit
+
+# Integration tests (requires PostgreSQL)
+make db-up                    # Start PostgreSQL via Docker Compose
+make test-integration         # No-auth mode
+make test-integration-mode2   # Mode 2 (internal IdP)
+
+# E2E tests (requires gridapi + webapp running)
+cd tests/e2e
+pnpm install
+pnpm test:e2e                 # No-auth
+pnpm test:e2e:auth            # With Keycloak (requires setup)
+
+# All tests
+make test-all                 # Unit + integration (no auth)
+```
+
+## Technology Stack
+
+### Backend
+- **Language**: Go 1.24+ (workspace-based monorepo)
+- **Database**: PostgreSQL with Bun ORM
+- **RPC Framework**: Connect RPC (protobuf/gRPC-compatible)
+- **Authentication**: Zitadel OIDC library (`github.com/zitadel/oidc`)
+- **Authorization**: Casbin policy engine
+- **Schema Validation**: `github.com/santhosh-tekuri/jsonschema/v6`
+- **Label Filtering**: HashiCorp bexpr (boolean expression evaluator)
+- **Migrations**: bun/migrate with embedded SQL
+- **CLI Framework**: Cobra + Viper
+
+### Frontend (WebApp)
+- **Framework**: React 18 with TypeScript 5.x
+- **RPC Client**: @connectrpc/connect-web
+- **Build Tool**: Vite
+- **Styling**: Tailwind CSS
+- **Icons**: Lucide React
+- **Graph Visualization**: React Flow
+- **State Management**: React Context + localStorage/sessionStorage
+
+### Testing
+- **Go Testing**: testify/assert, testify/require
+- **E2E Testing**: Playwright with TypeScript
+- **Test Containers**: Docker Compose for PostgreSQL
+- **Keycloak Integration**: External IdP for auth testing
+
+### Protocols & Standards
+- **Terraform HTTP Backend**: Official HashiCorp remote state protocol
+- **OpenID Connect 1.0**: OAuth2 + OIDC flows (authorization code, client credentials, device flow)
+- **JSON Schema Draft 2020-12**: Output validation schemas
+- **Connect RPC**: Modern gRPC-compatible HTTP/1.1 and HTTP/2 protocol
+
+### Infrastructure
+- **Container Runtime**: Docker + Docker Compose
+- **CI/CD**: GitHub Actions
+- **Release Management**: release-please
+- **Code Generation**: buf (protobuf), go generate
 
 ## Beads Usage
 
