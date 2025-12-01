@@ -11,11 +11,14 @@ import (
 
 	"github.com/casbin/casbin/v2"
 	"github.com/hashicorp/go-bexpr"
+	"go.opentelemetry.io/otel/attribute"
+
 	"github.com/terraconstructs/grid/cmd/gridapi/internal/auth"
 	"github.com/terraconstructs/grid/cmd/gridapi/internal/config"
 	"github.com/terraconstructs/grid/cmd/gridapi/internal/db/bunx"
 	"github.com/terraconstructs/grid/cmd/gridapi/internal/db/models"
 	"github.com/terraconstructs/grid/cmd/gridapi/internal/repository"
+	"github.com/terraconstructs/grid/cmd/gridapi/internal/telemetry"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -164,20 +167,40 @@ func initializeAuthenticators(
 //   - If authenticator returns (principal, nil): success, stop and return principal
 //   - If all authenticators return (nil, nil): return (nil, nil) for unauthenticated request
 func (s *iamService) AuthenticateRequest(ctx context.Context, req AuthRequest) (*Principal, error) {
-	for _, authenticator := range s.authenticators {
+	ctx, span := telemetry.StartSpan(ctx, "gridapi/services/iam", "iam.AuthenticateRequest",
+		attribute.Int("authenticator_count", len(s.authenticators)),
+	)
+	defer span.End()
+
+	for i, authenticator := range s.authenticators {
 		principal, err := authenticator.Authenticate(ctx, req)
 		if err != nil {
 			// Authentication failed (invalid credentials)
+			telemetry.AddEvent(span, "authentication.failed",
+				attribute.Int("authenticator_index", i),
+				attribute.String("error", err.Error()),
+			)
+			telemetry.RecordError(span, err)
 			return nil, err
 		}
 		if principal != nil {
 			// Authentication succeeded
+			span.SetAttributes(
+				attribute.String(telemetry.AttrPrincipalID, principal.ID),
+				attribute.String(telemetry.AttrPrincipalType, string(principal.Type)),
+				attribute.Int("authenticator_index", i),
+			)
+			telemetry.AddEvent(span, "authentication.succeeded",
+				attribute.String("principal_id", principal.ID),
+				attribute.Int("authenticator_index", i),
+			)
 			return principal, nil
 		}
 		// principal == nil && err == nil: no credentials for this authenticator, try next
 	}
 
 	// No valid credentials found (unauthenticated request)
+	telemetry.AddEvent(span, "authentication.no_credentials")
 	return nil, nil
 }
 
@@ -193,6 +216,13 @@ func (s *iamService) AuthenticateRequest(ctx context.Context, req AuthRequest) (
 //   - After: 2 DB queries + zero contention + zero mutation
 //   - Expected latency: <10ms (down from 50-100ms)
 func (s *iamService) ResolveRoles(ctx context.Context, principalID string, groups []string, isUser bool) ([]string, error) {
+	ctx, span := telemetry.StartSpan(ctx, "gridapi/services/iam", "iam.ResolveRoles",
+		attribute.String(telemetry.AttrPrincipalID, principalID),
+		attribute.Bool("is_user", isUser),
+		attribute.Int("group_count", len(groups)),
+	)
+	defer span.End()
+
 	roleSet := make(map[string]struct{})
 
 	// Step 1: Get principal's directly-assigned roles (DB read)
@@ -206,6 +236,7 @@ func (s *iamService) ResolveRoles(ctx context.Context, principalID string, group
 	}
 
 	if err != nil {
+		telemetry.RecordError(span, err)
 		return nil, fmt.Errorf("get principal roles: %w", err)
 	}
 
@@ -213,10 +244,13 @@ func (s *iamService) ResolveRoles(ctx context.Context, principalID string, group
 	for _, assignment := range roleAssignments {
 		role, err := s.roles.GetByID(ctx, assignment.RoleID)
 		if err != nil {
+			telemetry.RecordError(span, err)
 			return nil, fmt.Errorf("get role %s: %w", assignment.RoleID, err)
 		}
 		roleSet[role.Name] = struct{}{}
 	}
+
+	span.SetAttributes(attribute.Int("direct_role_count", len(roleSet)))
 
 	// Step 2: Get roles from groups (LOCK-FREE cache read)
 	groupRoles := s.groupRoleCache.GetRolesForGroups(groups)

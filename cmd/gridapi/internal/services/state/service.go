@@ -9,10 +9,12 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/santhosh-tekuri/jsonschema/v6"
+	"go.opentelemetry.io/otel/attribute"
 
 	"github.com/terraconstructs/grid/cmd/gridapi/internal/db/models"
 	"github.com/terraconstructs/grid/cmd/gridapi/internal/repository"
 	"github.com/terraconstructs/grid/cmd/gridapi/internal/services/tfstate"
+	"github.com/terraconstructs/grid/cmd/gridapi/internal/telemetry"
 )
 
 // BackendConfig represents the Terraform HTTP backend endpoints returned to clients.
@@ -107,11 +109,20 @@ func (s *Service) WithInferrer(inferrer SchemaInferrer) *Service {
 // CreateState validates inputs, persists the state, and returns summary + backend config.
 // T033: Updated to accept and validate labels via LabelValidator.
 func (s *Service) CreateState(ctx context.Context, guid, logicID string, labels models.LabelMap) (*StateSummary, *BackendConfig, error) {
+	ctx, span := telemetry.StartSpan(ctx, "gridapi/services/state", "state.CreateState",
+		attribute.String(telemetry.AttrStateGUID, guid),
+		attribute.String(telemetry.AttrStateLogicID, logicID),
+		attribute.Int("state.label_count", len(labels)),
+	)
+	defer span.End()
+
 	if _, err := uuid.Parse(guid); err != nil {
+		telemetry.RecordError(span, err)
 		return nil, nil, fmt.Errorf("invalid GUID format: %w", err)
 	}
 
 	if err := validateLogicID(logicID); err != nil {
+		telemetry.RecordError(span, err)
 		return nil, nil, err
 	}
 
@@ -124,6 +135,10 @@ func (s *Service) CreateState(ctx context.Context, guid, logicID string, labels 
 			}
 		}
 		if err := validator.Validate(labels); err != nil {
+			telemetry.AddEvent(span, "validation.failed",
+				attribute.String("reason", "label validation failed"),
+			)
+			telemetry.RecordError(span, err)
 			return nil, nil, fmt.Errorf("label validation failed: %w", err)
 		}
 	}
@@ -135,6 +150,7 @@ func (s *Service) CreateState(ctx context.Context, guid, logicID string, labels 
 	}
 
 	if err := s.repo.Create(ctx, record); err != nil {
+		telemetry.RecordError(span, err)
 		return nil, nil, fmt.Errorf("create state: %w", err)
 	}
 
@@ -145,8 +161,12 @@ func (s *Service) CreateState(ctx context.Context, guid, logicID string, labels 
 
 // ListStates returns summaries for all states ordered newest first.
 func (s *Service) ListStates(ctx context.Context) ([]StateSummary, error) {
+	ctx, span := telemetry.StartSpan(ctx, "gridapi/services/state", "state.ListStates")
+	defer span.End()
+
 	records, err := s.repo.List(ctx)
 	if err != nil {
+		telemetry.RecordError(span, err)
 		return nil, fmt.Errorf("list states: %w", err)
 	}
 
@@ -156,6 +176,7 @@ func (s *Service) ListStates(ctx context.Context) ([]StateSummary, error) {
 		summaries = append(summaries, toSummary(&recordCopy))
 	}
 
+	span.SetAttributes(attribute.Int("state.count", len(summaries)))
 	return summaries, nil
 }
 
@@ -177,15 +198,23 @@ func (s *Service) ListStatesWithFilter(ctx context.Context, filter string, pageS
 
 // GetStateConfig resolves backend configuration for a state by logic ID.
 func (s *Service) GetStateConfig(ctx context.Context, logicID string) (string, *BackendConfig, error) {
+	ctx, span := telemetry.StartSpan(ctx, "gridapi/services/state", "state.GetStateConfig",
+		attribute.String(telemetry.AttrStateLogicID, logicID),
+	)
+	defer span.End()
+
 	if err := validateLogicID(logicID); err != nil {
+		telemetry.RecordError(span, err)
 		return "", nil, err
 	}
 
 	record, err := s.repo.GetByLogicID(ctx, logicID)
 	if err != nil {
+		telemetry.RecordError(span, err)
 		return "", nil, fmt.Errorf("get state: %w", err)
 	}
 
+	span.SetAttributes(attribute.String(telemetry.AttrStateGUID, record.GUID))
 	config := s.backendConfig(record.GUID)
 	return record.GUID, config, nil
 }

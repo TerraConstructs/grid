@@ -31,6 +31,9 @@ type Config struct {
 
 	// OIDC authentication configuration
 	OIDC OIDCConfig `mapstructure:"oidc"`
+
+	// Observability configuration (OpenTelemetry)
+	Observability ObservabilityConfig `mapstructure:"observability"`
 }
 
 // OIDCConfig holds OIDC configuration for Grid's authentication.
@@ -87,12 +90,40 @@ func (c *OIDCConfig) IsInternalIdPMode() bool {
 // - Service accounts are IdP clients created in the external IdP (not in Grid)
 // - Grid validates tokens but never issues them
 type ExternalIdPConfig struct {
-	Issuer       string   `mapstructure:"issuer"`       // External IdP's issuer URL (e.g., "https://login.microsoftonline.com/tenant-id/v2.0")
-	ClientID     string   `mapstructure:"client_id"`    // Grid's confidential client ID for server-side operations (SSO callback)
+	Issuer       string   `mapstructure:"issuer"`        // External IdP's issuer URL (e.g., "https://login.microsoftonline.com/tenant-id/v2.0")
+	ClientID     string   `mapstructure:"client_id"`     // Grid's confidential client ID for server-side operations (SSO callback)
 	CLIClientID  string   `mapstructure:"cli_client_id"` // Public client ID for CLI device flow (e.g., "gridctl")
 	ClientSecret string   `mapstructure:"client_secret"` // Grid's client secret with external IdP (for confidential client only)
 	RedirectURI  string   `mapstructure:"redirect_uri"`  // Grid's SSO callback URL (e.g., "https://grid.example.com/auth/sso/callback")
-	Scopes       []string `mapstructure:"scopes"`       // Optional: Additional OIDC scopes beyond default ["openid", "profile", "email"]
+	Scopes       []string `mapstructure:"scopes"`        // Optional: Additional OIDC scopes beyond default ["openid", "profile", "email"]
+}
+
+// ObservabilityConfig holds OpenTelemetry configuration for distributed tracing and metrics.
+type ObservabilityConfig struct {
+	// OTLP exporter endpoint (e.g., "localhost:4318" for HTTP, "localhost:4317" for gRPC)
+	// If empty, telemetry is completely disabled (noop providers, zero overhead)
+	OTLPEndpoint string `mapstructure:"otlp_endpoint"`
+
+	// OTLP protocol: "http/protobuf" or "grpc"
+	// Default: "http/protobuf"
+	OTLPProtocol string `mapstructure:"otlp_protocol"`
+
+	// Use insecure connection (no TLS)
+	// Default: false (use TLS in production)
+	// Set to true for local development with self-signed certs or plain HTTP
+	OTLPInsecure bool `mapstructure:"otlp_insecure"`
+
+	// Service name for telemetry resource attributes
+	// Default: "gridapi"
+	ServiceName string `mapstructure:"service_name"`
+
+	// Service version for telemetry resource attributes
+	// Typically set from build-time variables
+	ServiceVersion string `mapstructure:"service_version"`
+
+	// Deployment environment (e.g., "production", "staging", "development")
+	// Default: "development"
+	Environment string `mapstructure:"environment"`
 }
 
 // Load reads configuration from Viper with support for:
@@ -190,6 +221,14 @@ func setDefaults(v *viper.Viper) {
 	// Default OIDC scopes for external IdP (matches pre-Viper behavior)
 	// Without "openid" scope, IdP will treat request as OAuth2-only and won't return id_token
 	v.SetDefault("oidc.external_idp.scopes", []string{"openid", "profile", "email"})
+
+	// Observability (OpenTelemetry) defaults
+	v.SetDefault("observability.otlp_endpoint", "")
+	v.SetDefault("observability.otlp_protocol", "http/protobuf")
+	v.SetDefault("observability.otlp_insecure", false)
+	v.SetDefault("observability.service_name", "gridapi")
+	v.SetDefault("observability.service_version", "")
+	v.SetDefault("observability.environment", "development")
 }
 
 // validate performs configuration validation

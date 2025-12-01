@@ -14,6 +14,7 @@ import (
 
 	"connectrpc.com/connect"
 	"github.com/go-chi/chi/v5"
+	"github.com/riandyrn/otelchi"
 	"github.com/spf13/cobra"
 	"github.com/terraconstructs/grid/cmd/gridapi/internal/auth"
 	"github.com/terraconstructs/grid/cmd/gridapi/internal/db/bunx"
@@ -26,6 +27,8 @@ import (
 	"github.com/terraconstructs/grid/cmd/gridapi/internal/services/inference"
 	"github.com/terraconstructs/grid/cmd/gridapi/internal/services/state"
 	"github.com/terraconstructs/grid/cmd/gridapi/internal/services/validation"
+	"github.com/terraconstructs/grid/cmd/gridapi/internal/telemetry"
+	"github.com/uptrace/bun/extra/bunotel"
 	"github.com/uptrace/bun/migrate"
 	"golang.org/x/net/http2"
 	"golang.org/x/net/http2/h2c"
@@ -36,12 +39,37 @@ var serveCmd = &cobra.Command{
 	Short: "Start the Grid API server",
 	Long:  `Starts the HTTP server with Connect RPC and Terraform HTTP Backend endpoints.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
+		// Initialize OpenTelemetry (tracing, metrics, logging)
+		// If OTEL_EXPORTER_OTLP_ENDPOINT is not set, telemetry is disabled (noop)
+		// Set service version from build-time variable if not configured
+		if cfg.Observability.ServiceVersion == "" {
+			cfg.Observability.ServiceVersion = version
+		}
+		shutdownTelemetry, err := telemetry.Init(cmd.Context(), cfg.Observability)
+		if err != nil {
+			return fmt.Errorf("failed to initialize telemetry: %w", err)
+		}
+		defer func() {
+			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			defer cancel()
+			if err := shutdownTelemetry(ctx); err != nil {
+				log.Printf("ERROR: Failed to shutdown telemetry: %v", err)
+			}
+		}()
+
 		// Connect to database
 		db, err := bunx.NewDB(cfg.DatabaseURL)
 		if err != nil {
 			return fmt.Errorf("failed to connect to database: %w", err)
 		}
 		defer bunx.Close(db)
+
+		// Add Bun OTEL hook for SQL query tracing
+		// Only active when OTEL is enabled (context has active span)
+		db.AddQueryHook(bunotel.NewQueryHook(
+			bunotel.WithDBName("grid"),
+			bunotel.WithFormattedQueries(true), // Include formatted SQL in spans
+		))
 
 		log.Printf("Connected to database")
 
@@ -111,6 +139,17 @@ var serveCmd = &cobra.Command{
 		var oidcRouter chi.Router
 		var relyingParty *auth.RelyingParty
 		var provider *auth.Provider
+
+		// Add OTEL middleware for HTTP tracing (before auth middleware)
+		// This creates a root span for each HTTP request and propagates W3C trace context
+		// Uses Chi route patterns for span names (e.g., "GET /api/states/:id")
+		// Only active when OTEL is enabled (OTEL_EXPORTER_OTLP_ENDPOINT set)
+		if cfg.Observability.OTLPEndpoint != "" {
+			chiMiddleware = append(chiMiddleware, otelchi.Middleware(
+				cfg.Observability.ServiceName,
+				otelchi.WithChiRoutes(nil), // Will be set by NewRouter
+			))
+		}
 
 		// Phase 6 Note: AuthnDependencies still used by auth handlers
 		// (HandleInternalLogin, HandleSSOCallback, HandleWhoAmI, HandleLogout)
