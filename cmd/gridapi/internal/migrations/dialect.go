@@ -1,18 +1,18 @@
 package migrations
 
-import "github.com/uptrace/bun"
-
-// GetDialectName returns the database dialect name as a string
-func GetDialectName(db *bun.DB) string {
-	return string(db.Dialect().Name())
-}
+import (
+	"github.com/uptrace/bun"
+	"github.com/uptrace/bun/dialect"
+	"github.com/uptrace/bun/dialect/pgdialect"
+	"github.com/uptrace/bun/dialect/sqlitedialect"
+)
 
 // IsSQLite checks if the database is SQLite
 func IsSQLite(db *bun.DB) bool {
-	return GetDialectName(db) == "sqlite"
+	return db.Dialect().Name() == dialect.SQLite
 }
 
 // IsPostgreSQL checks if the database is PostgreSQL
 func IsPostgreSQL(db *bun.DB) bool {
-	return GetDialectName(db) == "pg"
+	return db.Dialect().Name() == dialect.PG
 }

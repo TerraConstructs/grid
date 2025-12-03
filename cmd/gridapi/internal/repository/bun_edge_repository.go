@@ -9,6 +9,7 @@ import (
 
 	"github.com/terraconstructs/grid/cmd/gridapi/internal/db/models"
 	"github.com/uptrace/bun"
+	"github.com/uptrace/bun/dialect"
 )
 
 // BunEdgeRepository persists dependency edges using Bun ORM against PostgreSQL.
@@ -246,9 +247,7 @@ func (r *BunEdgeRepository) WouldCreateCycle(ctx context.Context, fromState, toS
 	var err error
 
 	// Database-specific query (PostgreSQL uses ::uuid casting, SQLite doesn't)
-	dialectName := string(r.db.Dialect().Name())
-
-	if dialectName == "sqlite" {
+	if r.db.Dialect().Name() == dialect.SQLite {
 		// SQLite: WITH RECURSIVE is supported, but without ::uuid casting
 		// UUIDs are stored as TEXT in SQLite
 		err = r.db.NewRaw(`
