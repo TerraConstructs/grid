@@ -19,7 +19,7 @@ var setCmd = &cobra.Command{
 	Short: "Apply a new label validation policy",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if setFile == "" {
-			return fmt.Errorf("--file is required")
+			return fmt.Errorf("--file/-f is required")
 		}
 
 		contents, err := os.ReadFile(setFile)
@@ -48,5 +48,5 @@ var setCmd = &cobra.Command{
 }
 
 func init() {
-	setCmd.Flags().StringVar(&setFile, "file", "", "Path to JSON policy definition")
+	setCmd.Flags().StringVarP(&setFile, "file", "f", "", "Path to JSON policy definition")
 }

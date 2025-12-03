@@ -5,6 +5,7 @@ import (
 
 	"github.com/spf13/cobra"
 	"github.com/terraconstructs/grid/cmd/gridctl/internal/auth"
+	"github.com/terraconstructs/grid/cmd/gridctl/internal/config"
 	"github.com/terraconstructs/grid/pkg/sdk"
 )
 
@@ -26,6 +27,8 @@ Two methods are supported:
 2. Service Account Login: Uses a client ID and secret for non-interactive authentication.
    Use the --client-id and --client-secret flags.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
+		cfg := config.MustFromContext(cmd.Context())
+
 		store, err := auth.NewFileStore()
 		if err != nil {
 			return fmt.Errorf("failed to create credential store: %w", err)
@@ -34,7 +37,7 @@ Two methods are supported:
 		// Service account flow (uses explicit client_id/secret, no discovery needed)
 		if clientID != "" && clientSecret != "" {
 			fmt.Println("Authenticating as service account...")
-			creds, err := sdk.LoginWithServiceAccount(cmd.Context(), ServerURL, clientID, clientSecret)
+			creds, err := sdk.LoginWithServiceAccount(cmd.Context(), cfg.ServerURL, clientID, clientSecret)
 			if err != nil {
 				return err
 			}
@@ -48,7 +51,7 @@ Two methods are supported:
 		}
 
 		// Interactive device flow (SDK handles discovery and authentication)
-		meta, err := sdk.LoginInteractive(cmd.Context(), ServerURL, store)
+		meta, err := sdk.LoginInteractive(cmd.Context(), cfg.ServerURL, store)
 		if err != nil {
 			return err
 		}

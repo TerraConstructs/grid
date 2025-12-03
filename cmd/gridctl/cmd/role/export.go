@@ -36,5 +36,5 @@ var exportCmd = &cobra.Command{
 }
 
 func init() {
-	exportCmd.Flags().String("output", "roles.json", "Output file for exported roles")
+	exportCmd.Flags().StringP("output", "o", "roles.json", "Output file for exported roles")
 }

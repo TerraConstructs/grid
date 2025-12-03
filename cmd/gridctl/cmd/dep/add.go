@@ -1,4 +1,4 @@
-package deps
+package dep
 
 import (
 	"context"
@@ -8,6 +8,7 @@ import (
 
 	"github.com/pterm/pterm"
 	"github.com/spf13/cobra"
+	"github.com/terraconstructs/grid/cmd/gridctl/internal/config"
 	"github.com/terraconstructs/grid/cmd/gridctl/internal/dirctx"
 	"github.com/terraconstructs/grid/pkg/sdk"
 )
@@ -30,6 +31,8 @@ If --output is not specified, an interactive prompt will show available outputs.
 If --to is not specified, the .grid context will be used (if available).`,
 	Args: cobra.NoArgs,
 	RunE: func(cobraCmd *cobra.Command, args []string) error {
+		cfg := config.MustFromContext(cobraCmd.Context())
+
 		fromLogicID := strings.TrimSpace(addFromLogicID)
 		fromOutput := strings.TrimSpace(addFromOutput)
 		toLogicID := strings.TrimSpace(addToLogicID)
@@ -72,7 +75,7 @@ If --to is not specified, the .grid context will be used (if available).`,
 			}
 
 			// Prompt user to select outputs
-			selectedKeys, err := promptSelectOutputs(outputs)
+			selectedKeys, err := promptSelectOutputs(outputs, cfg.NonInteractive)
 			if err != nil {
 				return err
 			}
@@ -123,9 +126,9 @@ If --to is not specified, the .grid context will be used (if available).`,
 
 func init() {
 	addCmd.Flags().StringVar(&addFromLogicID, "from", "", "Producer state logic ID (required)")
-	addCmd.Flags().StringVar(&addFromOutput, "output", "", "Producer output key (optional, will prompt if not provided)")
+	addCmd.Flags().StringVarP(&addFromOutput, "output", "o", "", "Producer output key (optional, will prompt if not provided)")
 	addCmd.Flags().StringVar(&addToLogicID, "to", "", "Consumer state logic ID (optional, uses .grid context if available)")
-	addCmd.Flags().StringVar(&addToInputName, "to-input", "", "Input variable name in consumer state (optional)")
+	addCmd.Flags().StringVarP(&addToInputName, "input", "i", "", "Input variable name in consumer state (optional)")
 	addCmd.Flags().StringVar(&addMockValue, "mock", "", "Mock value JSON for initial state (optional)")
 	_ = addCmd.MarkFlagRequired("from")
 	// --output and --to are no longer required (will prompt/use context if not provided)
@@ -133,8 +136,8 @@ func init() {
 
 // promptSelectOutputs displays an interactive multi-select prompt for output keys
 // Returns selected output keys, or error if in non-interactive mode without explicit selection
-func promptSelectOutputs(outputs []sdk.OutputKey) ([]string, error) {
-	if NonInteractive {
+func promptSelectOutputs(outputs []sdk.OutputKey, nonInteractive bool) ([]string, error) {
+	if nonInteractive {
 		return nil, fmt.Errorf("cannot prompt in non-interactive mode: specify --output explicitly")
 	}
 

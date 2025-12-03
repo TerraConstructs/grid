@@ -48,6 +48,6 @@ var importCmd = &cobra.Command{
 }
 
 func init() {
-	importCmd.Flags().String("file", "roles.json", "Input file for imported roles")
+	importCmd.Flags().StringP("file", "f", "roles.json", "Input file for imported roles")
 	importCmd.Flags().Bool("force", false, "Overwrite existing roles")
 }

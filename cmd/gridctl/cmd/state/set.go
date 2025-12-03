@@ -97,5 +97,5 @@ support key=value for upserts and -key for removals. Defaults to the .grid conte
 func init() {
 	setCmd.Flags().StringVar(&setLogicID, "logic-id", "", "State logic ID (overrides context)")
 	setCmd.Flags().StringVar(&setGUID, "guid", "", "State GUID (overrides context)")
-	setCmd.Flags().StringArrayVar(&setLabelArgs, "label", nil, "Label mutation: key=value to upsert, -key to remove")
+	setCmd.Flags().StringArrayVarP(&setLabelArgs, "label", "l", nil, "Label mutation: key=value to upsert, -key to remove")
 }

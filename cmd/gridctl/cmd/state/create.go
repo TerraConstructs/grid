@@ -1,19 +1,29 @@
 package state
 
 import (
+	"bufio"
 	"context"
+	_ "embed"
 	"fmt"
+	"os"
+	"strings"
+	"text/template"
 	"time"
 
 	"github.com/google/uuid"
 	"github.com/pterm/pterm"
 	"github.com/spf13/cobra"
+	"github.com/terraconstructs/grid/cmd/gridctl/internal/config"
 	"github.com/terraconstructs/grid/cmd/gridctl/internal/dirctx"
 	"github.com/terraconstructs/grid/pkg/sdk"
 )
 
+//go:embed templates/backend.hcl.tmpl
+var backendTemplateCreate string
+
 var (
 	createForce     bool
+	createInit      bool
 	createLabelArgs []string
 )
 
@@ -27,6 +37,8 @@ A .grid context file is created in the current directory to remember this state.
 If logic-id is not provided, the .grid context will be used (if available).`,
 	Args: cobra.MaximumNArgs(1),
 	RunE: func(cobraCmd *cobra.Command, args []string) error {
+		cfg := config.MustFromContext(cobraCmd.Context())
+
 		// Get logic-id from arg or .grid context
 		var logicID string
 		if len(args) == 1 {
@@ -104,7 +116,7 @@ If logic-id is not provided, the .grid context will be used (if available).`,
 			Version:      dirctx.GridFileVersion,
 			StateGUID:    state.GUID,
 			StateLogicID: state.LogicID,
-			ServerURL:    ServerURL,
+			ServerURL:    cfg.ServerURL,
 			CreatedAt:    now,
 			UpdatedAt:    now,
 		}
@@ -118,11 +130,73 @@ If logic-id is not provided, the .grid context will be used (if available).`,
 			pterm.Info.Println("Subsequent commands in this directory will use this state automatically")
 		}
 
+		// If --init flag is set, generate backend.tf
+		if createInit {
+			if err := generateBackendFile(state.BackendConfig, cfg.NonInteractive); err != nil {
+				return fmt.Errorf("failed to generate backend.tf: %w", err)
+			}
+		}
+
 		return nil
 	},
 }
 
+// generateBackendFile creates backend.tf from the backend config
+func generateBackendFile(backendCfg sdk.BackendConfig, nonInteractive bool) error {
+	filename := "backend.tf"
+
+	// Check if backend.tf already exists
+	if _, err := os.Stat(filename); err == nil {
+		// File exists, prompt for overwrite unless in non-interactive mode
+		if !nonInteractive {
+			fmt.Printf("File %s already exists. Overwrite? (y/n): ", filename)
+			reader := bufio.NewReader(os.Stdin)
+			response, err := reader.ReadString('\n')
+			if err != nil {
+				return fmt.Errorf("failed to read input: %w", err)
+			}
+			response = strings.ToLower(strings.TrimSpace(response))
+			if response != "y" && response != "yes" {
+				fmt.Println("Skipped backend.tf generation.")
+				return nil
+			}
+		}
+	}
+
+	// Parse and render template
+	tmpl, err := template.New("backend").Parse(backendTemplateCreate)
+	if err != nil {
+		return fmt.Errorf("failed to parse template: %w", err)
+	}
+
+	f, err := os.Create(filename)
+	if err != nil {
+		return fmt.Errorf("failed to create file: %w", err)
+	}
+	defer func() { _ = f.Close() }()
+
+	data := struct {
+		Address       string
+		LockAddress   string
+		UnlockAddress string
+	}{
+		Address:       backendCfg.Address,
+		LockAddress:   backendCfg.LockAddress,
+		UnlockAddress: backendCfg.UnlockAddress,
+	}
+
+	if err := tmpl.Execute(f, data); err != nil {
+		return fmt.Errorf("failed to render template: %w", err)
+	}
+
+	pterm.Success.Printf("Created %s\n", filename)
+	fmt.Println("Run 'terraform init' or 'tofu init' to initialize the backend.")
+
+	return nil
+}
+
 func init() {
 	createCmd.Flags().BoolVar(&createForce, "force", false, "Overwrite existing .grid context file")
-	createCmd.Flags().StringArrayVar(&createLabelArgs, "label", nil, "Apply label (key=value). Repeatable. Prefix with -key to remove is unsupported for create")
+	createCmd.Flags().BoolVar(&createInit, "init", false, "Generate backend.tf file after creating state")
+	createCmd.Flags().StringArrayVarP(&createLabelArgs, "label", "l", nil, "Apply label (key=value). Repeatable. Prefix with -key to remove is unsupported for create")
 }

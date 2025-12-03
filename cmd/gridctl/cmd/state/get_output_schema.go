@@ -18,7 +18,7 @@ var (
 )
 
 var getOutputSchemaCmd = &cobra.Command{
-	Use:   "get-output-schema --key <key> [<logic-id>]",
+	Use:   "get-schema -k <key> [<logic-id>]",
 	Short: "Get JSON Schema for a state output",
 	Long: `Retrieves the JSON Schema definition for a specific state output.
 Returns empty if no schema has been set.
@@ -26,7 +26,7 @@ Uses .grid context if no state identifier is provided.`,
 	Args: cobra.MaximumNArgs(1),
 	RunE: func(cobraCmd *cobra.Command, args []string) error {
 		if getSchemaOutputKey == "" {
-			return fmt.Errorf("--key is required")
+			return fmt.Errorf("--key/-k is required")
 		}
 
 		// Build explicit reference from flags/args
@@ -100,6 +100,6 @@ Uses .grid context if no state identifier is provided.`,
 func init() {
 	getOutputSchemaCmd.Flags().StringVar(&getSchemaLogicID, "logic-id", "", "State logic ID")
 	getOutputSchemaCmd.Flags().StringVar(&getSchemaGUID, "guid", "", "State GUID")
-	getOutputSchemaCmd.Flags().StringVar(&getSchemaOutputKey, "key", "", "Output key name (required)")
+	getOutputSchemaCmd.Flags().StringVarP(&getSchemaOutputKey, "key", "k", "", "Output key name (required)")
 	getOutputSchemaCmd.MarkFlagRequired("key")
 }

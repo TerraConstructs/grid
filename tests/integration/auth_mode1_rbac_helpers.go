@@ -17,11 +17,11 @@ import (
 func removeGroupRoleInGrid(t *testing.T, bearerToken, groupName, roleName string) {
 	t.Helper()
 
-	// Use gridctl role remove-group command with bearer token
+	// Use gridctl role remove command with bearer token
 	cmd := exec.Command("../../bin/gridctl",
 		"--server", serverURL,
 		"--token", bearerToken,
-		"role", "remove-group", groupName, roleName)
+		"role", "remove", groupName, roleName)
 
 	output, err := cmd.CombinedOutput()
 	outputStr := string(output)
@@ -46,11 +46,11 @@ func removeGroupRoleInGrid(t *testing.T, bearerToken, groupName, roleName string
 func assignGroupRoleInGrid(t *testing.T, bearerToken, groupName, roleName string) {
 	t.Helper()
 
-	// Use gridctl role assign-group command with bearer token
+	// Use gridctl role assign command with bearer token
 	cmd := exec.Command("../../bin/gridctl",
 		"--server", serverURL,
 		"--token", bearerToken,
-		"role", "assign-group", groupName, roleName)
+		"role", "assign", groupName, roleName)
 
 	output, err := cmd.CombinedOutput()
 
@@ -67,7 +67,7 @@ func assignGroupRoleInGrid(t *testing.T, bearerToken, groupName, roleName string
 			return
 		}
 		// Otherwise, fail the test
-		require.NoError(t, err, "gridctl role assign-group failed: %s", outputStr)
+		require.NoError(t, err, "gridctl role assign failed: %s", outputStr)
 	}
 
 	t.Logf("✓ Assigned group '%s' → role '%s'", groupName, roleName)

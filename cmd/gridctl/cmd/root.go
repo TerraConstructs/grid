@@ -6,19 +6,19 @@ import (
 
 	"github.com/spf13/cobra"
 	"github.com/terraconstructs/grid/cmd/gridctl/cmd/auth"
-	"github.com/terraconstructs/grid/cmd/gridctl/cmd/deps"
+	"github.com/terraconstructs/grid/cmd/gridctl/cmd/dep"
 	"github.com/terraconstructs/grid/cmd/gridctl/cmd/policy"
 	"github.com/terraconstructs/grid/cmd/gridctl/cmd/role"
 	"github.com/terraconstructs/grid/cmd/gridctl/cmd/state"
 	"github.com/terraconstructs/grid/cmd/gridctl/cmd/tf"
 	internalclient "github.com/terraconstructs/grid/cmd/gridctl/internal/client"
+	"github.com/terraconstructs/grid/cmd/gridctl/internal/config"
 )
 
 var (
 	serverURL      string
 	nonInteractive bool
 	bearerToken    string
-	clientProvider *internalclient.Provider
 )
 
 // Version information (set by main package via SetVersion)
@@ -47,32 +47,24 @@ system for Terraform and OpenTofu. Use it to create, list, and initialize states
 			}
 		}
 
-		clientProvider = internalclient.NewProvider(serverURL)
+		// Create client provider
+		clientProvider := internalclient.NewProvider(serverURL)
 
 		// Inject bearer token if provided (bypasses credential store)
 		if bearerToken != "" {
 			clientProvider.SetBearerToken(bearerToken)
 		}
 
-		// Propagate flags to subcommands
-		state.SetServerURL(serverURL)
-		state.SetNonInteractive(nonInteractive)
-		state.SetClientProvider(clientProvider)
-		deps.SetServerURL(serverURL)
-		deps.SetNonInteractive(nonInteractive)
-		deps.SetClientProvider(clientProvider)
-		policy.SetServerURL(serverURL)
-		policy.SetNonInteractive(nonInteractive)
-		policy.SetClientProvider(clientProvider)
-		auth.SetServerURL(serverURL)
-		auth.SetNonInteractive(nonInteractive)
-		auth.SetClientProvider(clientProvider)
-		role.SetServerURL(serverURL)
-		role.SetNonInteractive(nonInteractive)
-		role.SetClientProvider(clientProvider)
-		tf.SetServerURL(serverURL)
-		tf.SetNonInteractive(nonInteractive)
-		tf.SetClientProvider(clientProvider)
+		// Create global config and inject into cobra command context
+		cfg := &config.GlobalConfig{
+			ServerURL:      serverURL,
+			NonInteractive: nonInteractive,
+			ClientProvider: clientProvider,
+		}
+
+		// Inject config into context for all subcommands
+		ctx := config.InjectConfig(cmd.Context(), cfg)
+		cmd.SetContext(ctx)
 	},
 }
 
@@ -89,7 +81,7 @@ func init() {
 	rootCmd.PersistentFlags().BoolVar(&nonInteractive, "non-interactive", false, "Disable interactive prompts (also set via GRID_NON_INTERACTIVE=1)")
 	rootCmd.PersistentFlags().StringVar(&bearerToken, "token", "", "Bearer token for authentication (bypasses credential store, also set via GRID_BEARER_TOKEN)")
 	rootCmd.AddCommand(state.StateCmd)
-	rootCmd.AddCommand(deps.DepsCmd)
+	rootCmd.AddCommand(dep.DepCmd)
 	rootCmd.AddCommand(policy.PolicyCmd)
 	rootCmd.AddCommand(auth.AuthCmd)
 	rootCmd.AddCommand(role.RoleCmd)

@@ -359,14 +359,14 @@ func TestSchemaWithGridctl(t *testing.T) {
 	require.NoError(t, err)
 
 	// Set schema via CLI
-	setOutput := mustRunGridctl(t, ctx, "", "state", "set-output-schema",
+	setOutput := mustRunGridctl(t, ctx, "", "state", "set-schema",
 		"--logic-id", logicID,
 		"--key", "vpc_id",
-		"--schema-file", schemaPath)
+		"--file", schemaPath)
 	assert.Contains(t, setOutput, "Set schema for output 'vpc_id'", "Schema should be set")
 
 	// Get schema via CLI
-	getOutput := mustRunGridctlStdOut(t, ctx, "", "state", "get-output-schema",
+	getOutput := mustRunGridctlStdOut(t, ctx, "", "state", "get-schema",
 		"--logic-id", logicID,
 		"--key", "vpc_id")
 
