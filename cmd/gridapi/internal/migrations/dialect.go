@@ -2,9 +2,9 @@ package migrations
 
 import "github.com/uptrace/bun"
 
-// GetDialectName returns the database dialect name
+// GetDialectName returns the database dialect name as a string
 func GetDialectName(db *bun.DB) string {
-	return db.Dialect().Name()
+	return string(db.Dialect().Name())
 }
 
 // IsSQLite checks if the database is SQLite

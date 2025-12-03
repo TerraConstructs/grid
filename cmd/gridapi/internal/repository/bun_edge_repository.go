@@ -246,7 +246,7 @@ func (r *BunEdgeRepository) WouldCreateCycle(ctx context.Context, fromState, toS
 	var err error
 
 	// Database-specific query (PostgreSQL uses ::uuid casting, SQLite doesn't)
-	dialectName := r.db.Dialect().Name()
+	dialectName := string(r.db.Dialect().Name())
 
 	if dialectName == "sqlite" {
 		// SQLite: WITH RECURSIVE is supported, but without ::uuid casting
