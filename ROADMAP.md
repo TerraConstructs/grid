@@ -1,0 +1,6 @@
+- [ ] Observability:
+  - [ ] Logging Library
+  - [ ] OTEL Support for Logs, Tracing and Metrics
+-  [ ] SQLite Improvements:
+  - [ ] Add litestream support to replicate sqlite db to s3 for durability
+  - [ ] Reference: [opentaco](https://github.com/diggerhq/digger/pull/2265/files#top)

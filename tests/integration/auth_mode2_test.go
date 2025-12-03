@@ -14,9 +14,9 @@
 //
 //	```bash
 //	cd tests/integration
-//	export OIDC_ISSUER="http://localhost:8080"
-//	export OIDC_CLIENT_ID="gridapi"
-//	export OIDC_SIGNING_KEY_PATH="tmp/keys/signing-key.pem"
+//	export GRID_OIDC_ISSUER="http://localhost:8080"
+//	export GRID_OIDC_CLIENT_ID="gridapi"
+//	export GRID_OIDC_SIGNING_KEY_PATH="tmp/keys/signing-key.pem"
 //	go test -v -run "TestMode2"
 //	```
 //
@@ -93,10 +93,10 @@ func isMode2Configured(t *testing.T) bool {
 // setupMode2Environment configures environment variables for Mode 2 (Internal IdP)
 func setupMode2Environment(t *testing.T) {
 	t.Helper()
-	os.Setenv("OIDC_ISSUER", "http://localhost:8080")
-	os.Setenv("OIDC_CLIENT_ID", "gridapi")
-	os.Setenv("OIDC_SIGNING_KEY_PATH", mode2SigningKeyPath)
-	t.Logf("Mode 2 environment configured: OIDC_ISSUER=http://localhost:8080, OIDC_SIGNING_KEY_PATH=%s", mode2SigningKeyPath)
+	os.Setenv("GRID_OIDC_ISSUER", "http://localhost:8080")
+	os.Setenv("GRID_OIDC_CLIENT_ID", "gridapi")
+	os.Setenv("GRID_OIDC_SIGNING_KEY_PATH", mode2SigningKeyPath)
+	t.Logf("Mode 2 environment configured: GRID_OIDC_ISSUER=http://localhost:8080, GRID_OIDC_SIGNING_KEY_PATH=%s", mode2SigningKeyPath)
 }
 
 // createServiceAccountBootstrap uses the gridapi sa create command (bootstrap pattern)
@@ -208,7 +208,7 @@ func TestMode2_SigningKeyGeneration(t *testing.T) {
 	verifyAuthEnabled(t, "Mode 2")
 
 	if !isMode2Configured(t) {
-		t.Skip("Server not configured for Mode 2 (Internal IdP). Run tests with OIDC_ISSUER=http://localhost:8080")
+		t.Skip("Server not configured for Mode 2 (Internal IdP). Run tests with GRID_OIDC_ISSUER=http://localhost:8080")
 	}
 
 	setupMode2Environment(t)
@@ -252,7 +252,7 @@ func TestMode2_ServiceAccountBootstrap(t *testing.T) {
 	verifyAuthEnabled(t, "Mode 2")
 
 	if !isMode2Configured(t) {
-		t.Skip("Server not configured for Mode 2 (Internal IdP). Run tests with OIDC_ISSUER=http://localhost:8080")
+		t.Skip("Server not configured for Mode 2 (Internal IdP). Run tests with GRID_OIDC_ISSUER=http://localhost:8080")
 	}
 
 	setupMode2Environment(t)
@@ -283,7 +283,7 @@ func TestMode2_ServiceAccountAuthentication(t *testing.T) {
 	verifyAuthEnabled(t, "Mode 2")
 
 	if !isMode2Configured(t) {
-		t.Skip("Server not configured for Mode 2 (Internal IdP). Run tests with OIDC_ISSUER=http://localhost:8080")
+		t.Skip("Server not configured for Mode 2 (Internal IdP). Run tests with GRID_OIDC_ISSUER=http://localhost:8080")
 	}
 
 	setupMode2Environment(t)
@@ -337,7 +337,7 @@ func TestMode2_AuthenticatedAPICall(t *testing.T) {
 	verifyAuthEnabled(t, "Mode 2")
 
 	if !isMode2Configured(t) {
-		t.Skip("Server not configured for Mode 2 (Internal IdP). Run tests with OIDC_ISSUER=http://localhost:8080")
+		t.Skip("Server not configured for Mode 2 (Internal IdP). Run tests with GRID_OIDC_ISSUER=http://localhost:8080")
 	}
 
 	setupMode2Environment(t)
@@ -387,7 +387,7 @@ func TestMode2_JWTRevocation(t *testing.T) {
 	verifyAuthEnabled(t, "Mode 2")
 
 	if !isMode2Configured(t) {
-		t.Skip("Server not configured for Mode 2 (Internal IdP). Run tests with OIDC_ISSUER=http://localhost:8080")
+		t.Skip("Server not configured for Mode 2 (Internal IdP). Run tests with GRID_OIDC_ISSUER=http://localhost:8080")
 	}
 
 	setupMode2Environment(t)
@@ -883,8 +883,8 @@ func TestMode2_WebAuth_AuthConfig(t *testing.T) {
 
 	// Verify Mode 2 configuration
 	require.Equal(t, "internal-idp", config.Mode, "Mode should be 'internal-idp'")
-	require.Equal(t, "http://localhost:8080", config.Issuer, "Issuer should match OIDC_ISSUER")
-	require.Equal(t, "gridapi", config.ClientID, "ClientID should match OIDC_CLIENT_ID")
+	require.Equal(t, "http://localhost:8080", config.Issuer, "Issuer should match GRID_OIDC_ISSUER")
+	require.Equal(t, "gridapi", config.ClientID, "ClientID should match GRID_OIDC_CLIENT_ID")
 	require.NotEmpty(t, config.Audience, "Audience should be set")
 
 	t.Logf("✓ Auth config verified: mode=%s, issuer=%s, clientId=%s",

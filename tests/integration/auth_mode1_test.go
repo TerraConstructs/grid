@@ -16,10 +16,10 @@
 //
 //	```bash
 //	cd tests/integration
-//	export EXTERNAL_IDP_ISSUER="http://localhost:8443/realms/grid"
-//	export EXTERNAL_IDP_CLIENT_ID="grid-api"
-//	export EXTERNAL_IDP_CLIENT_SECRET="<keycloak-client-secret>"
-//	export EXTERNAL_IDP_REDIRECT_URI="http://localhost:8080/auth/sso/callback"
+//	export GRID_OIDC_EXTERNAL_IDP_ISSUER="http://localhost:8443/realms/grid"
+//	export GRID_OIDC_EXTERNAL_IDP_CLIENT_ID="grid-api"
+//	export GRID_OIDC_EXTERNAL_IDP_CLIENT_SECRET="<keycloak-client-secret>"
+//	export GRID_OIDC_EXTERNAL_IDP_REDIRECT_URI="http://localhost:8080/auth/sso/callback"
 //	go test -v -run "TestMode1"
 //	```
 //
@@ -708,11 +708,11 @@ func TestMode1_SSO_UserAuth(t *testing.T) {
 
 	// Step 2: Authenticate as user Alice via password grant
 	t.Log("Step 2: Authenticating user alice@example.com via password grant...")
-	clientID := os.Getenv("EXTERNAL_IDP_CLIENT_ID")
-	clientSecret := os.Getenv("EXTERNAL_IDP_CLIENT_SECRET")
+	clientID := os.Getenv("GRID_OIDC_EXTERNAL_IDP_CLIENT_ID")
+	clientSecret := os.Getenv("GRID_OIDC_EXTERNAL_IDP_CLIENT_SECRET")
 
 	if clientID == "" || clientSecret == "" {
-		t.Skip("EXTERNAL_IDP_CLIENT_ID and EXTERNAL_IDP_CLIENT_SECRET must be set")
+		t.Skip("GRID_OIDC_EXTERNAL_IDP_CLIENT_ID and GRID_OIDC_EXTERNAL_IDP_CLIENT_SECRET must be set")
 	}
 
 	tokenResp := authenticateUserWithPassword(t, clientID, clientSecret, "alice@example.com", "test123")
@@ -791,7 +791,7 @@ func TestMode1_GroupRoleMapping(t *testing.T) {
 	t.Log("Step 2: Authenticating as admin to configure group→role mappings...")
 
 	// Use MODE1_TEST_CLIENT_ID (integration-tests) for admin operations
-	// EXTERNAL_IDP_CLIENT_ID (grid-api) is the resource server client, not for test operations
+	// GRID_OIDC_EXTERNAL_IDP_CLIENT_ID (grid-api) is the resource server client, not for test operations
 	testClientID := os.Getenv("MODE1_TEST_CLIENT_ID")
 	testClientSecret := os.Getenv("MODE1_TEST_CLIENT_SECRET")
 
@@ -805,10 +805,10 @@ func TestMode1_GroupRoleMapping(t *testing.T) {
 
 	// Step 3: Authenticate as user Alice (who is in product-engineers group)
 	t.Log("Step 3: Authenticating as alice@example.com...")
-	// For user password grant, we must use EXTERNAL_IDP_CLIENT_ID (grid-api) because it has directAccessGrantsEnabled: true
+	// For user password grant, we must use GRID_OIDC_EXTERNAL_IDP_CLIENT_ID (grid-api) because it has directAccessGrantsEnabled: true
 	// The integration-tests client does NOT support password grant (only client credentials)
-	userClientID := os.Getenv("EXTERNAL_IDP_CLIENT_ID")
-	userClientSecret := os.Getenv("EXTERNAL_IDP_CLIENT_SECRET")
+	userClientID := os.Getenv("GRID_OIDC_EXTERNAL_IDP_CLIENT_ID")
+	userClientSecret := os.Getenv("GRID_OIDC_EXTERNAL_IDP_CLIENT_SECRET")
 	userTokenResp := authenticateUserWithPassword(t, userClientID, userClientSecret, "alice@example.com", "test123")
 	require.NotEmpty(t, userTokenResp.AccessToken, "User token should not be empty")
 
@@ -940,9 +940,9 @@ func TestMode1_GroupRoleMapping_UnionSemantics(t *testing.T) {
 
 	// Step 5: Authenticate Alice (she should now have both groups)
 	t.Log("Step 5: Authenticating Alice...")
-	// For user password grant, use EXTERNAL_IDP_CLIENT_ID (grid-api) which supports password grant
-	userClientID := os.Getenv("EXTERNAL_IDP_CLIENT_ID")
-	userClientSecret := os.Getenv("EXTERNAL_IDP_CLIENT_SECRET")
+	// For user password grant, use GRID_OIDC_EXTERNAL_IDP_CLIENT_ID (grid-api) which supports password grant
+	userClientID := os.Getenv("GRID_OIDC_EXTERNAL_IDP_CLIENT_ID")
+	userClientSecret := os.Getenv("GRID_OIDC_EXTERNAL_IDP_CLIENT_SECRET")
 	userTokenResp := authenticateUserWithPassword(t, userClientID, userClientSecret, "alice@example.com", "test123")
 	require.NotEmpty(t, userTokenResp.AccessToken)
 

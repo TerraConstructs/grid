@@ -37,6 +37,12 @@ cd "${PROJECT_ROOT}"
 GRIDAPI_PID_FILE="/tmp/grid-e2e-no-auth-gridapi.pid"
 WEBAPP_PID_FILE="/tmp/grid-e2e-no-auth-webapp.pid"
 
+DB_URL="postgres://grid:gridpass@localhost:5432/grid?sslmode=disable"
+SERVER_URL="http://localhost:8080"
+
+export GRID_DATABASE_URL="${DB_URL}"
+export GRID_SERVER_URL="${SERVER_URL}"
+
 # Cleanup function to kill background processes on exit
 cleanup() {
     log_info "Cleaning up E2E no-auth test services..."
@@ -99,9 +105,11 @@ fi
 #
 log_info "and running migrations..."
 "${PROJECT_ROOT}/bin/gridapi" db init \
-    --db-url="postgres://grid:gridpass@localhost:5432/grid?sslmode=disable" || true
+    --db-url="${DB_URL}" \
+    --server-url="${SERVER_URL}" || true
 "${PROJECT_ROOT}/bin/gridapi" db migrate \
-    --db-url="postgres://grid:gridpass@localhost:5432/grid?sslmode=disable"
+    --db-url="${DB_URL}" \
+    --server-url="${SERVER_URL}"
 
 #
 # Step 4: Start gridapi server (No-Auth Mode)
@@ -109,12 +117,14 @@ log_info "and running migrations..."
 log_info "Starting gridapi server in no-auth mode..."
 
 # Unset any potential auth-related env vars
-unset EXTERNAL_IDP_ISSUER EXTERNAL_IDP_CLIENT_ID EXTERNAL_IDP_CLIENT_SECRET EXTERNAL_IDP_REDIRECT_URI OIDC_ISSUER
+unset GRID_OIDC_ISSUER GRID_OIDC_CLIENT_ID GRID_OIDC_SIGNING_KEY_PATH
+unset GRID_OIDC_EXTERNAL_IDP_ISSUER GRID_OIDC_EXTERNAL_IDP_CLIENT_ID GRID_OIDC_EXTERNAL_IDP_CLIENT_SECRET GRID_OIDC_EXTERNAL_IDP_REDIRECT_URI
 
 # Start gridapi in background
 "${PROJECT_ROOT}/bin/gridapi" serve \
     --server-addr ":8080" \
-    --db-url "postgres://grid:gridpass@localhost:5432/grid?sslmode=disable" \
+    --db-url "${DB_URL}" \
+    --server-url "${SERVER_URL}" \
     > /tmp/grid-e2e-no-auth-gridapi.log 2>&1 &
 
 GRIDAPI_PID=$!

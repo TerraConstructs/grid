@@ -133,14 +133,81 @@ make db-reset           # Fresh database (removes volumes)
 ./bin/gridapi db migrate --db-url="postgres://grid:gridpass@localhost:5432/grid?sslmode=disable"
 ```
 
-### Running the Server
-```bash
-./bin/gridapi serve --server-addr :8080 --db-url "postgres://grid:gridpass@localhost:5432/grid?sslmode=disable"
+### Configuration
 
-# Or with environment variables
-export DATABASE_URL="postgres://grid:gridpass@localhost:5432/grid?sslmode=disable"
-export SERVER_ADDR="localhost:8080"
+GridAPI supports three configuration methods (in precedence order):
+1. **CLI Flags** (highest - overrides everything)
+2. **Environment Variables** (prefixed with `GRID_`)
+3. **Config File** (YAML/JSON/TOML, auto-discovered in current dir, `~/.grid/`, or `/etc/grid/`)
+4. **Defaults** (lowest)
+
+#### Running with Config File (Recommended)
+```bash
+# Place gridapi.yaml in current directory or ~/.grid/config.yaml
 ./bin/gridapi serve
+
+# Or specify explicit config file
+./bin/gridapi serve --config /etc/grid/gridapi.yaml
+```
+
+Example config file (`gridapi.yaml`):
+```yaml
+database_url: "postgres://grid:gridpass@localhost:5432/grid?sslmode=disable"
+server_addr: "localhost:8080"
+server_url: "http://localhost:8080"
+debug: false
+oidc:
+  # Internal IdP mode (Grid issues its own tokens)
+  # issuer: "https://grid.example.com"
+  # client_id: "grid-api"
+  # signing_key_path: "/var/lib/grid/oidc-keys"
+```
+
+#### Running with Environment Variables
+```bash
+export GRID_DATABASE_URL="postgres://grid:gridpass@localhost:5432/grid?sslmode=disable"
+export GRID_SERVER_ADDR="localhost:8080"
+export GRID_SERVER_URL="http://localhost:8080"
+./bin/gridapi serve
+```
+
+**Supported Environment Variables:**
+- `GRID_DATABASE_URL` - Database connection URL (required)
+- `GRID_SERVER_ADDR` - Server bind address (default: `localhost:8080`)
+- `GRID_SERVER_URL` - Server base URL (required, used in Terraform backend config)
+- `GRID_MAX_DB_CONNECTIONS` - Max DB pool size (default: 25)
+- `GRID_DEBUG` - Enable debug logging (default: false)
+- `GRID_CACHE_REFRESH_INTERVAL` - IAM cache refresh interval (default: `5m`)
+- `GRID_OIDC_ISSUER` - Internal IdP issuer URL
+- `GRID_OIDC_CLIENT_ID` - Internal IdP client ID
+- `GRID_OIDC_SIGNING_KEY_PATH` - Internal IdP signing key path
+- `GRID_OIDC_EXTERNAL_IDP_ISSUER` - External IdP issuer (mutually exclusive with internal IdP)
+- `GRID_OIDC_EXTERNAL_IDP_CLIENT_ID` - External IdP confidential client ID
+- `GRID_OIDC_EXTERNAL_IDP_CLI_CLIENT_ID` - External IdP CLI client ID (default: `gridctl`)
+- `GRID_OIDC_EXTERNAL_IDP_CLIENT_SECRET` - External IdP client secret
+- `GRID_OIDC_EXTERNAL_IDP_REDIRECT_URI` - External IdP redirect URI
+- `GRID_OIDC_GROUPS_CLAIM` - JWT groups claim field (default: `groups`)
+- `GRID_OIDC_GROUPS_CLAIM_PATH` - Nested group extraction path (optional)
+- `GRID_OIDC_USER_ID_CLAIM` - JWT user ID claim field (default: `sub`)
+- `GRID_OIDC_EMAIL_CLAIM` - JWT email claim field (default: `email`)
+
+#### Running with CLI Flags
+```bash
+./bin/gridapi serve \
+  --db-url "postgres://grid:gridpass@localhost:5432/grid?sslmode=disable" \
+  --server-addr "localhost:8080" \
+  --server-url "http://localhost:8080" \
+  --debug
+```
+
+#### Mixing Configuration Methods
+Flags override environment variables, which override config files:
+```bash
+# Use config file as base, override with env var, override with flag
+echo "database_url: postgres://default/db" > gridapi.yaml
+export GRID_SERVER_ADDR="0.0.0.0:9000"
+./bin/gridapi serve --config gridapi.yaml --server-url "http://override:9000"
+# Result: Uses gridapi.yaml, but server_addr from env (0.0.0.0:9000) and server_url from flag
 ```
 
 ### CLI Usage

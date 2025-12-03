@@ -9,6 +9,7 @@
   },
   "scripts": {
     "test:e2e": "playwright test",
+    "test:e2e:auth": "playwright test -c playwright.config.auth.ts",
     "test:e2e:auth:ui": "playwright test -c playwright.config.auth.ts --ui",
     "test:e2e:auth:debug": "playwright test -c playwright.config.auth.ts --debug",
     "test:e2e:auth:headed": "playwright test -c playwright.config.auth.ts --headed",

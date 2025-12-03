@@ -187,15 +187,14 @@ var serveCmd = &cobra.Command{
 
 			// Phase 7: Start background cache refresh goroutine
 			// Refreshes group→role cache periodically to pick up changes
-			// Default interval: 5 minutes (configurable via CACHE_REFRESH_INTERVAL)
-			refreshInterval := 5 * time.Minute
-			if intervalEnv := os.Getenv("CACHE_REFRESH_INTERVAL"); intervalEnv != "" {
-				if dur, err := time.ParseDuration(intervalEnv); err == nil {
-					refreshInterval = dur
-					log.Printf("Using custom cache refresh interval: %v", refreshInterval)
-				} else {
-					log.Printf("WARNING: Invalid CACHE_REFRESH_INTERVAL '%s', using default 5m", intervalEnv)
-				}
+			// Default interval: 5 minutes (configurable via GRID_CACHE_REFRESH_INTERVAL)
+			refreshInterval := cfg.CacheRefreshInterval
+			if refreshInterval > 0 {
+				log.Printf("Using cache refresh interval: %v", refreshInterval)
+			} else {
+				// Fallback if config somehow has invalid value
+				refreshInterval = 5 * time.Minute
+				log.Printf("WARNING: Invalid cache refresh interval, using default 5m")
 			}
 
 			// Create context for cache refresh goroutine
