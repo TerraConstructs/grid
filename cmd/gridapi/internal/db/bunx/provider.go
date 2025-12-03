@@ -78,9 +78,20 @@ func newSQLiteDB(dsn string) (*bun.DB, error) {
 		return nil, fmt.Errorf("failed to open sqlite database: %w", err)
 	}
 
-	// SQLite best practices: single writer connection
-	// Multiple readers are fine, but limit write concurrency
-	sqldb.SetMaxOpenConns(1)
+	// Configure connection pool based on database type
+	isInMemory := dsn == ":memory:" || strings.Contains(dsn, "mode=memory")
+
+	if isInMemory {
+		// In-memory database: Keep connections alive to prevent database destruction
+		// Critical: In-memory databases are destroyed when all connections close
+		sqldb.SetMaxOpenConns(1)      // Single connection for consistency
+		sqldb.SetMaxIdleConns(1)       // Keep the connection alive
+		sqldb.SetConnMaxLifetime(0)    // No connection expiry
+	} else {
+		// File-based database: Standard connection pool
+		sqldb.SetMaxOpenConns(1)       // Single writer for SQLite best practices
+		sqldb.SetMaxIdleConns(2)       // Allow some idle connections
+	}
 
 	// Create Bun DB with SQLite dialect
 	db := bun.NewDB(sqldb, sqlitedialect.New())
