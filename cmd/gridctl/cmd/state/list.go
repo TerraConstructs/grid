@@ -84,5 +84,5 @@ var (
 
 func init() {
 	listCmd.Flags().StringVar(&listFilter, "filter", "", "bexpr filter expression (e.g. env == \"prod\")")
-	listCmd.Flags().StringArrayVar(&listLabelFilterArgs, "label", nil, "Filter by label equality (key=value). Converted to bexpr AND expression")
+	listCmd.Flags().StringArrayVarP(&listLabelFilterArgs, "label", "l", nil, "Filter by label equality (key=value). Converted to bexpr AND expression")
 }
