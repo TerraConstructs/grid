@@ -3,8 +3,6 @@ package migrations
 import (
 	"github.com/uptrace/bun"
 	"github.com/uptrace/bun/dialect"
-	"github.com/uptrace/bun/dialect/pgdialect"
-	"github.com/uptrace/bun/dialect/sqlitedialect"
 )
 
 // IsSQLite checks if the database is SQLite
