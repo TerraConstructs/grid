@@ -105,7 +105,7 @@ Sleep 2s
 
 Type `cat null_resources.tf` Enter
 Sleep 5s
-Type `gridctl deps add --from network`
+Type `gridctl dep add --from network`
 Sleep 0.5s
 Enter
 Sleep 2s
@@ -115,7 +115,7 @@ Enter
 Sleep 1s
 Tab
 Sleep 2s
-Type `gridctl deps sync`
+Type `gridctl dep sync`
 Sleep 0.5s
 Enter
 Sleep 2s
@@ -139,12 +139,12 @@ Sleep 0.5s
 Enter
 Sleep 3s
 
-Type `gridctl deps list`
+Type `gridctl dep list`
 Sleep 0.5s
 Enter
 Sleep 3s
 
-Type `gridctl deps topo --direction upstream`
+Type `gridctl dep topo --direction upstream`
 Sleep 0.5s
 Enter
 Sleep 3s
@@ -183,7 +183,7 @@ Sleep 0.5s
 Enter
 Sleep 3s
 
-Type `gridctl deps list`
+Type `gridctl dep list`
 Sleep 0.5s
 Enter
 Sleep 3s
@@ -206,7 +206,7 @@ Type `yes`
 Sleep 0.5s
 Enter
 
-Type `gridctl deps list --state cluster`
+Type `gridctl dep list --state cluster`
 Sleep 0.5s
 Enter
 Sleep 3s
@@ -230,7 +230,7 @@ Type `yes`
 Sleep 0.5s
 Enter
 
-Type `gridctl deps list`
+Type `gridctl dep list`
 Sleep 0.5s
 Enter
 Sleep 3s

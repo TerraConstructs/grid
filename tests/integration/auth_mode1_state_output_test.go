@@ -469,10 +469,10 @@ func TestMode1_OutputSchemaAuthorization(t *testing.T) {
 
 	// Product engineer SHOULD be able to set schema on env=dev state
 	setSchemaCmd := exec.CommandContext(ctx, gridctlPath,
-		"state", "set-output-schema",
+		"state", "set-schema",
 		"--logic-id", logicID,
 		"--key", "vpc_id",
-		"--schema-file", schemaPath,
+		"--file", schemaPath,
 		"--server", serverURL,
 		"--token", userTokenResp.AccessToken)
 	setOutput, err := setSchemaCmd.CombinedOutput()
@@ -482,7 +482,7 @@ func TestMode1_OutputSchemaAuthorization(t *testing.T) {
 
 	// Product engineer SHOULD be able to get schema from env=dev state
 	getOutput := mustRunGridctlStdOut(t, ctx, "",
-		"state", "get-output-schema",
+		"state", "get-schema",
 		"--logic-id", logicID,
 		"--key", "vpc_id",
 		"--server", serverURL,
@@ -513,10 +513,10 @@ func TestMode1_OutputSchemaAuthorization(t *testing.T) {
 
 	// Admin sets schema on env=prod state
 	setProdSchemaCmd := exec.CommandContext(ctx, gridctlPath,
-		"state", "set-output-schema",
+		"state", "set-schema",
 		"--logic-id", prodLogicID,
 		"--key", "vpc_id",
-		"--schema-file", schemaPath,
+		"--file", schemaPath,
 		"--server", serverURL,
 		"--token", adminTokenResp.AccessToken)
 	setProdOutput, err := setProdSchemaCmd.CombinedOutput()
@@ -524,10 +524,10 @@ func TestMode1_OutputSchemaAuthorization(t *testing.T) {
 
 	// Product engineer should NOT be able to write schema to env=prod state
 	setUnauthorizedCmd := exec.CommandContext(ctx, gridctlPath,
-		"state", "set-output-schema",
+		"state", "set-schema",
 		"--logic-id", prodLogicID,
 		"--key", "vpc_cidr",
-		"--schema-file", schemaPath,
+		"--file", schemaPath,
 		"--server", serverURL,
 		"--token", userTokenResp.AccessToken)
 	setUnauthorizedOutput, err := setUnauthorizedCmd.CombinedOutput()
@@ -537,7 +537,7 @@ func TestMode1_OutputSchemaAuthorization(t *testing.T) {
 
 	// Product engineer should NOT be able to read schema from env=prod state
 	getUnauthorizedCmd := exec.CommandContext(ctx, gridctlPath,
-		"state", "get-output-schema",
+		"state", "get-schema",
 		"--logic-id", prodLogicID,
 		"--key", "vpc_id",
 		"--server", serverURL,
