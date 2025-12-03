@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/spf13/cobra"
+	"github.com/terraconstructs/grid/cmd/gridctl/internal/config"
 )
 
 var (
@@ -46,8 +47,10 @@ func init() {
 }
 
 func runExport(cmd *cobra.Command, args []string) error {
+	cfg := config.MustFromContext(cmd.Context())
+
 	// Load credentials from the provider
-	creds, err := clientProvider.Credentials()
+	creds, err := cfg.ClientProvider.Credentials()
 	if err != nil {
 		return fmt.Errorf("failed to load credentials: %w\n\nPlease run 'gridctl auth login' first", err)
 	}

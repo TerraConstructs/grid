@@ -8,6 +8,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/pterm/pterm"
 	"github.com/spf13/cobra"
+	"github.com/terraconstructs/grid/cmd/gridctl/internal/config"
 	"github.com/terraconstructs/grid/cmd/gridctl/internal/dirctx"
 	"github.com/terraconstructs/grid/pkg/sdk"
 )
@@ -27,6 +28,8 @@ A .grid context file is created in the current directory to remember this state.
 If logic-id is not provided, the .grid context will be used (if available).`,
 	Args: cobra.MaximumNArgs(1),
 	RunE: func(cobraCmd *cobra.Command, args []string) error {
+		cfg := config.MustFromContext(cobraCmd.Context())
+
 		// Get logic-id from arg or .grid context
 		var logicID string
 		if len(args) == 1 {
@@ -104,7 +107,7 @@ If logic-id is not provided, the .grid context will be used (if available).`,
 			Version:      dirctx.GridFileVersion,
 			StateGUID:    state.GUID,
 			StateLogicID: state.LogicID,
-			ServerURL:    ServerURL,
+			ServerURL:    cfg.ServerURL,
 			CreatedAt:    now,
 			UpdatedAt:    now,
 		}

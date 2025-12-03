@@ -10,6 +10,7 @@ import (
 
 	"github.com/pterm/pterm"
 	"github.com/spf13/cobra"
+	"github.com/terraconstructs/grid/cmd/gridctl/internal/config"
 	"github.com/terraconstructs/grid/cmd/gridctl/internal/dirctx"
 	"github.com/terraconstructs/grid/pkg/sdk"
 )
@@ -30,6 +31,8 @@ var getCmd = &cobra.Command{
 dependents, and outputs. Uses .grid context if no identifier is provided.`,
 	Args: cobra.MaximumNArgs(1),
 	RunE: func(cobraCmd *cobra.Command, args []string) error {
+		cfg := config.MustFromContext(cobraCmd.Context())
+
 		// Build explicit reference from flags/args
 		explicitRef := dirctx.StateRef{}
 		if getLogicID != "" {
@@ -83,7 +86,7 @@ dependents, and outputs. Uses .grid context if no identifier is provided.`,
 
 		// Handle --link flag: write .grid file
 		if getLink {
-			if err := linkDirectory(info, getPath, getForce); err != nil {
+			if err := linkDirectory(info, getPath, getForce, cfg.ServerURL); err != nil {
 				return err
 			}
 		}
@@ -93,7 +96,7 @@ dependents, and outputs. Uses .grid context if no identifier is provided.`,
 }
 
 // linkDirectory writes the .grid file to link a directory to a state
-func linkDirectory(info *sdk.StateInfo, path string, force bool) error {
+func linkDirectory(info *sdk.StateInfo, path string, force bool, serverURL string) error {
 	// Default to current directory
 	if path == "" {
 		path = "."
@@ -122,7 +125,7 @@ func linkDirectory(info *sdk.StateInfo, path string, force bool) error {
 		Version:      dirctx.GridFileVersion,
 		StateGUID:    info.State.GUID,
 		StateLogicID: info.State.LogicID,
-		ServerURL:    ServerURL,
+		ServerURL:    serverURL,
 		CreatedAt:    now,
 		UpdatedAt:    now,
 	}

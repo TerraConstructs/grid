@@ -8,6 +8,7 @@ import (
 
 	"github.com/pterm/pterm"
 	"github.com/spf13/cobra"
+	"github.com/terraconstructs/grid/cmd/gridctl/internal/config"
 	"github.com/terraconstructs/grid/cmd/gridctl/internal/dirctx"
 	"github.com/terraconstructs/grid/pkg/sdk"
 )
@@ -30,6 +31,8 @@ If --output is not specified, an interactive prompt will show available outputs.
 If --to is not specified, the .grid context will be used (if available).`,
 	Args: cobra.NoArgs,
 	RunE: func(cobraCmd *cobra.Command, args []string) error {
+		cfg := config.MustFromContext(cobraCmd.Context())
+
 		fromLogicID := strings.TrimSpace(addFromLogicID)
 		fromOutput := strings.TrimSpace(addFromOutput)
 		toLogicID := strings.TrimSpace(addToLogicID)
@@ -72,7 +75,7 @@ If --to is not specified, the .grid context will be used (if available).`,
 			}
 
 			// Prompt user to select outputs
-			selectedKeys, err := promptSelectOutputs(outputs)
+			selectedKeys, err := promptSelectOutputs(outputs, cfg.NonInteractive)
 			if err != nil {
 				return err
 			}
@@ -133,8 +136,8 @@ func init() {
 
 // promptSelectOutputs displays an interactive multi-select prompt for output keys
 // Returns selected output keys, or error if in non-interactive mode without explicit selection
-func promptSelectOutputs(outputs []sdk.OutputKey) ([]string, error) {
-	if NonInteractive {
+func promptSelectOutputs(outputs []sdk.OutputKey, nonInteractive bool) ([]string, error) {
+	if nonInteractive {
 		return nil, fmt.Errorf("cannot prompt in non-interactive mode: specify --output explicitly")
 	}
 

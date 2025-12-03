@@ -8,20 +8,13 @@ import (
 
 	"github.com/pterm/pterm"
 	"github.com/spf13/cobra"
-	"github.com/terraconstructs/grid/cmd/gridctl/internal/client"
+	"github.com/terraconstructs/grid/cmd/gridctl/internal/config"
 	"github.com/terraconstructs/grid/cmd/gridctl/internal/dirctx"
 	"github.com/terraconstructs/grid/pkg/sdk"
 	"github.com/terraconstructs/grid/pkg/sdk/terraform"
 )
 
 var (
-	// ServerURL is the Grid API server URL, set by the root command
-	ServerURL string
-	// NonInteractive controls whether interactive prompts are disabled
-	NonInteractive bool
-
-	clientProvider *client.Provider
-
 	// Command flags
 	tfBin      string
 	verbose    bool
@@ -63,23 +56,9 @@ func init() {
 	TfCmd.Flags().BoolVar(&verbose, "verbose", false, "Enable verbose output with redacted credentials")
 }
 
-// SetServerURL sets the server URL for the tf command
-func SetServerURL(url string) {
-	ServerURL = url
-}
-
-// SetNonInteractive sets the non-interactive mode for the tf command
-func SetNonInteractive(value bool) {
-	NonInteractive = value
-}
-
-// SetClientProvider injects the shared authenticated client provider
-func SetClientProvider(provider *client.Provider) {
-	clientProvider = provider
-}
-
 func runTfCommand(cmd *cobra.Command, args []string) error {
 	ctx := cmd.Context()
+	cfg := config.MustFromContext(ctx)
 	// Build explicit reference from flags/args
 	explicitRef := dirctx.StateRef{}
 	if getLogicID != "" {
@@ -146,15 +125,15 @@ func runTfCommand(cmd *cobra.Command, args []string) error {
 
 	// ignore error, wrapper will handle missing creds
 	var creds *sdk.Credentials
-	oidcEnabled, err := clientProvider.IsOIDCEnabled(ctx)
+	oidcEnabled, err := cfg.ClientProvider.IsOIDCEnabled(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to determine if OIDC is enabled: %w", err)
 	}
 	if oidcEnabled {
-		creds, _ = clientProvider.Credentials()
+		creds, _ = cfg.ClientProvider.Credentials()
 	}
 	err = terraform.Run(ctx, terraform.RunOptions{
-		ServerURL:      ServerURL,
+		ServerURL:      cfg.ServerURL,
 		BinaryOverride: tfBin,
 		Env:            backendEnv,
 		OIDCEnabled:    oidcEnabled,
@@ -168,8 +147,6 @@ func runTfCommand(cmd *cobra.Command, args []string) error {
 }
 
 func sdkClient(ctx context.Context) (*sdk.Client, error) {
-	if clientProvider == nil {
-		return nil, fmt.Errorf("client provider not configured")
-	}
-	return clientProvider.SDKClient(ctx)
+	cfg := config.MustFromContext(ctx)
+	return cfg.ClientProvider.SDKClient(ctx)
 }
