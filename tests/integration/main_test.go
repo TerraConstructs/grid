@@ -90,12 +90,11 @@ func startServer() error {
 	}
 
 	serverCmd = exec.Command(gridapiPath, "serve",
-		"--server-addr", ":8080",
-		"--db-url", dbURL)
+		"--server-addr", ":8080")
 
 	// Inherit environment variables from parent process
 	// This allows Mode 1 (EXTERNAL_IDP_*) and Mode 2 (OIDC_*) config to be passed through
-	serverCmd.Env = os.Environ()
+	serverCmd.Env = append(os.Environ(), "DATABASE_URL="+dbURL)
 
 	serverCmd.Stdout = os.Stdout
 	serverCmd.Stderr = os.Stderr
@@ -168,13 +167,19 @@ func bootstrapMode1TestUser() error {
 		}
 	}
 
+	// Use the same database URL that the server is using
+	dbURL := os.Getenv("GRIDAPI_DB_URL")
+	if dbURL == "" {
+		dbURL = "postgres://grid:gridpass@localhost:5432/grid?sslmode=disable"
+	}
+
 	// Bootstrap: "test-admins" group → platform-engineer role
 	cmd := exec.Command(gridapiPath, "iam", "bootstrap",
 		"--group", "test-admins",
 		"--role", "platform-engineer")
 
 	cmd.Env = append(os.Environ(),
-		"DATABASE_URL=postgres://grid:gridpass@localhost:5432/grid?sslmode=disable")
+		"DATABASE_URL="+dbURL)
 
 	output, err := cmd.CombinedOutput()
 	if err != nil {
