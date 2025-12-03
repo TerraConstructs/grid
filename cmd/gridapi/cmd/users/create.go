@@ -76,7 +76,7 @@ var createCmd = &cobra.Command{
 		}
 
 		if cfg.OIDC.Issuer == "" {
-			return fmt.Errorf("local users require OIDC internal IdP to be enabled (OIDC_ISSUER must be set)")
+			return fmt.Errorf("local users require OIDC internal IdP to be enabled (GRID_OIDC_ISSUER must be set)")
 		}
 
 		db, err := bunx.NewDB(cfg.DatabaseURL)

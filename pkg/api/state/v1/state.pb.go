@@ -6720,7 +6720,7 @@ const file_state_v1_state_proto_rawDesc = "" +
 	"\fListSessions\x12\x1d.state.v1.ListSessionsRequest\x1a\x1e.state.v1.ListSessionsResponse\x12P\n" +
 	"\rRevokeSession\x12\x1e.state.v1.RevokeSessionRequest\x1a\x1f.state.v1.RevokeSessionResponse\x12V\n" +
 	"\x0fSetOutputSchema\x12 .state.v1.SetOutputSchemaRequest\x1a!.state.v1.SetOutputSchemaResponse\x12V\n" +
-	"\x0fGetOutputSchema\x12 .state.v1.GetOutputSchemaRequest\x1a!.state.v1.GetOutputSchemaResponseB6Z4github.com/terraconstructs/grid/api/state/v1;statev1b\x06proto3"
+	"\x0fGetOutputSchema\x12 .state.v1.GetOutputSchemaRequest\x1a!.state.v1.GetOutputSchemaResponseB:Z8github.com/terraconstructs/grid/pkg/api/state/v1;statev1b\x06proto3"
 
 var (
 	file_state_v1_state_proto_rawDescOnce sync.Once

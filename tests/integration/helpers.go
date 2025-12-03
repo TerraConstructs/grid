@@ -127,8 +127,8 @@ func verifyAuthEnabled(t *testing.T, mode string) {
 			"all auth tests to silently pass without actually testing auth.\n"+
 			"\n"+
 			"Fix: Ensure environment variables are set correctly:\n"+
-			"  Mode 1: EXTERNAL_IDP_ISSUER, EXTERNAL_IDP_CLIENT_ID, EXTERNAL_IDP_CLIENT_SECRET\n"+
-			"  Mode 2: OIDC_ISSUER, OIDC_SIGNING_KEY_PATH\n"+
+			"  Mode 1: GRID_OIDC_EXTERNAL_IDP_ISSUER, GRID_OIDC_EXTERNAL_IDP_CLIENT_ID, GRID_OIDC_EXTERNAL_IDP_CLIENT_SECRET\n"+
+			"  Mode 2: GRID_OIDC_ISSUER, GRID_OIDC_SIGNING_KEY_PATH\n"+
 			"\n"+
 			"Check that main_test.go passes env vars to the server via serverCmd.Env",
 			health, mode)

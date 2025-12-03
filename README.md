@@ -13,13 +13,9 @@ Grid is a remote Terraform/OpenTofu state service paired with a friendly CLI tha
 - Go and TypeScript SDKs for programmatic access and automation
 
 ## Demo
-![Grid CLI demo showing dependency sync](demo/demo.gif)
+![Grid CLI demo showing dependency sync](examples/demo/demo.gif)
 
-The animated demo captures the full workflow: creating two Terraform states (`network` and `cluster`), wiring a dependency, syncing managed HCL, and listing states/dependencies. Regenerate it any time with:
-
-```bash
-./record.sh # from repo root
-```
+The animated demo captures the full workflow: creating two Terraform states (`network` and `cluster`), wiring a dependency, syncing managed HCL, and listing states/dependencies. Regenerate it any time with - see [demo/README.md](examples/demo/README.md).
 
 > [!IMPORTANT]
 > Requires `vhs` installed (see demo/README.md).

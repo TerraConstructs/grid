@@ -7,7 +7,7 @@ toolchain go1.24.4
 require (
 	connectrpc.com/connect v1.19.0
 	github.com/google/uuid v1.6.0
-	github.com/terraconstructs/grid/api v0.0.0
+	github.com/terraconstructs/grid/pkg/api v0.0.0
 	github.com/zitadel/oidc/v3 v3.45.0
 	golang.org/x/oauth2 v0.31.0
 	google.golang.org/protobuf v1.36.9
@@ -32,4 +32,4 @@ require (
 )
 
 // required until grid is published
-replace github.com/terraconstructs/grid/api v0.0.0 => ../../api
+replace github.com/terraconstructs/grid/pkg/api v0.0.0 => ../../pkg/api

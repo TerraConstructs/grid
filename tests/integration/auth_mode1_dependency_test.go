@@ -63,8 +63,8 @@ func TestMode1_DependencyAuthorization_HappyPath(t *testing.T) {
 
 	// Step 2: Authenticate as Alice (product-engineer)
 	t.Log("Step 2: Authenticating as alice@example.com...")
-	userClientID := os.Getenv("EXTERNAL_IDP_CLIENT_ID")
-	userClientSecret := os.Getenv("EXTERNAL_IDP_CLIENT_SECRET")
+	userClientID := os.Getenv("GRID_OIDC_EXTERNAL_IDP_CLIENT_ID")
+	userClientSecret := os.Getenv("GRID_OIDC_EXTERNAL_IDP_CLIENT_SECRET")
 	userTokenResp := authenticateUserWithPassword(t, userClientID, userClientSecret, "alice@example.com", "test123")
 
 	// Step 3: Create two states with env=dev labels
@@ -304,8 +304,8 @@ output "db_password" {
 
 	// Step 3: Authenticate as Alice (product-engineer with env=dev scope only)
 	t.Log("Step 3: Authenticating as alice@example.com (product-engineer)...")
-	userClientID := os.Getenv("EXTERNAL_IDP_CLIENT_ID")
-	userClientSecret := os.Getenv("EXTERNAL_IDP_CLIENT_SECRET")
+	userClientID := os.Getenv("GRID_OIDC_EXTERNAL_IDP_CLIENT_ID")
+	userClientSecret := os.Getenv("GRID_OIDC_EXTERNAL_IDP_CLIENT_SECRET")
 	userTokenResp := authenticateUserWithPassword(t, userClientID, userClientSecret, "alice@example.com", "test123")
 
 	// Step 4: Alice creates my-dev-app state with env=dev
@@ -375,8 +375,8 @@ func TestMode1_DependencyAuthorization_CrossScopeDestinationDenial(t *testing.T)
 
 	// Step 2: Authenticate as Alice (product-engineer)
 	t.Log("Step 2: Authenticating as alice@example.com...")
-	userClientID := os.Getenv("EXTERNAL_IDP_CLIENT_ID")
-	userClientSecret := os.Getenv("EXTERNAL_IDP_CLIENT_SECRET")
+	userClientID := os.Getenv("GRID_OIDC_EXTERNAL_IDP_CLIENT_ID")
+	userClientSecret := os.Getenv("GRID_OIDC_EXTERNAL_IDP_CLIENT_SECRET")
 	userTokenResp := authenticateUserWithPassword(t, userClientID, userClientSecret, "alice@example.com", "test123")
 
 	// Step 3: Alice creates dev-network state with env=dev
@@ -597,8 +597,8 @@ output "test_value" {
 
 	// Step 3: Authenticate as Alice (product-engineer)
 	t.Log("Step 3: Authenticating as alice@example.com...")
-	userClientID := os.Getenv("EXTERNAL_IDP_CLIENT_ID")
-	userClientSecret := os.Getenv("EXTERNAL_IDP_CLIENT_SECRET")
+	userClientID := os.Getenv("GRID_OIDC_EXTERNAL_IDP_CLIENT_ID")
+	userClientSecret := os.Getenv("GRID_OIDC_EXTERNAL_IDP_CLIENT_SECRET")
 	userTokenResp := authenticateUserWithPassword(t, userClientID, userClientSecret, "alice@example.com", "test123")
 
 	// Step 4: Alice tries to list dependencies on prod state (should be denied)

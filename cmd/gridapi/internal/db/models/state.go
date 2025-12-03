@@ -22,10 +22,17 @@ func (lm *LabelMap) Scan(value any) error {
 		*lm = make(LabelMap)
 		return nil
 	}
-	bytes, ok := value.([]byte)
-	if !ok {
-		return fmt.Errorf("failed to scan LabelMap: expected []byte, got %T", value)
+
+	var bytes []byte
+	switch v := value.(type) {
+	case []byte:
+		bytes = v
+	case string:
+		bytes = []byte(v)
+	default:
+		return fmt.Errorf("failed to scan LabelMap: expected []byte or string, got %T", value)
 	}
+
 	return json.Unmarshal(bytes, lm)
 }
 
@@ -58,9 +65,9 @@ type State struct {
 	Labels LabelMap `bun:"labels,type:jsonb,notnull,default:'{}'"`
 
 	// Relationships for eager loading (populated only when using Relation())
-	Outputs        []*StateOutput `bun:"rel:has-many,join:guid=state_guid"`
-	OutgoingEdges  []*Edge        `bun:"rel:has-many,join:guid=from_state"`
-	IncomingEdges  []*Edge        `bun:"rel:has-many,join:guid=to_state"`
+	Outputs       []*StateOutput `bun:"rel:has-many,join:guid=state_guid"`
+	OutgoingEdges []*Edge        `bun:"rel:has-many,join:guid=from_state"`
+	IncomingEdges []*Edge        `bun:"rel:has-many,join:guid=to_state"`
 
 	// Computed counts (populated via subqueries for efficient StateInfo rendering)
 	// These are scanonly fields populated by COUNT subqueries in SELECT statements

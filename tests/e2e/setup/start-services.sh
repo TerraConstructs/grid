@@ -39,6 +39,12 @@ cd "${PROJECT_ROOT}"
 GRIDAPI_PID_FILE="/tmp/grid-e2e-gridapi.pid"
 WEBAPP_PID_FILE="/tmp/grid-e2e-webapp.pid"
 
+DB_URL="postgres://grid:gridpass@localhost:5432/grid?sslmode=disable"
+SERVER_URL="http://localhost:8080"
+
+export GRID_DATABASE_URL="${DB_URL}"
+export GRID_SERVER_URL="${SERVER_URL}"
+
 # Cleanup function to kill background processes on exit
 cleanup() {
     log_info "Cleaning up E2E test services..."
@@ -135,10 +141,12 @@ fi
 #
 log_info "Running database migrations..."
 "${PROJECT_ROOT}/bin/gridapi" db init \
-    --db-url="postgres://grid:gridpass@localhost:5432/grid?sslmode=disable" || true
+    --db-url="${DB_URL}" \
+    --server-url="${SERVER_URL}" || true
 
 "${PROJECT_ROOT}/bin/gridapi" db migrate \
-    --db-url="postgres://grid:gridpass@localhost:5432/grid?sslmode=disable"
+    --db-url="${DB_URL}" \
+    --server-url="${SERVER_URL}"
 
 #
 # Step 5: Bootstrap group-to-role mappings
@@ -154,19 +162,22 @@ log_info "Bootstrapping group-to-role mappings..."
 "${PROJECT_ROOT}/bin/gridapi" iam bootstrap \
     --group "test-admins" \
     --role "platform-engineer" \
-    --db-url="postgres://grid:gridpass@localhost:5432/grid?sslmode=disable" || log_warn "test-admins mapping may already exist"
+    --db-url="${DB_URL}" \
+    --server-url="${SERVER_URL}" || log_warn "test-admins mapping may already exist"
 
 # Map product-engineers (Keycloak group) → product-engineer (env=dev only)
 "${PROJECT_ROOT}/bin/gridapi" iam bootstrap \
     --group "product-engineers" \
     --role "product-engineer" \
-    --db-url="postgres://grid:gridpass@localhost:5432/grid?sslmode=disable" || log_warn "product-engineers mapping may already exist"
+    --db-url="${DB_URL}" \
+    --server-url="${SERVER_URL}" || log_warn "product-engineers mapping may already exist"
 
 # Map platform-engineers (Keycloak group) → platform-engineer (full admin)
 "${PROJECT_ROOT}/bin/gridapi" iam bootstrap \
     --group "platform-engineers" \
     --role "platform-engineer" \
-    --db-url="postgres://grid:gridpass@localhost:5432/grid?sslmode=disable" || log_warn "platform-engineers mapping may already exist"
+    --db-url="${DB_URL}" \
+    --server-url="${SERVER_URL}" || log_warn "platform-engineers mapping may already exist"
 
 #
 # Step 6: Start gridapi server (Mode 1 - External IdP)
@@ -185,15 +196,16 @@ fi
 log_info "✓ Client secret extracted from realm-export.json"
 
 # Export environment variables for Mode 1 (External IdP with Keycloak)
-export EXTERNAL_IDP_ISSUER="http://localhost:8443/realms/grid"
-export EXTERNAL_IDP_CLIENT_ID="grid-api"
-export EXTERNAL_IDP_CLIENT_SECRET="${GRIDAPI_SECRET}"
-export EXTERNAL_IDP_REDIRECT_URI="http://localhost:8080/auth/sso/callback"
+export GRID_OIDC_EXTERNAL_IDP_ISSUER="http://localhost:8443/realms/grid"
+export GRID_OIDC_EXTERNAL_IDP_CLIENT_ID="grid-api"
+export GRID_OIDC_EXTERNAL_IDP_CLIENT_SECRET="${GRIDAPI_SECRET}"
+export GRID_OIDC_EXTERNAL_IDP_REDIRECT_URI="${SERVER_URL}/auth/sso/callback"
 
 # Start gridapi in background
 "${PROJECT_ROOT}/bin/gridapi" serve \
     --server-addr ":8080" \
-    --db-url "postgres://grid:gridpass@localhost:5432/grid?sslmode=disable" \
+    --db-url "${DB_URL}" \
+    --server-url "${SERVER_URL}" \
     > /tmp/grid-e2e-gridapi.log 2>&1 &
 
 GRIDAPI_PID=$!

@@ -60,8 +60,8 @@ func TestMode1_StateOutputAuthorization_HappyPath(t *testing.T) {
 
 	// Step 2: Authenticate as Alice (product-engineer with env=dev scope)
 	t.Log("Step 2: Authenticating as alice@example.com...")
-	userClientID := os.Getenv("EXTERNAL_IDP_CLIENT_ID")
-	userClientSecret := os.Getenv("EXTERNAL_IDP_CLIENT_SECRET")
+	userClientID := os.Getenv("GRID_OIDC_EXTERNAL_IDP_CLIENT_ID")
+	userClientSecret := os.Getenv("GRID_OIDC_EXTERNAL_IDP_CLIENT_SECRET")
 	userTokenResp := authenticateUserWithPassword(t, userClientID, userClientSecret, "alice@example.com", "test123")
 
 	// Step 3: Create a state with env=dev label using gridctl
@@ -255,8 +255,8 @@ output "secret_value" {
 
 	// Step 4: Authenticate as Alice (product-engineer with env=dev scope only)
 	t.Log("Step 4: Authenticating as alice@example.com (product-engineer)...")
-	userClientID := os.Getenv("EXTERNAL_IDP_CLIENT_ID")
-	userClientSecret := os.Getenv("EXTERNAL_IDP_CLIENT_SECRET")
+	userClientID := os.Getenv("GRID_OIDC_EXTERNAL_IDP_CLIENT_ID")
+	userClientSecret := os.Getenv("GRID_OIDC_EXTERNAL_IDP_CLIENT_SECRET")
 	userTokenResp := authenticateUserWithPassword(t, userClientID, userClientSecret, "alice@example.com", "test123")
 
 	// Step 5: Try to get state info from prod state - should be denied
@@ -309,8 +309,8 @@ func TestMode1_StateOutputAuthorization_WriteViaTerraform(t *testing.T) {
 
 	// Step 2: Authenticate as Alice (product-engineer)
 	t.Log("Step 2: Authenticating as alice@example.com...")
-	userClientID := os.Getenv("EXTERNAL_IDP_CLIENT_ID")
-	userClientSecret := os.Getenv("EXTERNAL_IDP_CLIENT_SECRET")
+	userClientID := os.Getenv("GRID_OIDC_EXTERNAL_IDP_CLIENT_ID")
+	userClientSecret := os.Getenv("GRID_OIDC_EXTERNAL_IDP_CLIENT_SECRET")
 	userTokenResp := authenticateUserWithPassword(t, userClientID, userClientSecret, "alice@example.com", "test123")
 
 	// Step 3: Create env=dev state (should succeed)
@@ -443,8 +443,8 @@ func TestMode1_OutputSchemaAuthorization(t *testing.T) {
 	assignGroupRoleInGrid(t, adminTokenResp.AccessToken, "product-engineers", "product-engineer")
 
 	// Authenticate as product engineer (env=dev scope)
-	userClientID := os.Getenv("EXTERNAL_IDP_CLIENT_ID")
-	userClientSecret := os.Getenv("EXTERNAL_IDP_CLIENT_SECRET")
+	userClientID := os.Getenv("GRID_OIDC_EXTERNAL_IDP_CLIENT_ID")
+	userClientSecret := os.Getenv("GRID_OIDC_EXTERNAL_IDP_CLIENT_SECRET")
 	userTokenResp := authenticateUserWithPassword(t, userClientID, userClientSecret, "alice@example.com", "test123")
 
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
@@ -456,6 +456,7 @@ func TestMode1_OutputSchemaAuthorization(t *testing.T) {
 	gridctlPath := getGridctlPath(t)
 	createCmd := exec.CommandContext(ctx, gridctlPath,
 		"state", "create", logicID,
+		"--force",
 		"--label", "env=dev",
 		"--server", serverURL,
 		"--token", userTokenResp.AccessToken)
@@ -480,14 +481,12 @@ func TestMode1_OutputSchemaAuthorization(t *testing.T) {
 	t.Log("✓ Product engineer can set output schema on env=dev state")
 
 	// Product engineer SHOULD be able to get schema from env=dev state
-	getSchemaCmd := exec.CommandContext(ctx, gridctlPath,
+	getOutput := mustRunGridctlStdOut(t, ctx, "",
 		"state", "get-output-schema",
 		"--logic-id", logicID,
 		"--key", "vpc_id",
 		"--server", serverURL,
 		"--token", userTokenResp.AccessToken)
-	getOutput, err := getSchemaCmd.CombinedOutput()
-	require.NoError(t, err, "Product engineer should be able to get schema from env=dev state: %s", string(getOutput))
 
 	// Verify schema content
 	schemaBytes, err := os.ReadFile(schemaPath)
@@ -496,7 +495,7 @@ func TestMode1_OutputSchemaAuthorization(t *testing.T) {
 	var expectedSchema, actualSchema map[string]interface{}
 	err = json.Unmarshal(schemaBytes, &expectedSchema)
 	require.NoError(t, err)
-	err = json.Unmarshal(getOutput, &actualSchema)
+	err = json.Unmarshal([]byte(getOutput), &actualSchema)
 	require.NoError(t, err)
 	require.Equal(t, expectedSchema, actualSchema, "Retrieved schema should match")
 	t.Log("✓ Product engineer can get output schema from env=dev state")
@@ -505,6 +504,7 @@ func TestMode1_OutputSchemaAuthorization(t *testing.T) {
 	prodLogicID := fmt.Sprintf("test-schema-auth-prod-%d", time.Now().UnixNano())
 	createProdCmd := exec.CommandContext(ctx, gridctlPath,
 		"state", "create", prodLogicID,
+		"--force",
 		"--label", "env=prod",
 		"--server", serverURL,
 		"--token", adminTokenResp.AccessToken)

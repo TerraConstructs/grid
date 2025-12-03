@@ -82,13 +82,52 @@ func startServer() error {
 		}
 	}
 
+	// Allow database URL to be overridden via environment variable
+	// Default to PostgreSQL for backward compatibility
+	dbURL := os.Getenv("GRID_DATABASE_URL")
+	if dbURL == "" {
+		dbURL = "postgres://grid:gridpass@localhost:5432/grid?sslmode=disable"
+	}
+
+	serverURL := os.Getenv("GRID_SERVER_URL")
+	if serverURL == "" {
+		serverURL = "http://localhost:8080"
+	}
+
 	serverCmd = exec.Command(gridapiPath, "serve",
-		"--server-addr", ":8080",
-		"--db-url", "postgres://grid:gridpass@localhost:5432/grid?sslmode=disable")
+		"--server-addr", ":8080")
 
 	// Inherit environment variables from parent process
-	// This allows Mode 1 (EXTERNAL_IDP_*) and Mode 2 (OIDC_*) config to be passed through
-	serverCmd.Env = os.Environ()
+	// This allows Mode 1 (GRID_OIDC_EXTERNAL_IDP_*) and Mode 2 (GRID_OIDC_*) config to be passed through
+	env := append(os.Environ(),
+		"GRID_DATABASE_URL="+dbURL,
+		"GRID_SERVER_URL="+serverURL,
+	)
+
+	if externalIDPIssuer := os.Getenv("GRID_OIDC_EXTERNAL_IDP_ISSUER"); externalIDPIssuer != "" {
+		if clientID := os.Getenv("GRID_OIDC_EXTERNAL_IDP_CLIENT_ID"); clientID != "" {
+			env = append(env, "GRID_OIDC_EXTERNAL_IDP_CLIENT_ID="+clientID)
+		}
+		if clientSecret := os.Getenv("GRID_OIDC_EXTERNAL_IDP_CLIENT_SECRET"); clientSecret != "" {
+			env = append(env, "GRID_OIDC_EXTERNAL_IDP_CLIENT_SECRET="+clientSecret)
+		}
+		if redirectURI := os.Getenv("GRID_OIDC_EXTERNAL_IDP_REDIRECT_URI"); redirectURI != "" {
+			env = append(env, "GRID_OIDC_EXTERNAL_IDP_REDIRECT_URI="+redirectURI)
+		}
+		env = append(env, "GRID_OIDC_EXTERNAL_IDP_ISSUER="+externalIDPIssuer)
+	}
+
+	if oidcIssuer := os.Getenv("GRID_OIDC_ISSUER"); oidcIssuer != "" {
+		env = append(env, "GRID_OIDC_ISSUER="+oidcIssuer)
+		if clientID := os.Getenv("GRID_OIDC_CLIENT_ID"); clientID != "" {
+			env = append(env, "GRID_OIDC_CLIENT_ID="+clientID)
+		}
+		if signingKeyPath := os.Getenv("GRID_OIDC_SIGNING_KEY_PATH"); signingKeyPath != "" {
+			env = append(env, "GRID_OIDC_SIGNING_KEY_PATH="+signingKeyPath)
+		}
+	}
+
+	serverCmd.Env = env
 
 	serverCmd.Stdout = os.Stdout
 	serverCmd.Stderr = os.Stderr
@@ -132,7 +171,7 @@ func stopServer() {
 
 func bootstrapMode1TestUser() error {
 	// Only bootstrap in Mode 1 (External IdP mode)
-	externalIdPIssuer := os.Getenv("EXTERNAL_IDP_ISSUER")
+	externalIdPIssuer := os.Getenv("GRID_OIDC_EXTERNAL_IDP_ISSUER")
 	if externalIdPIssuer == "" {
 		// Not in Mode 1, skip bootstrap
 		return nil
@@ -161,13 +200,38 @@ func bootstrapMode1TestUser() error {
 		}
 	}
 
+	// Use the same database URL that the server is using
+	dbURL := os.Getenv("GRID_DATABASE_URL")
+	if dbURL == "" {
+		dbURL = "postgres://grid:gridpass@localhost:5432/grid?sslmode=disable"
+	}
+	serverURL := os.Getenv("GRID_SERVER_URL")
+	if serverURL == "" {
+		serverURL = "http://localhost:8080"
+	}
+
 	// Bootstrap: "test-admins" group → platform-engineer role
 	cmd := exec.Command(gridapiPath, "iam", "bootstrap",
 		"--group", "test-admins",
 		"--role", "platform-engineer")
 
-	cmd.Env = append(os.Environ(),
-		"DATABASE_URL=postgres://grid:gridpass@localhost:5432/grid?sslmode=disable")
+	env := append(os.Environ(),
+		"GRID_DATABASE_URL="+dbURL,
+		"GRID_SERVER_URL="+serverURL,
+		"GRID_OIDC_EXTERNAL_IDP_ISSUER="+externalIdPIssuer,
+	)
+
+	if clientID := os.Getenv("GRID_OIDC_EXTERNAL_IDP_CLIENT_ID"); clientID != "" {
+		env = append(env, "GRID_OIDC_EXTERNAL_IDP_CLIENT_ID="+clientID)
+	}
+	if clientSecret := os.Getenv("GRID_OIDC_EXTERNAL_IDP_CLIENT_SECRET"); clientSecret != "" {
+		env = append(env, "GRID_OIDC_EXTERNAL_IDP_CLIENT_SECRET="+clientSecret)
+	}
+	if redirectURI := os.Getenv("GRID_OIDC_EXTERNAL_IDP_REDIRECT_URI"); redirectURI != "" {
+		env = append(env, "GRID_OIDC_EXTERNAL_IDP_REDIRECT_URI="+redirectURI)
+	}
+
+	cmd.Env = env
 
 	output, err := cmd.CombinedOutput()
 	if err != nil {

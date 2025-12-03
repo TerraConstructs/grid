@@ -87,7 +87,7 @@ func TestIAMService_AuthenticateRequest_FirstReturnsNilSecondSucceeds(t *testing
 
 	svc := &iamService{
 		authenticators: []Authenticator{
-			&mockAuthenticator{name: "session", principal: nil, err: nil}, // No credentials
+			&mockAuthenticator{name: "session", principal: nil, err: nil},           // No credentials
 			&mockAuthenticator{name: "jwt", principal: expectedPrincipal, err: nil}, // Success
 		},
 	}
@@ -221,8 +221,8 @@ func TestIAMService_AuthenticateRequest_MultipleFallbacks(t *testing.T) {
 
 	svc := &iamService{
 		authenticators: []Authenticator{
-			&mockAuthenticator{name: "first", principal: nil, err: nil},            // No credentials
-			&mockAuthenticator{name: "second", principal: nil, err: nil},           // No credentials
+			&mockAuthenticator{name: "first", principal: nil, err: nil},               // No credentials
+			&mockAuthenticator{name: "second", principal: nil, err: nil},              // No credentials
 			&mockAuthenticator{name: "third", principal: expectedPrincipal, err: nil}, // Success
 		},
 	}

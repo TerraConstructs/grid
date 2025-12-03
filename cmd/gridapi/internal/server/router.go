@@ -5,12 +5,12 @@ import (
 	"net/http"
 
 	"connectrpc.com/connect"
-	"github.com/terraconstructs/grid/api/state/v1/statev1connect"
 	"github.com/terraconstructs/grid/cmd/gridapi/internal/auth"
 	"github.com/terraconstructs/grid/cmd/gridapi/internal/config"
 	gridmiddleware "github.com/terraconstructs/grid/cmd/gridapi/internal/middleware"
 	"github.com/terraconstructs/grid/cmd/gridapi/internal/services/dependency"
 	statepkg "github.com/terraconstructs/grid/cmd/gridapi/internal/services/state"
+	"github.com/terraconstructs/grid/pkg/api/state/v1/statev1connect"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"

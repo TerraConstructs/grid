@@ -25,7 +25,7 @@ brew install vhs
 vhs demo/demo.tape
 ```
 
-This will create `demo/demo.gif` showing the complete grid examples/terraform demo.
+This will create `examples/demo/demo.gif` showing the complete grid examples/terraform demo.
 
 ### Customizing the Demo
 

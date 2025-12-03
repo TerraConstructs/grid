@@ -7,7 +7,7 @@ import (
 	"strconv"
 	"strings"
 
-	statev1 "github.com/terraconstructs/grid/api/state/v1"
+	statev1 "github.com/terraconstructs/grid/pkg/api/state/v1"
 )
 
 // LabelMap stores typed label values exposed by the SDK.

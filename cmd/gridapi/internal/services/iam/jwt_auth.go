@@ -17,15 +17,15 @@ import (
 // JWTAuthenticator authenticates requests using JWT bearer tokens.
 //
 // Implementation follows Phase 3 specification:
-//   1. Extract "Authorization: Bearer <token>" header
-//   2. Return (nil, nil) if not present
-//   3. Verify JWT signature using existing auth.Verifier logic
-//   4. Extract claims: sub, email, groups, jti
-//   5. Check JTI revocation
-//   6. Resolve user/service account (JIT provision if needed)
-//   7. Call ResolveRoles() using immutable cache
-//   8. Construct Principal with all fields populated
-//   9. Return Principal
+//  1. Extract "Authorization: Bearer <token>" header
+//  2. Return (nil, nil) if not present
+//  3. Verify JWT signature using existing auth.Verifier logic
+//  4. Extract claims: sub, email, groups, jti
+//  5. Check JTI revocation
+//  6. Resolve user/service account (JIT provision if needed)
+//  7. Call ResolveRoles() using immutable cache
+//  8. Construct Principal with all fields populated
+//  9. Return Principal
 //
 // This authenticator is stateless and thread-safe.
 type JWTAuthenticator struct {
@@ -284,12 +284,12 @@ func (a *JWTAuthenticator) resolveIdentity(
 		// These service accounts are managed by the External IdP, so we don't have their secrets
 		// Use a special marker for ClientSecretHash to indicate external management
 		serviceAccount = &models.ServiceAccount{
-			ClientID:         clientID,                 // Use extracted client_id (without prefix)
-			ClientSecretHash: "EXTERNAL_IDP_MANAGED",   // Marker: secret managed by external IdP
-			Name:             clientID,                 // Use client_id as name (can be updated by admin)
+			ClientID:         clientID,               // Use extracted client_id (without prefix)
+			ClientSecretHash: "EXTERNAL_IDP_MANAGED", // Marker: secret managed by external IdP
+			Name:             clientID,               // Use client_id as name (can be updated by admin)
 			Description:      "Auto-provisioned from External IdP",
-			ScopeLabels:      make(models.LabelMap),    // Empty scope labels
-			CreatedBy:        auth.SystemUserID,        // System-provisioned
+			ScopeLabels:      make(models.LabelMap), // Empty scope labels
+			CreatedBy:        auth.SystemUserID,     // System-provisioned
 			Disabled:         false,
 		}
 

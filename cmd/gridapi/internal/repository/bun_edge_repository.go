@@ -9,6 +9,7 @@ import (
 
 	"github.com/terraconstructs/grid/cmd/gridapi/internal/db/models"
 	"github.com/uptrace/bun"
+	"github.com/uptrace/bun/dialect"
 )
 
 // BunEdgeRepository persists dependency edges using Bun ORM against PostgreSQL.
@@ -173,7 +174,7 @@ func (r *BunEdgeRepository) GetIncomingEdgesWithProducers(ctx context.Context, t
 		Model(&edges).
 		Relation("FromStateRel"). // Eager load producer states
 		Where("to_state = ?", toStateGUID).
-		Order("created_at ASC").
+		Order("e.created_at ASC").
 		Scan(ctx)
 
 	if err != nil {
@@ -192,7 +193,7 @@ func (r *BunEdgeRepository) GetOutgoingEdgesWithConsumers(ctx context.Context, f
 		Model(&edges).
 		Relation("ToStateRel"). // Eager load consumer states
 		Where("from_state = ?", fromStateGUID).
-		Order("created_at ASC").
+		Order("e.created_at ASC").
 		Scan(ctx)
 
 	if err != nil {
@@ -211,7 +212,7 @@ func (r *BunEdgeRepository) GetOutgoingEdgesWithValidation(ctx context.Context, 
 		Model(&edges).
 		Relation("ProducerOutput"). // Eager load validation status from state_outputs
 		Where("from_state = ?", fromStateGUID).
-		Order("created_at ASC").
+		Order("e.created_at ASC").
 		Scan(ctx)
 
 	if err != nil {
@@ -243,16 +244,35 @@ func (r *BunEdgeRepository) WouldCreateCycle(ctx context.Context, fromState, toS
 	// Check if toState can already reach fromState
 	// If yes, adding fromState -> toState would create a cycle
 	var exists bool
-	err := r.db.NewRaw(`
-		WITH RECURSIVE reachable(node) AS (
-			SELECT ?::uuid AS node
-			UNION ALL
-			SELECT e.to_state
-			FROM edges e
-			JOIN reachable r ON e.from_state = r.node
-		)
-		SELECT EXISTS(SELECT 1 FROM reachable WHERE node = ?::uuid)
-	`, toState, fromState).Scan(ctx, &exists)
+	var err error
+
+	// Database-specific query (PostgreSQL uses ::uuid casting, SQLite doesn't)
+	if r.db.Dialect().Name() == dialect.SQLite {
+		// SQLite: WITH RECURSIVE is supported, but without ::uuid casting
+		// UUIDs are stored as TEXT in SQLite
+		err = r.db.NewRaw(`
+			WITH RECURSIVE reachable(node) AS (
+				SELECT ? AS node
+				UNION ALL
+				SELECT e.to_state
+				FROM edges e
+				JOIN reachable r ON e.from_state = r.node
+			)
+			SELECT EXISTS(SELECT 1 FROM reachable WHERE node = ?)
+		`, toState, fromState).Scan(ctx, &exists)
+	} else {
+		// PostgreSQL: Use ::uuid type casting
+		err = r.db.NewRaw(`
+			WITH RECURSIVE reachable(node) AS (
+				SELECT ?::uuid AS node
+				UNION ALL
+				SELECT e.to_state
+				FROM edges e
+				JOIN reachable r ON e.from_state = r.node
+			)
+			SELECT EXISTS(SELECT 1 FROM reachable WHERE node = ?::uuid)
+		`, toState, fromState).Scan(ctx, &exists)
+	}
 
 	if err != nil {
 		return false, fmt.Errorf("cycle detection query: %w", err)

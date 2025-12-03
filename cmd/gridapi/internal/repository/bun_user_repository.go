@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/terraconstructs/grid/cmd/gridapi/internal/db/bunx"
 	"github.com/terraconstructs/grid/cmd/gridapi/internal/db/models"
 	"github.com/uptrace/bun"
 )
@@ -22,6 +23,10 @@ func NewBunUserRepository(db *bun.DB) UserRepository {
 
 // Create inserts a new user into the database
 func (r *BunUserRepository) Create(ctx context.Context, user *models.User) error {
+	if user.ID == "" {
+		user.ID = bunx.NewUUIDv7()
+	}
+
 	_, err := r.db.NewInsert().
 		Model(user).
 		Exec(ctx)

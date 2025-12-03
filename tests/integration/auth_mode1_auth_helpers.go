@@ -42,8 +42,8 @@ func authenticateWithKeycloak(t *testing.T, clientID, clientSecret string) *keyc
 	data.Set("client_id", clientID)
 	data.Set("client_secret", clientSecret)
 
-	// Request token for the Grid API resource server (same as gridapi's EXTERNAL_IDP_CLIENT_ID)
-	resourceServerAudience := os.Getenv("EXTERNAL_IDP_CLIENT_ID")
+	// Request token for the Grid API resource server (same as gridapi's GRID_OIDC_EXTERNAL_IDP_CLIENT_ID)
+	resourceServerAudience := os.Getenv("GRID_OIDC_EXTERNAL_IDP_CLIENT_ID")
 	if resourceServerAudience != "" {
 		data.Set("audience", resourceServerAudience)
 	}
@@ -88,8 +88,8 @@ func authenticateUserWithPassword(t *testing.T, clientID, clientSecret, username
 	data.Set("password", password)
 	data.Set("scope", "openid profile email")
 
-	// Request token for the Grid API resource server (same as gridapi's EXTERNAL_IDP_CLIENT_ID)
-	// CRITICAL: gridapi validates tokens with RequiredAudience=EXTERNAL_IDP_CLIENT_ID (see jwt.go:94, jwt.go:122)
+	// Request token for the Grid API resource server (same as gridapi's GRID_OIDC_EXTERNAL_IDP_CLIENT_ID)
+	// CRITICAL: gridapi validates tokens with RequiredAudience=GRID_OIDC_EXTERNAL_IDP_CLIENT_ID (see jwt.go:94, jwt.go:122)
 	// Without this, user tokens will be rejected with 401 even if signature/issuer are valid
 	if clientID != "" {
 		data.Set("audience", clientID)

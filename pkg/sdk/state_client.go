@@ -8,8 +8,8 @@ import (
 
 	"connectrpc.com/connect"
 	"github.com/google/uuid"
-	statev1 "github.com/terraconstructs/grid/api/state/v1"
-	"github.com/terraconstructs/grid/api/state/v1/statev1connect"
+	statev1 "github.com/terraconstructs/grid/pkg/api/state/v1"
+	"github.com/terraconstructs/grid/pkg/api/state/v1/statev1connect"
 )
 
 // Client provides a high-level interface to the Grid state management API.

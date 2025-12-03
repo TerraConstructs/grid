@@ -3,7 +3,7 @@ package sdk
 import (
 	"testing"
 
-	statev1 "github.com/terraconstructs/grid/api/state/v1"
+	statev1 "github.com/terraconstructs/grid/pkg/api/state/v1"
 )
 
 func TestConvertProtoLabels(t *testing.T) {

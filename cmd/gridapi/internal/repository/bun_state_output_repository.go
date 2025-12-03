@@ -131,10 +131,10 @@ func (r *BunStateOutputRepository) GetOutputsByState(ctx context.Context, stateG
 	outputs := make([]OutputKey, len(dbOutputs))
 	for i, dbOut := range dbOutputs {
 		outputs[i] = OutputKey{
-			Key:         dbOut.OutputKey,
-			Sensitive:   dbOut.Sensitive,
-			StateSerial: dbOut.StateSerial,
-			SchemaJSON: dbOut.SchemaJSON,
+			Key:              dbOut.OutputKey,
+			Sensitive:        dbOut.Sensitive,
+			StateSerial:      dbOut.StateSerial,
+			SchemaJSON:       dbOut.SchemaJSON,
 			SchemaSource:     dbOut.SchemaSource,
 			ValidationStatus: dbOut.ValidationStatus,
 			ValidationError:  dbOut.ValidationError,
@@ -254,7 +254,8 @@ func (r *BunStateOutputRepository) GetOutputSchema(ctx context.Context, stateGUI
 // source must be "manual" or "inferred".
 // Creates the output record if it doesn't exist (with state_serial=0, sensitive=false).
 // expectedSerial: For inferred schemas, verifies output still exists at this serial before writing.
-//                 Use -1 for manual schemas to skip serial check (always write).
+//
+//	Use -1 for manual schemas to skip serial check (always write).
 func (r *BunStateOutputRepository) SetOutputSchemaWithSource(ctx context.Context, stateGUID, outputKey, schemaJSON, source string, expectedSerial int64) error {
 	now := time.Now()
 

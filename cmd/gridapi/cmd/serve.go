@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
@@ -17,6 +18,7 @@ import (
 	"github.com/terraconstructs/grid/cmd/gridapi/internal/auth"
 	"github.com/terraconstructs/grid/cmd/gridapi/internal/db/bunx"
 	gridmiddleware "github.com/terraconstructs/grid/cmd/gridapi/internal/middleware"
+	"github.com/terraconstructs/grid/cmd/gridapi/internal/migrations"
 	"github.com/terraconstructs/grid/cmd/gridapi/internal/repository"
 	"github.com/terraconstructs/grid/cmd/gridapi/internal/server"
 	"github.com/terraconstructs/grid/cmd/gridapi/internal/services/dependency"
@@ -24,6 +26,7 @@ import (
 	"github.com/terraconstructs/grid/cmd/gridapi/internal/services/inference"
 	"github.com/terraconstructs/grid/cmd/gridapi/internal/services/state"
 	"github.com/terraconstructs/grid/cmd/gridapi/internal/services/validation"
+	"github.com/uptrace/bun/migrate"
 	"golang.org/x/net/http2"
 	"golang.org/x/net/http2/h2c"
 )
@@ -41,6 +44,32 @@ var serveCmd = &cobra.Command{
 		defer bunx.Close(db)
 
 		log.Printf("Connected to database")
+
+		// Auto-migrate for in-memory SQLite (integration tests)
+		// In-memory databases are fresh on every start, so we must apply schema
+		if bunx.DetectDatabaseType(cfg.DatabaseURL) == bunx.DatabaseTypeSQLite &&
+			(cfg.DatabaseURL == ":memory:" || strings.Contains(cfg.DatabaseURL, "mode=memory")) {
+
+			log.Printf("Detected in-memory SQLite database. Running auto-migrations...")
+			migrator := migrate.NewMigrator(db, migrations.Migrations)
+
+			// Initialize migration tables
+			if err := migrator.Init(cmd.Context()); err != nil {
+				return fmt.Errorf("failed to initialize migrations: %w", err)
+			}
+
+			// Run migrations
+			if group, err := migrator.Migrate(cmd.Context()); err != nil {
+				return fmt.Errorf("failed to run migrations: %w", err)
+			} else {
+				if group.ID == 0 {
+					log.Printf("No new migrations to apply")
+				} else {
+					log.Printf("Applied migration group %d", group.ID)
+				}
+			}
+			log.Printf("Auto-migrations complete")
+		}
 
 		// Initialize repositories
 		stateRepo := repository.NewBunStateRepository(db)
@@ -158,15 +187,14 @@ var serveCmd = &cobra.Command{
 
 			// Phase 7: Start background cache refresh goroutine
 			// Refreshes group→role cache periodically to pick up changes
-			// Default interval: 5 minutes (configurable via CACHE_REFRESH_INTERVAL)
-			refreshInterval := 5 * time.Minute
-			if intervalEnv := os.Getenv("CACHE_REFRESH_INTERVAL"); intervalEnv != "" {
-				if dur, err := time.ParseDuration(intervalEnv); err == nil {
-					refreshInterval = dur
-					log.Printf("Using custom cache refresh interval: %v", refreshInterval)
-				} else {
-					log.Printf("WARNING: Invalid CACHE_REFRESH_INTERVAL '%s', using default 5m", intervalEnv)
-				}
+			// Default interval: 5 minutes (configurable via GRID_CACHE_REFRESH_INTERVAL)
+			refreshInterval := cfg.CacheRefreshInterval
+			if refreshInterval > 0 {
+				log.Printf("Using cache refresh interval: %v", refreshInterval)
+			} else {
+				// Fallback if config somehow has invalid value
+				refreshInterval = 5 * time.Minute
+				log.Printf("WARNING: Invalid cache refresh interval, using default 5m")
 			}
 
 			// Create context for cache refresh goroutine

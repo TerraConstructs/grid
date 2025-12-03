@@ -12,10 +12,10 @@ import (
 // NewMultiAuthInterceptor is the Phase 3 unified authentication interceptor for Connect RPC.
 //
 // This interceptor:
-//   1. Extracts headers and metadata from Connect request
-//   2. Calls iamService.AuthenticateRequest() which tries all authenticators
-//   3. Sets Principal in context if authentication succeeds
-//   4. Continues to next handler (authentication failure handled by authz)
+//  1. Extracts headers and metadata from Connect request
+//  2. Calls iamService.AuthenticateRequest() which tries all authenticators
+//  3. Sets Principal in context if authentication succeeds
+//  4. Continues to next handler (authentication failure handled by authz)
 //
 // Authentication flow:
 //   - SessionAuthenticator checks grid.session cookie (via Connect metadata)

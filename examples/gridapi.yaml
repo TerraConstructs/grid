@@ -1,0 +1,99 @@
+# Grid API Configuration Example
+# This file demonstrates configuration options for the Grid API server
+#
+# Configuration precedence (highest to lowest):
+# 1. CLI flags (--db-url, --server-addr, etc.)
+# 2. Environment variables (GRID_*, GRID_OIDC_*, GRID_OIDC_EXTERNAL_IDP_*)
+# 3. Config file (this file)
+# 4. Defaults
+
+# ============================================================================
+# Database Configuration
+# ============================================================================
+# Required: Database connection URL (DSN)
+# Can be overridden by: GRID_DATABASE_URL or --db-url flag
+database_url: "postgres://grid:gridpass@localhost:5432/grid?sslmode=disable"
+
+# Optional: Maximum database connection pool size (default: 25)
+# Can be overridden by: GRID_MAX_DB_CONNECTIONS or --max-db-connections flag
+max_db_connections: 25
+
+# ============================================================================
+# Server Configuration
+# ============================================================================
+# Required: Server bind address (host:port)
+# Can be overridden by: GRID_SERVER_ADDR or --server-addr flag
+server_addr: "localhost:8080"
+
+# Required: Server base URL for Terraform backend config generation
+# This URL is returned to clients and should be reachable from their networks
+# Can be overridden by: GRID_SERVER_URL or --server-url flag
+server_url: "http://localhost:8080"
+
+# Optional: Enable debug logging (default: false)
+# Can be overridden by: GRID_DEBUG or --debug flag
+debug: false
+
+# Optional: IAM cache refresh interval (default: 5m)
+# Controls how often the group→role mapping cache is refreshed from the database
+# Format: duration string (e.g., "5m", "1h", "30s")
+# Can be overridden by: GRID_CACHE_REFRESH_INTERVAL
+cache_refresh_interval: "5m"
+
+# ============================================================================
+# OIDC Authentication Configuration
+# ============================================================================
+# Grid supports two mutually exclusive authentication modes:
+#
+# Mode 1: External IdP Only (Resource Server)
+#   - Grid validates tokens issued by external IdP (Keycloak, Entra ID, Okta)
+#   - Service accounts are IdP clients
+#   - Configure: oidc.external_idp block
+#
+# Mode 2: Internal IdP Only (Self-Contained)
+#   - Grid issues and validates its own tokens
+#   - Service accounts managed in Grid
+#   - Configure: oidc.issuer, oidc.client_id, oidc.signing_key_path
+#
+# IMPORTANT: You must choose ONE mode. Hybrid mode is NOT supported.
+
+oidc:
+  # ========================================================================
+  # MODE 2: INTERNAL IDP (Grid Issues Its Own Tokens)
+  # Uncomment this block to enable Internal IdP mode
+  # ========================================================================
+  # issuer: "https://grid.example.com"
+  # client_id: "grid-api"
+  # signing_key_path: "/var/lib/grid/oidc-keys"
+
+  # ========================================================================
+  # MODE 1: EXTERNAL IDP (Grid Validates External Tokens)
+  # Uncomment this block to enable External IdP mode
+  # ========================================================================
+  # external_idp:
+  #   issuer: "https://login.microsoftonline.com/tenant-id/v2.0"
+  #   client_id: "grid-confidential-client"
+  #   cli_client_id: "gridctl"
+  #   client_secret: "your-client-secret-here"
+  #   redirect_uri: "http://localhost:8080/auth/sso/callback"
+  #   scopes:
+  #     - openid
+  #     - profile
+  #     - email
+
+  # ========================================================================
+  # JWT CLAIM EXTRACTION (Applies to Both Modes)
+  # ========================================================================
+  # Field in JWT token containing group/role information
+  groups_claim_field: "groups"
+
+  # Optional: Path for nested group extraction
+  # Example: If groups are nested like [{name:"dev"}, {name:"prod"}],
+  # set to "name" to extract the group names
+  groups_claim_path: ""
+
+  # Field in JWT token for user ID
+  user_id_claim_field: "sub"
+
+  # Field in JWT token for user email
+  email_claim_field: "email"

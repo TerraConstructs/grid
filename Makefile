@@ -1,10 +1,13 @@
-.PHONY: help build db-up db-down db-reset db-migrate oidc-dev-keys keycloak-up keycloak-down keycloak-logs keycloak-reset test test-unit test-unit-db test-contract test-integration test-integration-mode1 test-integration-mode2 test-integration-all test-e2e test-e2e-ui test-e2e-headed test-e2e-debug test-e2e-report test-all ci-test test-integration-setup test-integration-teardown test-clean clean
+.PHONY: help build db-up db-down db-reset db-migrate oidc-dev-keys keycloak-up keycloak-down keycloak-logs keycloak-reset test test-unit test-unit-db test-contract test-integration test-integration-sqlite test-integration-mode1 test-integration-mode2 test-integration-all test-e2e test-e2e-ui test-e2e-headed test-e2e-debug test-e2e-report test-all ci-test test-integration-setup test-integration-teardown test-clean clean
 
 help: ## Display available targets
 	@echo "Grid Terraform State Management - Makefile"
 	@echo ""
 	@echo "Available targets:"
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-15s\033[0m %s\n", $$1, $$2}'
+
+GRID_DATABASE_URL ?= postgres://grid:gridpass@localhost:5432/grid?sslmode=disable
+GRID_SERVER_URL ?= http://localhost:8080
 
 GRIDAPI_SRCS := $(shell find cmd/gridapi -name '*.go' -o -name '*.sql' -o -name 'model.conf')
 bin/gridapi: $(GRIDAPI_SRCS)
@@ -45,9 +48,9 @@ db-reset: ## Fresh database (docker compose down -v && docker compose up -d)
 
 db-migrate: build ## Run database migrations
 	@echo "Initializing migration tables..."
-	@bin/gridapi db init
+	@GRID_DATABASE_URL="$(GRID_DATABASE_URL)" GRID_SERVER_URL="$(GRID_SERVER_URL)" bin/gridapi db init
 	@echo "Running migrations..."
-	@bin/gridapi db migrate
+	@GRID_DATABASE_URL="$(GRID_DATABASE_URL)" GRID_SERVER_URL="$(GRID_SERVER_URL)" bin/gridapi db migrate
 
 oidc-dev-keys: ## Generate OIDC signing keys for local development (FR-110)
 	@echo "Generating OIDC development signing keys..."
@@ -115,6 +118,14 @@ test-integration: ## Run integration tests (no OIDC - automated setup via TestMa
 	@sleep 2
 	@cd tests/integration && go test -v -race -timeout 5m -skip "TestMode1|TestMode2"
 
+test-integration-sqlite: build ## Run integration tests with SQLite (no PostgreSQL required)
+	@echo "Running integration tests with SQLite..."
+	@echo "Using SQLite in-memory database (no external dependencies)"
+	@cd tests/integration && \
+		GRID_DATABASE_URL=":memory:" \
+		GRID_SERVER_URL="$(GRID_SERVER_URL)" \
+		go test -v -race -timeout 5m -skip "TestMode1|TestMode2"
+
 test-integration-mode1: build ## Run Mode 1 (External IdP) integration tests with Keycloak
 	@echo "Running Mode 1 (External IdP) integration tests..."
 	@echo "Ensuring database and Keycloak are running..."
@@ -126,11 +137,12 @@ test-integration-mode1: build ## Run Mode 1 (External IdP) integration tests wit
 	@echo "✓ Credentials extracted: grid-api (gridapi server), integration-tests (test client)"
 	@echo "Running tests with Mode 1 environment..."
 	@cd tests/integration && \
-		EXTERNAL_IDP_ISSUER="http://localhost:8443/realms/grid" \
-		EXTERNAL_IDP_CLIENT_ID="grid-api" \
-		EXTERNAL_IDP_CLIENT_SECRET="$(GRIDAPI_SECRET)" \
-		EXTERNAL_IDP_CLI_CLIENT_ID="gridctl" \
-		EXTERNAL_IDP_REDIRECT_URI="http://localhost:8080/auth/sso/callback" \
+		GRID_DATABASE_URL="$(GRID_DATABASE_URL)" \
+		GRID_SERVER_URL="$(GRID_SERVER_URL)" \
+		GRID_OIDC_EXTERNAL_IDP_ISSUER="http://localhost:8443/realms/grid" \
+		GRID_OIDC_EXTERNAL_IDP_CLIENT_ID="grid-api" \
+		GRID_OIDC_EXTERNAL_IDP_CLIENT_SECRET="$(GRIDAPI_SECRET)" \
+		GRID_OIDC_EXTERNAL_IDP_REDIRECT_URI="http://localhost:8080/auth/sso/callback" \
 		MODE1_TEST_CLIENT_ID="integration-tests" \
 		MODE1_TEST_CLIENT_SECRET="$(INTEGRATION_TESTS_SECRET)" \
 		go test -v -race -timeout 10m -run "TestMode1"
@@ -142,9 +154,11 @@ test-integration-mode2: build ## Run Mode 2 (Internal IdP) integration tests
 	@sleep 2
 	@echo "Running tests with Mode 2 environment..."
 	@cd tests/integration && \
-		OIDC_ISSUER="http://localhost:8080" \
-		OIDC_CLIENT_ID="gridapi" \
-		OIDC_SIGNING_KEY_PATH="tmp/keys/signing-key.pem" \
+		GRID_DATABASE_URL="$(GRID_DATABASE_URL)" \
+		GRID_SERVER_URL="$(GRID_SERVER_URL)" \
+		GRID_OIDC_ISSUER="http://localhost:8080" \
+		GRID_OIDC_CLIENT_ID="gridapi" \
+		GRID_OIDC_SIGNING_KEY_PATH="tmp/keys/signing-key.pem" \
 		go test -v -race -timeout 5m -run "TestMode2"
 
 test-integration-all: build ## Run full integration suite (Mode 1 + Mode 2 with db resets)
@@ -163,10 +177,12 @@ test-integration-all: build ## Run full integration suite (Mode 1 + Mode 2 with 
 	$(eval INTEGRATION_TESTS_SECRET := $(shell jq -r '.clients[] | select(.clientId=="integration-tests") | .secret' tests/fixtures/realm-export.json))
 	@echo "✓ Credentials extracted: grid-api (gridapi server), integration-tests (test client)"
 	@cd tests/integration && \
-		EXTERNAL_IDP_ISSUER="http://localhost:8443/realms/grid" \
-		EXTERNAL_IDP_CLIENT_ID="grid-api" \
-		EXTERNAL_IDP_CLIENT_SECRET="$(GRIDAPI_SECRET)" \
-		EXTERNAL_IDP_REDIRECT_URI="http://localhost:8080/auth/sso/callback" \
+		GRID_DATABASE_URL="$(GRID_DATABASE_URL)" \
+		GRID_SERVER_URL="$(GRID_SERVER_URL)" \
+		GRID_OIDC_EXTERNAL_IDP_ISSUER="http://localhost:8443/realms/grid" \
+		GRID_OIDC_EXTERNAL_IDP_CLIENT_ID="grid-api" \
+		GRID_OIDC_EXTERNAL_IDP_CLIENT_SECRET="$(GRIDAPI_SECRET)" \
+		GRID_OIDC_EXTERNAL_IDP_REDIRECT_URI="http://localhost:8080/auth/sso/callback" \
 		MODE1_TEST_CLIENT_ID="integration-tests" \
 		MODE1_TEST_CLIENT_SECRET="$(INTEGRATION_TESTS_SECRET)" \
 		go test -v -race -timeout 10m -run "TestMode1" || { echo "❌ Mode 1 tests failed"; exit 1; }
@@ -178,9 +194,11 @@ test-integration-all: build ## Run full integration suite (Mode 1 + Mode 2 with 
 	@docker compose up -d postgres
 	@sleep 2
 	@cd tests/integration && \
-		OIDC_ISSUER="http://localhost:8080" \
-		OIDC_CLIENT_ID="gridapi" \
-		OIDC_SIGNING_KEY_PATH="tmp/keys/signing-key.pem" \
+		GRID_DATABASE_URL="$(GRID_DATABASE_URL)" \
+		GRID_SERVER_URL="$(GRID_SERVER_URL)" \
+		GRID_OIDC_ISSUER="http://localhost:8080" \
+		GRID_OIDC_CLIENT_ID="gridapi" \
+		GRID_OIDC_SIGNING_KEY_PATH="tmp/keys/signing-key.pem" \
 		go test -v -race -timeout 5m -run "TestMode2" || { echo "❌ Mode 2 tests failed"; exit 1; }
 	@echo "✓ Mode 2 tests passed"
 	@echo ""
@@ -241,7 +259,7 @@ test-integration-setup: ## Start gridapi server for manual testing
 	@echo "Starting gridapi server for manual testing..."
 	@docker compose up -d
 	@sleep 2
-	@./bin/gridapi serve --server-addr :8080 --db-url "postgres://grid:gridpass@localhost:5432/grid?sslmode=disable" &
+	@GRID_SERVER_URL="$(GRID_SERVER_URL)" ./bin/gridapi serve --server-addr :8080 --db-url "$(GRID_DATABASE_URL)" --server-url "$(GRID_SERVER_URL)" &
 	@echo "Server starting... waiting for health check"
 	@./scripts/wait-for-health.sh
 	@echo "Server ready at http://localhost:8080"

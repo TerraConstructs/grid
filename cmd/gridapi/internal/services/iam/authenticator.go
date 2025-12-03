@@ -17,11 +17,11 @@ import (
 //   - (nil, error): Authentication failed (invalid credentials)
 //
 // The authenticator is responsible for:
-//   1. Extracting credentials from request
-//   2. Validating credentials (signature, expiry, revocation)
-//   3. Resolving identity (user or service account)
-//   4. Computing effective roles (user_roles ∪ group_roles)
-//   5. Constructing immutable Principal struct
+//  1. Extracting credentials from request
+//  2. Validating credentials (signature, expiry, revocation)
+//  3. Resolving identity (user or service account)
+//  4. Computing effective roles (user_roles ∪ group_roles)
+//  5. Constructing immutable Principal struct
 type Authenticator interface {
 	// Authenticate validates credentials and returns a Principal with resolved roles.
 	Authenticate(ctx context.Context, req AuthRequest) (*Principal, error)
