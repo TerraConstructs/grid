@@ -6,7 +6,7 @@ import (
 
 	"github.com/spf13/cobra"
 	"github.com/terraconstructs/grid/cmd/gridctl/cmd/auth"
-	"github.com/terraconstructs/grid/cmd/gridctl/cmd/deps"
+	"github.com/terraconstructs/grid/cmd/gridctl/cmd/dep"
 	"github.com/terraconstructs/grid/cmd/gridctl/cmd/policy"
 	"github.com/terraconstructs/grid/cmd/gridctl/cmd/role"
 	"github.com/terraconstructs/grid/cmd/gridctl/cmd/state"
@@ -81,7 +81,7 @@ func init() {
 	rootCmd.PersistentFlags().BoolVar(&nonInteractive, "non-interactive", false, "Disable interactive prompts (also set via GRID_NON_INTERACTIVE=1)")
 	rootCmd.PersistentFlags().StringVar(&bearerToken, "token", "", "Bearer token for authentication (bypasses credential store, also set via GRID_BEARER_TOKEN)")
 	rootCmd.AddCommand(state.StateCmd)
-	rootCmd.AddCommand(deps.DepsCmd)
+	rootCmd.AddCommand(dep.DepCmd)
 	rootCmd.AddCommand(policy.PolicyCmd)
 	rootCmd.AddCommand(auth.AuthCmd)
 	rootCmd.AddCommand(role.RoleCmd)

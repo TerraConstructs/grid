@@ -1,4 +1,4 @@
-package deps
+package dep
 
 import (
 	"context"
@@ -69,5 +69,5 @@ var searchCmd = &cobra.Command{
 }
 
 func init() {
-	searchCmd.Flags().StringVar(&searchOutputKey, "output", "", "Producer output key to search for")
+	searchCmd.Flags().StringVarP(&searchOutputKey, "output", "o", "", "Producer output key to search for")
 }

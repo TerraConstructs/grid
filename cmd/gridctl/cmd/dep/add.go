@@ -1,4 +1,4 @@
-package deps
+package dep
 
 import (
 	"context"
@@ -126,9 +126,9 @@ If --to is not specified, the .grid context will be used (if available).`,
 
 func init() {
 	addCmd.Flags().StringVar(&addFromLogicID, "from", "", "Producer state logic ID (required)")
-	addCmd.Flags().StringVar(&addFromOutput, "output", "", "Producer output key (optional, will prompt if not provided)")
+	addCmd.Flags().StringVarP(&addFromOutput, "output", "o", "", "Producer output key (optional, will prompt if not provided)")
 	addCmd.Flags().StringVar(&addToLogicID, "to", "", "Consumer state logic ID (optional, uses .grid context if available)")
-	addCmd.Flags().StringVar(&addToInputName, "to-input", "", "Input variable name in consumer state (optional)")
+	addCmd.Flags().StringVarP(&addToInputName, "input", "i", "", "Input variable name in consumer state (optional)")
 	addCmd.Flags().StringVar(&addMockValue, "mock", "", "Mock value JSON for initial state (optional)")
 	_ = addCmd.MarkFlagRequired("from")
 	// --output and --to are no longer required (will prompt/use context if not provided)

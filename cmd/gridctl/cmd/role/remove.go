@@ -7,9 +7,9 @@ import (
 	"github.com/terraconstructs/grid/pkg/sdk"
 )
 
-var assignGroupCmd = &cobra.Command{
-	Use:   "assign-group [group] [role]",
-	Short: "Assign a group to a role",
+var removeGroupCmd = &cobra.Command{
+	Use:   "remove [group] [role]",
+	Short: "Remove a group from a role",
 	Args:  cobra.ExactArgs(2),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		group := args[0]
@@ -20,15 +20,15 @@ var assignGroupCmd = &cobra.Command{
 			return err
 		}
 
-		_, err = gridClient.AssignGroupRole(cmd.Context(), sdk.AssignGroupRoleInput{
+		_, err = gridClient.RemoveGroupRole(cmd.Context(), sdk.RemoveGroupRoleInput{
 			GroupName: group,
 			RoleName:  role,
 		})
 		if err != nil {
-			return fmt.Errorf("failed to assign group role: %w", err)
+			return fmt.Errorf("failed to remove group role: %w", err)
 		}
 
-		fmt.Printf("Assigned group '%s' to role '%s'\n", group, role)
+		fmt.Printf("Removed group '%s' from role '%s'\n", group, role)
 		return nil
 	},
 }

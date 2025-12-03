@@ -11,7 +11,7 @@ import (
 )
 
 var listGroupsCmd = &cobra.Command{
-	Use:   "list-groups [group]",
+	Use:   "list [group]",
 	Short: "List group-to-role assignments",
 	Args:  cobra.MaximumNArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {

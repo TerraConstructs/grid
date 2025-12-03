@@ -1,4 +1,4 @@
-package deps
+package dep
 
 import (
 	"context"
@@ -13,11 +13,11 @@ var removeEdgeID int64
 var removeCmd = &cobra.Command{
 	Use:   "remove",
 	Short: "Remove a dependency edge",
-	Long:  `Removes a dependency edge by its ID. Use 'deps list' to find edge IDs.`,
+	Long:  `Removes a dependency edge by its ID. Use 'dep list' to find edge IDs.`,
 	Args:  cobra.NoArgs,
 	RunE: func(cobraCmd *cobra.Command, args []string) error {
 		if removeEdgeID <= 0 {
-			return fmt.Errorf("flag --edge-id must be provided")
+			return fmt.Errorf("flag --id/-i must be provided")
 		}
 
 		gridClient, err := sdkClient(cobraCmd.Context())
@@ -37,5 +37,5 @@ var removeCmd = &cobra.Command{
 }
 
 func init() {
-	removeCmd.Flags().Int64Var(&removeEdgeID, "edge-id", 0, "Edge ID to remove")
+	removeCmd.Flags().Int64VarP(&removeEdgeID, "id", "i", 0, "Edge ID to remove")
 }
