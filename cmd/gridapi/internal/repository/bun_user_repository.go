@@ -26,7 +26,7 @@ func (r *BunUserRepository) Create(ctx context.Context, user *models.User) error
 	if user.ID == "" {
 		user.ID = bunx.NewUUIDv7()
 	}
-	
+
 	_, err := r.db.NewInsert().
 		Model(user).
 		Exec(ctx)

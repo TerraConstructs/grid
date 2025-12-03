@@ -191,7 +191,7 @@ func TestComputeFingerprint_NilValue(t *testing.T) {
 
 func TestComputeFingerprint_RealWorldVPCExample(t *testing.T) {
 	vpcOutput := map[string]interface{}{
-		"vpc_id": "vpc-0a1b2c3d4e5f6g7h8",
+		"vpc_id":     "vpc-0a1b2c3d4e5f6g7h8",
 		"cidr_block": "10.0.0.0/16",
 		"private_subnets": []interface{}{
 			"subnet-0a1b2c3d",

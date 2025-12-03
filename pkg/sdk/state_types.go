@@ -3,7 +3,7 @@ package sdk
 import (
 	"time"
 
-	statev1 "github.com/terraconstructs/grid/api/state/v1"
+	statev1 "github.com/terraconstructs/grid/pkg/api/state/v1"
 )
 
 // StateReference identifies a state by logic ID or GUID.

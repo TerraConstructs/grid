@@ -45,9 +45,9 @@ type Edge struct {
 	UpdatedAt   time.Time  `bun:"updated_at,notnull,default:current_timestamp"`
 
 	// Relationships for eager loading (populated only when using Relation())
-	FromStateRel   *State        `bun:"rel:belongs-to,join:from_state=guid"`
-	ToStateRel     *State        `bun:"rel:belongs-to,join:to_state=guid"`
-	ProducerOutput *StateOutput  `bun:"rel:belongs-to,join:from_state=state_guid,join:from_output=output_key"`
+	FromStateRel   *State       `bun:"rel:belongs-to,join:from_state=guid"`
+	ToStateRel     *State       `bun:"rel:belongs-to,join:to_state=guid"`
+	ProducerOutput *StateOutput `bun:"rel:belongs-to,join:from_state=state_guid,join:from_output=output_key"`
 }
 
 var slugRegex = regexp.MustCompile(`^[a-z0-9_-]+$`)

@@ -82,7 +82,7 @@ Grid is a Terraform/OpenTofu remote state management system consisting of:
 
 ### Go Workspace Structure
 This is a Go 1.24+ workspace-based monorepo. The workspace is defined in `go.work` with 5 modules:
-- `./api` - Generated protobuf/Connect code
+- `./pkg/api` - Generated protobuf/Connect code
 - `./cmd/gridapi` - API server binary
 - `./cmd/gridctl` - CLI binary
 - `./pkg/sdk` - SDK library

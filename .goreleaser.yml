@@ -3,7 +3,7 @@ version: 2
 before:
   hooks:
     # Build webapp bundle before goreleaser runs
-    - bash -c "cd webapp && pnpm install --frozen-lockfile && pnpm run build && tar -czf ../dist/webapp.tar.gz dist/"
+    - bash -c "cd webapp && pnpm install --frozen-lockfile && pnpm run build && tar -czf ./dist/webapp.tar.gz dist/"
 
 builds:
   - id: gridapi
@@ -42,23 +42,32 @@ builds:
       - CGO_ENABLED=0
 
 archives:
-  - id: binaries
-    format: tar.gz
-    name_template: >-
-      {{ .ProjectName }}_
-      {{- .Version }}_
-      {{- .Os }}_
-      {{- .Arch }}
+  - id: gridapi
+    ids:
+      - gridapi
+    allow_different_binary_count: true
+    formats: [ tar.gz ]
+    name_template: gridapi_{{ .Version }}_{{ .Os }}_{{ .Arch }}
+    files:
+      - LICENSE
+      - README.md
+
+  - id: gridctl
+    ids:
+      - gridctl
+    allow_different_binary_count: true
+    formats: [ tar.gz ]
+    name_template: gridctl_{{ .Version }}_{{ .Os }}_{{ .Arch }}
     files:
       - LICENSE
       - README.md
 
   - id: webapp
-    format: tar.gz
+    meta: true
+    formats: [ tar.gz ]
     name_template: "webapp_{{ .Version }}"
-    builds: []  # No binaries, custom archive only
     files:
-      - src: dist/webapp.tar.gz
+      - src: webapp/dist/webapp.tar.gz
         dst: .
         strip_parent: true
 

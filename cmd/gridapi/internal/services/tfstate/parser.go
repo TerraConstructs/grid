@@ -9,10 +9,10 @@ import (
 
 // TFState represents the structure of Terraform state JSON
 type TFState struct {
-	Version         int                    `json:"version"`
-	TerraformVersion string                `json:"terraform_version,omitempty"`
-	Serial          int64                  `json:"serial"`
-	Outputs         map[string]OutputValue `json:"outputs"`
+	Version          int                    `json:"version"`
+	TerraformVersion string                 `json:"terraform_version,omitempty"`
+	Serial           int64                  `json:"serial"`
+	Outputs          map[string]OutputValue `json:"outputs"`
 }
 
 // TFOutputs represents the structure of Terraform state outputs

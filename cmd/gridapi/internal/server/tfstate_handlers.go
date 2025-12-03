@@ -25,17 +25,17 @@ type StateService interface {
 
 // TerraformHandlers wires the Terraform HTTP Backend REST endpoints
 type TerraformHandlers struct {
-	service        StateService
-	edgeUpdater    *EdgeUpdateJob
-	validationJob  *SchemaValidationJob
+	service       StateService
+	edgeUpdater   *EdgeUpdateJob
+	validationJob *SchemaValidationJob
 }
 
 // NewTerraformHandlers creates a new handler set for Terraform backend operations
 func NewTerraformHandlers(service *statepkg.Service, edgeUpdater *EdgeUpdateJob, validationJob *SchemaValidationJob) *TerraformHandlers {
 	return &TerraformHandlers{
-		service:        service,
-		edgeUpdater:    edgeUpdater,
-		validationJob:  validationJob,
+		service:       service,
+		edgeUpdater:   edgeUpdater,
+		validationJob: validationJob,
 	}
 }
 

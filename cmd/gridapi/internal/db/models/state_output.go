@@ -13,15 +13,15 @@ import (
 type StateOutput struct {
 	bun.BaseModel `bun:"table:state_outputs,alias:so"`
 
-	StateGUID   string    `bun:"state_guid,pk,type:uuid,notnull"`
-	OutputKey   string    `bun:"output_key,pk,type:text,notnull"`
-	Sensitive   bool      `bun:"sensitive,notnull,default:false"`
-	StateSerial int64     `bun:"state_serial,notnull"`
+	StateGUID   string `bun:"state_guid,pk,type:uuid,notnull"`
+	OutputKey   string `bun:"output_key,pk,type:text,notnull"`
+	Sensitive   bool   `bun:"sensitive,notnull,default:false"`
+	StateSerial int64  `bun:"state_serial,notnull"`
 
 	// SchemaJSON stores an optional JSON Schema definition for this output.
 	// This allows clients to publish type information before the output exists in state.
 	// Stored as TEXT to allow arbitrary JSON Schema complexity.
-	SchemaJSON  *string   `bun:"schema_json,type:text,nullzero"`
+	SchemaJSON *string `bun:"schema_json,type:text,nullzero"`
 
 	// SchemaSource indicates whether the schema was manually set or automatically inferred.
 	// Values: "manual" (set via SetOutputSchema), "inferred" (auto-generated from output value)
@@ -41,8 +41,8 @@ type StateOutput struct {
 	// NULL when validation hasn't run.
 	ValidatedAt *time.Time `bun:"validated_at,type:timestamptz,nullzero"`
 
-	CreatedAt   time.Time `bun:"created_at,notnull,default:current_timestamp"`
-	UpdatedAt   time.Time `bun:"updated_at,notnull,default:current_timestamp"`
+	CreatedAt time.Time `bun:"created_at,notnull,default:current_timestamp"`
+	UpdatedAt time.Time `bun:"updated_at,notnull,default:current_timestamp"`
 
 	// Relationships for eager loading (populated only when using Relation())
 	State *State `bun:"rel:belongs-to,join:state_guid=guid"`

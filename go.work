@@ -3,14 +3,14 @@ go 1.24.7
 toolchain go1.24.10
 
 use (
-	./api
 	./cmd/gridapi
 	./cmd/gridctl
+	./pkg/api
 	./pkg/sdk
 	./tests
 )
 
 replace (
-	github.com/terraconstructs/grid/api v0.0.0 => ./api
+	github.com/terraconstructs/grid/pkg/api v0.0.0 => ./pkg/api
 	github.com/terraconstructs/grid/pkg/sdk v0.0.0 => ./pkg/sdk
 )

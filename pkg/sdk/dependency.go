@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"connectrpc.com/connect"
-	statev1 "github.com/terraconstructs/grid/api/state/v1"
+	statev1 "github.com/terraconstructs/grid/pkg/api/state/v1"
 )
 
 // AddDependency creates a new dependency edge from a producer state's output to a consumer state's input.

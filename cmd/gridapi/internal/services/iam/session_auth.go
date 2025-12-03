@@ -13,17 +13,17 @@ import (
 // SessionAuthenticator authenticates requests using session cookies.
 //
 // Implementation follows Phase 3 specification:
-//   1. Extract "grid.session" cookie
-//   2. Return (nil, nil) if not present
-//   3. Hash cookie value
-//   4. Lookup session in DB
-//   5. Validate: not revoked, not expired
-//   6. Lookup user
-//   7. Validate: not disabled
-//   8. Extract groups from session.id_token (stored JWT)
-//   9. Call ResolveRoles()
-//   10. Construct Principal
-//   11. Return Principal
+//  1. Extract "grid.session" cookie
+//  2. Return (nil, nil) if not present
+//  3. Hash cookie value
+//  4. Lookup session in DB
+//  5. Validate: not revoked, not expired
+//  6. Lookup user
+//  7. Validate: not disabled
+//  8. Extract groups from session.id_token (stored JWT)
+//  9. Call ResolveRoles()
+//  10. Construct Principal
+//  11. Return Principal
 //
 // This authenticator is stateless and thread-safe.
 type SessionAuthenticator struct {

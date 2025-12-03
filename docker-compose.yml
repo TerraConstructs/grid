@@ -10,7 +10,7 @@ services:
       - "5432:5432"
     volumes:
       - grid-postgres-data:/var/lib/postgresql/data
-      - ./initdb:/docker-entrypoint-initdb.d:ro  # Init scripts for keycloak DB
+      - ./tests/fixtures/initdb:/docker-entrypoint-initdb.d:ro  # Init scripts for keycloak DB
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U grid"]
       interval: 5s

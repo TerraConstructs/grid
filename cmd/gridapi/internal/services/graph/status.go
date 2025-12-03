@@ -12,24 +12,24 @@ import (
 
 // StateStatus represents the computed status of a state based on its dependencies
 type StateStatus struct {
-	StateGUID string           `json:"state_guid"`
-	LogicID   string           `json:"logic_id"`
-	Status    string           `json:"status"` // "clean", "stale", "potentially-stale"
+	StateGUID string             `json:"state_guid"`
+	LogicID   string             `json:"logic_id"`
+	Status    string             `json:"status"` // "clean", "stale", "potentially-stale"
 	Incoming  []IncomingEdgeView `json:"incoming"`
-	Summary   StatusSummary    `json:"summary"`
+	Summary   StatusSummary      `json:"summary"`
 }
 
 // IncomingEdgeView shows incoming edge details for status computation
 type IncomingEdgeView struct {
-	EdgeID       int64      `json:"edge_id"`
-	FromGUID     string     `json:"from_guid"`
-	FromLogicID  string     `json:"from_logic_id"`
-	FromOutput   string     `json:"from_output"`
-	Status       string     `json:"status"`
-	InDigest     string     `json:"in_digest,omitempty"`
-	OutDigest    string     `json:"out_digest,omitempty"`
-	LastInAt     *time.Time `json:"last_in_at,omitempty"`
-	LastOutAt    *time.Time `json:"last_out_at,omitempty"`
+	EdgeID      int64      `json:"edge_id"`
+	FromGUID    string     `json:"from_guid"`
+	FromLogicID string     `json:"from_logic_id"`
+	FromOutput  string     `json:"from_output"`
+	Status      string     `json:"status"`
+	InDigest    string     `json:"in_digest,omitempty"`
+	OutDigest   string     `json:"out_digest,omitempty"`
+	LastInAt    *time.Time `json:"last_in_at,omitempty"`
+	LastOutAt   *time.Time `json:"last_out_at,omitempty"`
 }
 
 // StatusSummary aggregates incoming edge counts

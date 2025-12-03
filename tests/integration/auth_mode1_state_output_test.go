@@ -481,14 +481,12 @@ func TestMode1_OutputSchemaAuthorization(t *testing.T) {
 	t.Log("✓ Product engineer can set output schema on env=dev state")
 
 	// Product engineer SHOULD be able to get schema from env=dev state
-	getSchemaCmd := exec.CommandContext(ctx, gridctlPath,
+	getOutput := mustRunGridctlStdOut(t, ctx, gridctlPath,
 		"state", "get-output-schema",
 		"--logic-id", logicID,
 		"--key", "vpc_id",
 		"--server", serverURL,
 		"--token", userTokenResp.AccessToken)
-	getOutput, err := getSchemaCmd.CombinedOutput()
-	require.NoError(t, err, "Product engineer should be able to get schema from env=dev state: %s", string(getOutput))
 
 	// Verify schema content
 	schemaBytes, err := os.ReadFile(schemaPath)
@@ -497,7 +495,7 @@ func TestMode1_OutputSchemaAuthorization(t *testing.T) {
 	var expectedSchema, actualSchema map[string]interface{}
 	err = json.Unmarshal(schemaBytes, &expectedSchema)
 	require.NoError(t, err)
-	err = json.Unmarshal(getOutput, &actualSchema)
+	err = json.Unmarshal([]byte(getOutput), &actualSchema)
 	require.NoError(t, err)
 	require.Equal(t, expectedSchema, actualSchema, "Retrieved schema should match")
 	t.Log("✓ Product engineer can get output schema from env=dev state")

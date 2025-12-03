@@ -126,11 +126,11 @@ func HandleLogout(iamService iamAdminService) http.HandlerFunc {
 
 // AuthConfigResponse tells SDK clients how to authenticate
 type AuthConfigResponse struct {
-	Mode               string  `json:"mode"`                          // "external-idp" or "internal-idp"
-	Issuer             string  `json:"issuer"`                        // OIDC issuer URL
-	ClientID           *string `json:"client_id,omitempty"`           // Public client ID for device flow (Mode 1 only)
-	Audience           *string `json:"audience,omitempty"`            // Expected aud claim in access tokens
-	SupportsDeviceFlow bool    `json:"supports_device_flow"`          // Whether interactive device flow is supported
+	Mode               string  `json:"mode"`                 // "external-idp" or "internal-idp"
+	Issuer             string  `json:"issuer"`               // OIDC issuer URL
+	ClientID           *string `json:"client_id,omitempty"`  // Public client ID for device flow (Mode 1 only)
+	Audience           *string `json:"audience,omitempty"`   // Expected aud claim in access tokens
+	SupportsDeviceFlow bool    `json:"supports_device_flow"` // Whether interactive device flow is supported
 }
 
 // HandleAuthConfig returns the authentication configuration for SDK clients.

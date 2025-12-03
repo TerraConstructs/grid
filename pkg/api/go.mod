@@ -1,4 +1,4 @@
-module github.com/terraconstructs/grid/api
+module github.com/terraconstructs/grid/pkg/api
 
 go 1.24.0
 

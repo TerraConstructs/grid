@@ -172,6 +172,7 @@ func (j *EdgeUpdateJob) updateIncomingEdges(ctx context.Context, stateGUID strin
 //   - outDigest: consumer's observed fingerprint
 //   - validationStatus: validation_status from state_outputs (nil if no schema or not validated)
 //   - outputExists: whether the output key exists in producer's tfstate
+//
 // Returns:
 //   - missing-output: if output doesn't exist (highest priority)
 //   - clean: in_digest == out_digest AND (valid OR no schema)
@@ -208,4 +209,3 @@ func deriveEdgeStatusWithValidation(inDigest, outDigest string, validationStatus
 	}
 	return models.EdgeStatusClean
 }
-

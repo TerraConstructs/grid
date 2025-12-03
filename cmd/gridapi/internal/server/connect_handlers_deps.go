@@ -7,10 +7,10 @@ import (
 	"strings"
 
 	"connectrpc.com/connect"
-	statev1 "github.com/terraconstructs/grid/api/state/v1"
 	"github.com/terraconstructs/grid/cmd/gridapi/internal/auth"
 	"github.com/terraconstructs/grid/cmd/gridapi/internal/db/models"
 	"github.com/terraconstructs/grid/cmd/gridapi/internal/services/dependency"
+	statev1 "github.com/terraconstructs/grid/pkg/api/state/v1"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 

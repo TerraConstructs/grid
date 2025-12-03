@@ -217,7 +217,7 @@ func TestBunStateOutputRepository_SearchOutputsByKey(t *testing.T) {
 		require.NoError(t, err)
 
 		err = repo.UpsertOutputs(ctx, state2.GUID, 1, []OutputKey{
-			{Key: "vpc_id", Sensitive: true},  // Same key, different sensitive flag
+			{Key: "vpc_id", Sensitive: true}, // Same key, different sensitive flag
 			{Key: "subnet_id", Sensitive: false},
 		})
 		require.NoError(t, err)

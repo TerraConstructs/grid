@@ -65,9 +65,9 @@ type State struct {
 	Labels LabelMap `bun:"labels,type:jsonb,notnull,default:'{}'"`
 
 	// Relationships for eager loading (populated only when using Relation())
-	Outputs        []*StateOutput `bun:"rel:has-many,join:guid=state_guid"`
-	OutgoingEdges  []*Edge        `bun:"rel:has-many,join:guid=from_state"`
-	IncomingEdges  []*Edge        `bun:"rel:has-many,join:guid=to_state"`
+	Outputs       []*StateOutput `bun:"rel:has-many,join:guid=state_guid"`
+	OutgoingEdges []*Edge        `bun:"rel:has-many,join:guid=from_state"`
+	IncomingEdges []*Edge        `bun:"rel:has-many,join:guid=to_state"`
 
 	// Computed counts (populated via subqueries for efficient StateInfo rendering)
 	// These are scanonly fields populated by COUNT subqueries in SELECT statements

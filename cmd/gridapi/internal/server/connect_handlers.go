@@ -8,27 +8,27 @@ import (
 	"strings"
 
 	"connectrpc.com/connect"
-	statev1 "github.com/terraconstructs/grid/api/state/v1"
-	"github.com/terraconstructs/grid/api/state/v1/statev1connect"
 	"github.com/terraconstructs/grid/cmd/gridapi/internal/auth"
 	"github.com/terraconstructs/grid/cmd/gridapi/internal/config"
 	"github.com/terraconstructs/grid/cmd/gridapi/internal/db/models"
 	gridmiddleware "github.com/terraconstructs/grid/cmd/gridapi/internal/middleware"
 	"github.com/terraconstructs/grid/cmd/gridapi/internal/services/dependency"
 	statepkg "github.com/terraconstructs/grid/cmd/gridapi/internal/services/state"
+	statev1 "github.com/terraconstructs/grid/pkg/api/state/v1"
+	"github.com/terraconstructs/grid/pkg/api/state/v1/statev1connect"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 // StateServiceHandler wires the internal state service to Connect RPC contracts.
 type StateServiceHandler struct {
 	statev1connect.UnimplementedStateServiceHandler
-	service        *statepkg.Service
-	depService     *dependency.Service
-	policyService  *statepkg.PolicyService
-	iamService     iamAdminService // Compile-time verified IAM service contract
-	authnDeps      *gridmiddleware.AuthnDependencies
-	cfg            *config.Config
-	validationJob  *SchemaValidationJob // Optional dependency for schema validation
+	service       *statepkg.Service
+	depService    *dependency.Service
+	policyService *statepkg.PolicyService
+	iamService    iamAdminService // Compile-time verified IAM service contract
+	authnDeps     *gridmiddleware.AuthnDependencies
+	cfg           *config.Config
+	validationJob *SchemaValidationJob // Optional dependency for schema validation
 }
 
 // NewStateServiceHandler constructs a handler backed by the provided service.

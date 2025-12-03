@@ -7,10 +7,10 @@ import (
 	"maps"
 
 	"connectrpc.com/connect"
-	statev1 "github.com/terraconstructs/grid/api/state/v1"
-	"github.com/terraconstructs/grid/api/state/v1/statev1connect"
 	"github.com/terraconstructs/grid/cmd/gridapi/internal/auth"
 	"github.com/terraconstructs/grid/cmd/gridapi/internal/services/iam"
+	statev1 "github.com/terraconstructs/grid/pkg/api/state/v1"
+	"github.com/terraconstructs/grid/pkg/api/state/v1/statev1connect"
 )
 
 // NewAuthzInterceptor creates a Connect UnaryInterceptor that enforces Casbin policies.

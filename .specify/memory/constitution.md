@@ -48,7 +48,7 @@ Follow-up TODOs:
 
 **The Connect RPC contract is the single source of truth; SDKs wrap the contract while the API server owns business logic and persistence.**
 
-- **Go SDK Package** (`pkg/sdk/`) and **Node.js SDK Package** (`js/sdk/`) expose ergonomic client APIs backed solely by generated Connect RPC clients in `./api`.
+- **Go SDK Package** (`pkg/sdk/`) and **Node.js SDK Package** (`js/sdk/`) expose ergonomic client APIs backed solely by generated Connect RPC clients in `./pkg/api`.
 - SDKs MUST NOT contain server-side persistence, repository implementations, or domain mutations beyond request construction and response parsing.
 - API server (`cmd/gridapi`) MUST implement business logic internally (e.g., `cmd/gridapi/internal/...`) and MUST NOT import `pkg/sdk` or `js/sdk`.
 - Client applications (CLI, web, other services) MUST consume SDKs instead of calling Connect RPC clients directly when an SDK exists.
@@ -77,9 +77,9 @@ proto/        ← (definitions only, not a module)
 - SDKs depending on applications (e.g., `pkg/sdk` importing `cli` code)
 - Cross-application dependencies (e.g., `cli` importing `cmd/gridapi` internals)
 - Circular references between modules
-- Hand-written code in `./api` module (all code MUST be generated from `./proto`)
+- Hand-written code in `./pkg/api` module (all code MUST be generated from `./proto`)
 
-**Enforcement**: CI MUST audit dependency graphs (`go mod graph`, `pnpm ls --filter`) to confirm separation, fail builds if the API server pulls in SDK modules, and verify `./api` contains only generated code (checked via `buf lint` or custom script).
+**Enforcement**: CI MUST audit dependency graphs (`go mod graph`, `pnpm ls --filter`) to confirm separation, fail builds if the API server pulls in SDK modules, and verify `./pkg/api` contains only generated code (checked via `buf lint` or custom script).
 
 **Rationale**: Unidirectional dependencies keep the API authoritative, prevent client logic from leaking into server layers, and still ensure SDKs evolve from the shared protobuf contract.
 
@@ -90,11 +90,11 @@ proto/        ← (definitions only, not a module)
 Architecture:
 - **Protobuf definitions** at `./proto/<service>/vX/<service>.proto` are the single source of truth
 - **Code generation** produces:
-  - Go: Connect service handlers + clients in `./api` module
+  - Go: Connect service handlers + clients in `./pkg/api` module
   - TypeScript/JavaScript: Connect clients for `js/sdk`
   - All other languages via standard protobuf + Connect plugins
 - **Versioning**: Proto files organized by service and API version (`v1`, `v2`, etc.)
-- **Generated code** in `./api` is committed to repository (no build-time generation required for consumers)
+- **Generated code** in `./pkg/api` is committed to repository (no build-time generation required for consumers)
 
 Rules:
 - All RPC methods MUST be defined in `.proto` files first
@@ -103,7 +103,7 @@ Rules:
 - Both Go and Node.js SDKs MUST implement wrappers for all proto services
 
 **Validation**:
-- CI verifies `./api` matches current proto definitions (`buf generate` idempotency check)
+- CI verifies `./pkg/api` matches current proto definitions (`buf generate` idempotency check)
 - Integration tests run against both SDKs to verify equivalent behavior
 
 **Exceptions**: Language-specific SDK utilities (e.g., Go's `context.Context` helpers, Node.js streams) are allowed in SDK wrappers when they provide idiomatic value without breaking functional parity.
@@ -291,7 +291,7 @@ The following violations are documented for remediation:
 **Code review requirements**:
 - All PRs MUST pass CI (lint, test, build for all modules)
 - Proto changes MUST pass `buf lint` and `buf breaking` checks
-- Generated code in `./api` MUST be committed alongside proto changes
+- Generated code in `./pkg/api` MUST be committed alongside proto changes
 - Cross-language changes (affecting both SDKs) MUST include updated integration tests
 - Breaking changes MUST update `CHANGELOG.md` and include migration notes
 - API server code reviews MUST reject imports from client SDK modules; rely on internal packages instead
@@ -311,7 +311,7 @@ The following violations are documented for remediation:
 
 **Protobuf workflow**:
 1. Edit `.proto` files in `./proto/<service>/vX/`
-2. Run `buf generate` to update `./api` module
+2. Run `buf generate` to update `./pkg/api` module
 3. Update SDK wrappers in `pkg/sdk` and `js/sdk` to expose new functionality (without re-implementing server persistence logic)
 4. Commit proto files + generated code + SDK wrappers together
 

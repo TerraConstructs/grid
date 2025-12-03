@@ -8,7 +8,7 @@ import (
 	connect "connectrpc.com/connect"
 	context "context"
 	errors "errors"
-	v1 "github.com/terraconstructs/grid/api/state/v1"
+	v1 "github.com/terraconstructs/grid/pkg/api/state/v1"
 	http "net/http"
 	strings "strings"
 )

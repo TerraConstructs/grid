@@ -6,7 +6,7 @@ const Version = "0.1.0"
 // x-release-please-end
 
 var (
-	version = Version  // Overridden by goreleaser
+	version = Version // Overridden by goreleaser
 	commit  = "none"
 	date    = "unknown"
 	builtBy = "unknown"

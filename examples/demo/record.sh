@@ -2,7 +2,7 @@
 set -euo pipefail
 
 # clean up examples/terraform directories
-pushd examples/terraform || exit 1
+pushd ../terraform || exit 1
 (
 	for dir in */ ; do
 		[ -d "$dir" ] || continue
@@ -14,4 +14,4 @@ pushd examples/terraform || exit 1
 popd
 
 # Record a new demo
-vhs demo/demo.tape
+vhs examples/demo/demo.tape

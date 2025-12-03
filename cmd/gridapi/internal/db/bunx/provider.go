@@ -84,13 +84,13 @@ func newSQLiteDB(dsn string) (*bun.DB, error) {
 	if isInMemory {
 		// In-memory database: Keep connections alive to prevent database destruction
 		// Critical: In-memory databases are destroyed when all connections close
-		sqldb.SetMaxOpenConns(1)      // Single connection for consistency
-		sqldb.SetMaxIdleConns(1)       // Keep the connection alive
-		sqldb.SetConnMaxLifetime(0)    // No connection expiry
+		sqldb.SetMaxOpenConns(1)    // Single connection for consistency
+		sqldb.SetMaxIdleConns(1)    // Keep the connection alive
+		sqldb.SetConnMaxLifetime(0) // No connection expiry
 	} else {
 		// File-based database: Standard connection pool
-		sqldb.SetMaxOpenConns(1)       // Single writer for SQLite best practices
-		sqldb.SetMaxIdleConns(2)       // Allow some idle connections
+		sqldb.SetMaxOpenConns(1) // Single writer for SQLite best practices
+		sqldb.SetMaxIdleConns(2) // Allow some idle connections
 	}
 
 	// Create Bun DB with SQLite dialect

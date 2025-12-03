@@ -12,10 +12,10 @@ import (
 
 // ValidationResult represents the result of validating an output against its schema
 type ValidationResult struct {
-	OutputKey        string
-	Status           string  // "valid", "invalid", "error"
-	ValidationError  *string // JSON path and error details (if invalid or error)
-	ValidatedAt      time.Time
+	OutputKey       string
+	Status          string  // "valid", "invalid", "error"
+	ValidationError *string // JSON path and error details (if invalid or error)
+	ValidatedAt     time.Time
 }
 
 // Validator validates output values against JSON schemas
