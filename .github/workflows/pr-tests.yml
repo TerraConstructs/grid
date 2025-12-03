@@ -25,6 +25,8 @@ jobs:
         with:
           go-version-file: go.work
           cache: true
+          cache-dependency-path: |
+            **/go.sum
 
       - name: Run unit tests
         run: make test-unit
@@ -39,6 +41,8 @@ jobs:
         with:
           go-version-file: go.work
           cache: true
+          cache-dependency-path: |
+            **/go.sum
 
       - name: Start PostgreSQL
         run: docker compose up -d postgres
@@ -70,6 +74,8 @@ jobs:
         with:
           go-version-file: go.work
           cache: true
+          cache-dependency-path: |
+            **/go.sum
 
       - name: Build gridapi
         run: make build
@@ -87,6 +93,8 @@ jobs:
         with:
           go-version-file: go.work
           cache: true
+          cache-dependency-path: |
+            **/go.sum
 
       - name: Start PostgreSQL
         run: docker compose up -d postgres
@@ -187,6 +195,8 @@ jobs:
         with:
           go-version-file: go.work
           cache: true
+          cache-dependency-path: |
+            **/go.sum
 
       - name: Install golangci-lint
         run: go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
@@ -241,6 +251,8 @@ jobs:
         with:
           go-version-file: go.work
           cache: true
+          cache-dependency-path: |
+            **/go.sum
 
       - uses: pnpm/action-setup@v4
 
