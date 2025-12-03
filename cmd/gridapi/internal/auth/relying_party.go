@@ -6,11 +6,11 @@ import (
 	"encoding/base64"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"time"
 
 	"github.com/zitadel/oidc/v3/pkg/client/rp"
-	"github.com/zitadel/oidc/v3/pkg/oidc"
 
 	"github.com/terraconstructs/grid/cmd/gridapi/internal/config"
 	httphelper "github.com/zitadel/oidc/v3/pkg/http"
@@ -20,6 +20,11 @@ import (
 // the zitadel/oidc RelyingParty implementation.
 type RelyingParty struct {
 	rp rp.RelyingParty
+}
+
+// RP returns the underlying zitadel/oidc RelyingParty interface.
+func (r *RelyingParty) RP() rp.RelyingParty {
+	return r.rp
 }
 
 // NewRelyingParty creates a new RelyingParty for external IdP authentication.
@@ -37,13 +42,29 @@ func NewRelyingParty(ctx context.Context, cfg *config.ExternalIdPConfig) (*Relyi
 
 	cookieHandler := httphelper.NewCookieHandler(hashKey, cryptoKey, httphelper.WithUnsecure()) // Use WithUnsecure for local dev over HTTP
 
+	// Custom unauthorized handler to provide visibility into OIDC callback errors.
+	// This is critical for debugging issues like missing id_token, state mismatches, or PKCE failures.
+	unauthorizedHandler := func(w http.ResponseWriter, r *http.Request, desc string, state string) {
+		// Log structured error with context
+		cookieNames := make([]string, 0, len(r.Cookies()))
+		for _, c := range r.Cookies() {
+			cookieNames = append(cookieNames, c.Name)
+		}
+
+		log.Printf("OIDC authentication failed: %s (state=%s, cookies=%v, path=%s)",
+			desc, state, cookieNames, r.URL.Path)
+
+		http.Error(w, "Authentication failed", http.StatusUnauthorized)
+	}
+
 	options := []rp.Option{
 		rp.WithCookieHandler(cookieHandler),
 		rp.WithVerifierOpts(rp.WithIssuedAtMaxAge(10 * time.Second)),
 		rp.WithPKCE(cookieHandler), // Use the same cookie handler for PKCE
+		rp.WithUnauthorizedHandler(unauthorizedHandler),
 	}
 
-	// Use configured scopes (defaults to [openid, profile, email])
+	// Use configured scopes (defaults to [openid, profile, email] set in config.go)
 	// Group memberships are obtained via JWT claim mapper, not via scope request
 	relyingParty, err := rp.NewRelyingPartyOIDC(ctx, cfg.Issuer, cfg.ClientID, cfg.ClientSecret, cfg.RedirectURI,
 		cfg.Scopes, options...)
@@ -52,16 +73,6 @@ func NewRelyingParty(ctx context.Context, cfg *config.ExternalIdPConfig) (*Relyi
 	}
 
 	return &RelyingParty{rp: relyingParty}, nil
-}
-
-// AuthCodeURL returns the URL for the authorization endpoint.
-func (r *RelyingParty) AuthCodeURL(state string) string {
-	return rp.AuthURL(state, r.rp)
-}
-
-// Exchange exchanges an authorization code for an OIDC token and verified claims.
-func (r *RelyingParty) Exchange(ctx context.Context, code string) (*oidc.Tokens[*oidc.IDTokenClaims], error) {
-	return rp.CodeExchange[*oidc.IDTokenClaims](ctx, code, r.rp)
 }
 
 // generateRandomBytes creates a slice of random bytes of a specified size.
@@ -81,32 +92,6 @@ func GenerateNonce() (string, error) {
 		return "", err
 	}
 	return base64.RawURLEncoding.EncodeToString(b), nil
-}
-
-// SetStateCookie sets the state nonce in a cookie.
-func SetStateCookie(w http.ResponseWriter, r *http.Request, state string) {
-	cookie := &http.Cookie{
-		Name:     "grid.state",
-		Value:    state,
-		Path:     "/",
-		Expires:  time.Now().Add(10 * time.Minute),
-		HttpOnly: true,
-		Secure:   r.URL.Scheme == "https", // Automatically use Secure only over HTTPS
-		SameSite: http.SameSiteLaxMode,
-	}
-	http.SetCookie(w, cookie)
-}
-
-// VerifyStateCookie verifies the state nonce from the cookie.
-func VerifyStateCookie(r *http.Request, state string) error {
-	cookie, err := r.Cookie("grid.state")
-	if err != nil {
-		return fmt.Errorf("state cookie not found")
-	}
-	if cookie.Value != state {
-		return fmt.Errorf("invalid state")
-	}
-	return nil
 }
 
 // SetRedirectURICookie stores the redirect URI in a temporary cookie for the SSO flow.

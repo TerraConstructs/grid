@@ -504,6 +504,7 @@ func TestMode1_OutputSchemaAuthorization(t *testing.T) {
 	prodLogicID := fmt.Sprintf("test-schema-auth-prod-%d", time.Now().UnixNano())
 	createProdCmd := exec.CommandContext(ctx, gridctlPath,
 		"state", "create", prodLogicID,
+		"--force",
 		"--label", "env=prod",
 		"--server", serverURL,
 		"--token", adminTokenResp.AccessToken)

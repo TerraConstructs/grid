@@ -186,6 +186,10 @@ func setDefaults(v *viper.Viper) {
 
 	// Default CLI client ID for external IdP
 	v.SetDefault("oidc.external_idp.cli_client_id", "gridctl")
+
+	// Default OIDC scopes for external IdP (matches pre-Viper behavior)
+	// Without "openid" scope, IdP will treat request as OAuth2-only and won't return id_token
+	v.SetDefault("oidc.external_idp.scopes", []string{"openid", "profile", "email"})
 }
 
 // validate performs configuration validation

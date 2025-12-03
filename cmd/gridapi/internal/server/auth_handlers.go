@@ -2,8 +2,12 @@ package server
 
 import (
 	"encoding/json"
+	"log"
 	"net/http"
 	"time"
+
+	"github.com/zitadel/oidc/v3/pkg/client/rp"
+	"github.com/zitadel/oidc/v3/pkg/oidc"
 
 	"github.com/terraconstructs/grid/cmd/gridapi/internal/auth"
 	"github.com/terraconstructs/grid/cmd/gridapi/internal/config"
@@ -13,63 +17,60 @@ import (
 // HandleSSOLogin initiates the OIDC Authorization Code Flow.
 // Accepts optional redirect_uri query parameter to specify where to redirect after successful authentication.
 // Related: Beads issue grid-202d (SSO callback redirect fix)
-func HandleSSOLogin(rp *auth.RelyingParty) http.HandlerFunc {
+func HandleSSOLogin(rpAuth *auth.RelyingParty) http.HandlerFunc {
+	// Create the library's AuthURLHandler once. It handles PKCE challenge generation/storage and redirects.
+	// We pass a state generator function to it.
+	libraryAuthHandler := rp.AuthURLHandler(func() string {
+		state, _ := auth.GenerateNonce() // Reusing GenerateNonce for a secure random string for OIDC state
+		return state
+	}, rpAuth.RP()) // Use InnerRP() to pass the actual zitadel/oidc RelyingParty instance
 	return func(w http.ResponseWriter, r *http.Request) {
-		state, err := auth.GenerateNonce()
-		if err != nil {
-			http.Error(w, "Failed to generate state", http.StatusInternalServerError)
-			return
-		}
-		auth.SetStateCookie(w, r, state)
-
 		// Store redirect_uri from query parameter if provided
-		// This will be used after OAuth callback to redirect back to the webapp
+		// This will be used after OAuth callback to redirect back to the webapp.
+		// This cookie is separate from OIDC state/PKCE cookies managed by the library.
 		if redirectURI := r.URL.Query().Get("redirect_uri"); redirectURI != "" {
 			auth.SetRedirectURICookie(w, r, redirectURI)
 		}
-
-		http.Redirect(w, r, rp.AuthCodeURL(state), http.StatusFound)
+		// Delegate to the library's AuthURLHandler. It will handle:
+		// 1. Generating code_challenge (if PKCE is enabled in rpAuth.InnerRP()).
+		// 2. Storing code_verifier in a cookie (handled by rpAuth.InnerRP()'s CookieHandler).
+		// 3. Storing the OIDC state in a cookie (handled by rpAuth.InnerRP()'s CookieHandler).
+		// 4. Redirecting the user to the Identity Provider's authorization endpoint.
+		libraryAuthHandler.ServeHTTP(w, r)
 	}
 }
 
 // HandleSSOCallback handles the OIDC callback, exchanges the code for a token,
 // verifies the token, and establishes a session.
-func HandleSSOCallback(rp *auth.RelyingParty, iamService iamAdminService) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func HandleSSOCallback(rpAuth *auth.RelyingParty, iamService iamAdminService) http.HandlerFunc {
+
+	// Define the callback function that will be executed after a successful token exchange by CodeExchangeHandler
+	codeExchangeCallback := func(w http.ResponseWriter, r *http.Request, tokens *oidc.Tokens[*oidc.IDTokenClaims], state string, provider rp.RelyingParty) {
 		ctx := r.Context()
-
-		if err := auth.VerifyStateCookie(r, r.URL.Query().Get("state")); err != nil {
-			http.Error(w, "Invalid state", http.StatusBadRequest)
-			return
-		}
-
-		tokens, err := rp.Exchange(ctx, r.URL.Query().Get("code"))
-		if err != nil {
-			http.Error(w, "Failed to exchange code for token", http.StatusUnauthorized)
-			return
-		}
-
+		// The library's CodeExchangeHandler has already validated the OIDC 'state' parameter
+		// and handled the PKCE verifier exchange.
 		idTokenClaims := tokens.IDTokenClaims
 		rawIDToken := tokens.IDToken
-
 		// Get or create user (JIT provisioning via IAM service)
 		user, err := iamService.GetUserBySubject(ctx, idTokenClaims.Subject)
 		if err != nil {
 			// User not found, create a new one via IAM service (with subject for external IdP)
 			user, err = iamService.CreateUser(ctx, idTokenClaims.Email, idTokenClaims.Name, idTokenClaims.Subject, "")
 			if err != nil {
+				log.Printf("SSO callback: failed to create user (subject=%s, email=%s): %v",
+					idTokenClaims.Subject, idTokenClaims.Email, err)
 				http.Error(w, "Failed to create user", http.StatusInternalServerError)
 				return
 			}
 		}
-
 		// Create session via IAM service
 		_, token, err := iamService.CreateSession(ctx, user.ID, rawIDToken, tokens.Expiry)
 		if err != nil {
+			log.Printf("SSO callback: failed to create session (user_id=%s): %v", user.ID, err)
 			http.Error(w, "Failed to create session", http.StatusInternalServerError)
 			return
 		}
-
+		// Set the session cookie for gridapi
 		cookie := &http.Cookie{
 			Name:     auth.SessionCookieName,
 			Value:    token,
@@ -80,7 +81,6 @@ func HandleSSOCallback(rp *auth.RelyingParty, iamService iamAdminService) http.H
 			SameSite: http.SameSiteLaxMode,
 		}
 		http.SetCookie(w, cookie)
-
 		// Redirect to the URI specified in the original login request (from cookie)
 		// Defaults to "/" if not provided. This enables webapp dev mode to work correctly.
 		// Related: Beads issue grid-202d (SSO callback redirect fix)
@@ -90,6 +90,13 @@ func HandleSSOCallback(rp *auth.RelyingParty, iamService iamAdminService) http.H
 		}
 		http.Redirect(w, r, redirectURI, http.StatusFound)
 	}
+	// Return the library's CodeExchangeHandler. It will handle:
+	// 1. Reading the OIDC state cookie and validating it.
+	// 2. Reading the PKCE verifier cookie and passing it to the token endpoint.
+	// 3. Exchanging the authorization code for tokens.
+	// 4. Invoking our custom `codeExchangeCallback` on success.
+	// 5. Handling errors during exchange (e.g., "invalid_grant" from IdP).
+	return rp.CodeExchangeHandler(codeExchangeCallback, rpAuth.RP())
 }
 
 // HandleLogout revokes the user's session.
