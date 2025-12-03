@@ -107,7 +107,7 @@ func TestDirectoryContextCreation(t *testing.T) {
 	t.Logf("Updated .grid context: GUID=%s, LogicID=%s", gridCtx.StateGUID, gridCtx.StateLogicID)
 }
 
-// TestContextAwareDepsAdd tests deps add command using .grid context for --to
+// TestContextAwareDepsAdd tests dep add command using .grid context for --to
 func TestContextAwareDepsAdd(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	defer cancel()
@@ -189,7 +189,7 @@ func TestContextAwareDepsAdd(t *testing.T) {
 
 	// Add dependency using context-aware --to (should use .grid)
 	// Note: This test uses --output explicitly to avoid interactive prompt in tests
-	addCmd := exec.CommandContext(ctx, gridctlPath, "deps", "add",
+	addCmd := exec.CommandContext(ctx, gridctlPath, "dep", "add",
 		"--from", producerLogicID,
 		"--output", "vpc_id",
 		"--server", serverURL,
@@ -204,7 +204,7 @@ func TestContextAwareDepsAdd(t *testing.T) {
 	t.Logf("Dependency added: %s", string(output))
 
 	// Verify dependency was created
-	listCmd := exec.CommandContext(ctx, gridctlPath, "deps", "list", "--server", serverURL)
+	listCmd := exec.CommandContext(ctx, gridctlPath, "dep", "list", "--server", serverURL)
 	output, err = listCmd.CombinedOutput()
 	require.NoError(t, err, "Failed to list dependencies: %s", string(output))
 

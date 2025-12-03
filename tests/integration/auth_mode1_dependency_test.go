@@ -153,7 +153,7 @@ output "subnet_id" {
 	// Step 5: Create dependency from network to cluster using gridctl
 	t.Log("Step 5: Creating dependency from network to cluster...")
 	depsAddCmd := exec.CommandContext(ctx, gridctlPath,
-		"deps", "add",
+		"dep", "add",
 		"--from", networkLogicID,
 		"--output", "vpc_id",
 		"--to", clusterLogicID,
@@ -166,7 +166,7 @@ output "subnet_id" {
 	// Step 6: List dependencies to verify
 	t.Log("Step 6: Listing dependencies...")
 	depsListCmd := exec.CommandContext(ctx, gridctlPath,
-		"deps", "list",
+		"dep", "list",
 		"--state", clusterLogicID,
 		"--server", serverURL,
 		"--token", userTokenResp.AccessToken)
@@ -175,9 +175,9 @@ output "subnet_id" {
 	require.Contains(t, string(listOutput), networkLogicID, "Dependency list should contain network state")
 	t.Logf("Dependencies listed successfully")
 
-	// Step 7: Get edge-id via state get, then delete dependency
-	t.Log("Step 7: Getting edge-id and deleting dependency...")
-	// Use gridctl state get to see the dependency information including edge-id
+	// Step 7: Get edge ID via state get, then delete dependency
+	t.Log("Step 7: Getting edge ID and deleting dependency...")
+	// Use gridctl state get to see the dependency information including edge ID
 	getStateCmd := exec.CommandContext(ctx, gridctlPath,
 		"state", "get", clusterLogicID,
 		"--format", "json",
@@ -199,10 +199,10 @@ output "subnet_id" {
 
 	edgeID := stateInfo.Dependencies[0].EdgeID
 
-	// Now remove the dependency using edge-id
+	// Now remove the dependency using edge ID
 	depsRemoveCmd := exec.CommandContext(ctx, gridctlPath,
-		"deps", "remove",
-		"--edge-id", fmt.Sprintf("%d", edgeID),
+		"dep", "remove",
+		"--id", fmt.Sprintf("%d", edgeID),
 		"--server", serverURL,
 		"--token", userTokenResp.AccessToken)
 	removeOutput, err := depsRemoveCmd.CombinedOutput()
@@ -325,9 +325,9 @@ output "db_password" {
 	// Step 5: Alice tries to create dependency from prod-db-passwords to my-dev-app
 	t.Log("Step 5: Alice attempts to create dependency from prod to dev (expecting authorization failure)...")
 
-	// Try using gridctl deps add
+	// Try using gridctl dep add
 	depsAddCmd := exec.CommandContext(ctx, gridctlPath,
-		"deps", "add",
+		"dep", "add",
 		"--from", prodLogicID,
 		"--output", "db_password",
 		"--to", devLogicID,
@@ -338,7 +338,7 @@ output "db_password" {
 	// Command should fail with authorization error
 	require.Error(t, err, "Alice should be denied creating dependency from prod source (confused deputy prevention)")
 	outputStr := string(depsOutput)
-	t.Logf("gridctl deps add output: %s", outputStr)
+	t.Logf("gridctl dep add output: %s", outputStr)
 
 	// Verify the error message indicates source read permission denial
 	require.Contains(t, outputStr, "permission_denied",
@@ -460,7 +460,7 @@ output "vpc_id" {
 	t.Log("Step 5: Alice attempts to create dependency to prod destination (expecting authorization failure)...")
 
 	depsAddCmd := exec.CommandContext(ctx, gridctlPath,
-		"deps", "add",
+		"dep", "add",
 		"--from", devNetworkLogicID,
 		"--output", "vpc_id",
 		"--to", prodClusterLogicID,
@@ -471,7 +471,7 @@ output "vpc_id" {
 	// Command should fail with authorization error
 	require.Error(t, err, "Alice should be denied creating dependency to prod destination")
 	outputStr := string(depsOutput)
-	t.Logf("gridctl deps add output: %s", outputStr)
+	t.Logf("gridctl dep add output: %s", outputStr)
 
 	// Verify the error message indicates destination permission denial
 	require.Contains(t, outputStr, "permission_denied",
@@ -583,9 +583,9 @@ output "test_value" {
 	applyProdOutput, err := applyProdCmd.CombinedOutput()
 	require.NoError(t, err, "Failed to apply prod: %s", string(applyProdOutput))
 
-	// Create dependency using gridctl deps add
+	// Create dependency using gridctl dep add
 	depsAddCmd := exec.CommandContext(ctx, gridctlPath,
-		"deps", "add",
+		"dep", "add",
 		"--from", prodSourceLogicID,
 		"--output", "test_value",
 		"--to", prodDestLogicID,
@@ -604,7 +604,7 @@ output "test_value" {
 	// Step 4: Alice tries to list dependencies on prod state (should be denied)
 	t.Log("Step 4: Alice attempts to list dependencies on prod state (expecting authorization failure)...")
 	depsListCmd := exec.CommandContext(ctx, gridctlPath,
-		"deps", "list",
+		"dep", "list",
 		"--state", prodDestLogicID,
 		"--server", serverURL,
 		"--token", userTokenResp.AccessToken)
@@ -613,9 +613,9 @@ output "test_value" {
 	// Command should fail with authorization error
 	require.Error(t, err, "Alice should be denied listing dependencies on prod state")
 	listOutputStr := string(listOutput)
-	t.Logf("gridctl deps list output: %s", listOutputStr)
+	t.Logf("gridctl dep list output: %s", listOutputStr)
 
-	// Step 5: Since Alice cannot list dependencies on prod state, she cannot get the edge-id
+	// Step 5: Since Alice cannot list dependencies on prod state, she cannot get the edge ID
 	// to attempt deletion. The list authorization denial already proves she cannot manage
 	// prod dependencies. This test validates that dependency operations are properly scoped.
 	t.Log("✓ List and delete authorization tests complete! Alice cannot manage prod dependencies")
