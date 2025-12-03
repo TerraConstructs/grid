@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/terraconstructs/grid/cmd/gridapi/internal/db/bunx"
 	"github.com/terraconstructs/grid/cmd/gridapi/internal/db/models"
 	"github.com/uptrace/bun"
 )
@@ -22,6 +23,15 @@ func NewBunSessionRepository(db *bun.DB) SessionRepository {
 
 // Create inserts a new session
 func (r *BunSessionRepository) Create(ctx context.Context, session *models.Session) error {
+	if session.ID == "" {
+		session.ID = bunx.NewUUIDv7()
+	}
+
+	// Validate that exactly one principal is specified (defensive check for SQLite compatibility)
+	if (session.UserID == nil && session.ServiceAccountID == nil) || (session.UserID != nil && session.ServiceAccountID != nil) {
+		return fmt.Errorf("exactly one of user_id or service_account_id must be set")
+	}
+
 	_, err := r.db.NewInsert().
 		Model(session).
 		Exec(ctx)

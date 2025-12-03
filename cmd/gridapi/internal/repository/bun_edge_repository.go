@@ -174,7 +174,7 @@ func (r *BunEdgeRepository) GetIncomingEdgesWithProducers(ctx context.Context, t
 		Model(&edges).
 		Relation("FromStateRel"). // Eager load producer states
 		Where("to_state = ?", toStateGUID).
-		Order("created_at ASC").
+		Order("e.created_at ASC").
 		Scan(ctx)
 
 	if err != nil {
@@ -193,7 +193,7 @@ func (r *BunEdgeRepository) GetOutgoingEdgesWithConsumers(ctx context.Context, f
 		Model(&edges).
 		Relation("ToStateRel"). // Eager load consumer states
 		Where("from_state = ?", fromStateGUID).
-		Order("created_at ASC").
+		Order("e.created_at ASC").
 		Scan(ctx)
 
 	if err != nil {
@@ -212,7 +212,7 @@ func (r *BunEdgeRepository) GetOutgoingEdgesWithValidation(ctx context.Context, 
 		Model(&edges).
 		Relation("ProducerOutput"). // Eager load validation status from state_outputs
 		Where("from_state = ?", fromStateGUID).
-		Order("created_at ASC").
+		Order("e.created_at ASC").
 		Scan(ctx)
 
 	if err != nil {

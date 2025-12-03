@@ -456,6 +456,7 @@ func TestMode1_OutputSchemaAuthorization(t *testing.T) {
 	gridctlPath := getGridctlPath(t)
 	createCmd := exec.CommandContext(ctx, gridctlPath,
 		"state", "create", logicID,
+		"--force",
 		"--label", "env=dev",
 		"--server", serverURL,
 		"--token", userTokenResp.AccessToken)

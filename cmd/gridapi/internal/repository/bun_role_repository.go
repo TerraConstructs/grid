@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/terraconstructs/grid/cmd/gridapi/internal/db/bunx"
 	"github.com/terraconstructs/grid/cmd/gridapi/internal/db/models"
 	"github.com/uptrace/bun"
 )
@@ -26,6 +27,10 @@ func NewBunRoleRepository(db *bun.DB) RoleRepository {
 
 // Create inserts a new role
 func (r *BunRoleRepository) Create(ctx context.Context, role *models.Role) error {
+	if role.ID == "" {
+		role.ID = bunx.NewUUIDv7()
+	}
+
 	_, err := r.db.NewInsert().
 		Model(role).
 		Exec(ctx)
@@ -142,6 +147,15 @@ func NewBunUserRoleRepository(db *bun.DB) UserRoleRepository {
 
 // Create inserts a new user-role assignment
 func (r *BunUserRoleRepository) Create(ctx context.Context, ur *models.UserRole) error {
+	if ur.ID == "" {
+		ur.ID = bunx.NewUUIDv7()
+	}
+
+	// Validate that exactly one principal is specified (defensive check for SQLite compatibility)
+	if (ur.UserID == nil && ur.ServiceAccountID == nil) || (ur.UserID != nil && ur.ServiceAccountID != nil) {
+		return fmt.Errorf("exactly one of user_id or service_account_id must be set")
+	}
+
 	_, err := r.db.NewInsert().
 		Model(ur).
 		Exec(ctx)
@@ -313,6 +327,10 @@ func NewBunGroupRoleRepository(db *bun.DB) GroupRoleRepository {
 
 // Create inserts a new group-role mapping
 func (r *BunGroupRoleRepository) Create(ctx context.Context, gr *models.GroupRole) error {
+	if gr.ID == "" {
+		gr.ID = bunx.NewUUIDv7()
+	}
+
 	_, err := r.db.NewInsert().
 		Model(gr).
 		Exec(ctx)

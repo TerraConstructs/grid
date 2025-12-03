@@ -15,7 +15,7 @@ import (
 type User struct {
 	bun.BaseModel `bun:"table:users,alias:u"`
 
-	ID           string     `bun:"id,pk,type:uuid,default:gen_random_uuid()"`
+	ID           string     `bun:"id,pk,type:uuid"`
 	Subject      *string    `bun:"subject,unique"` // Optional OIDC subject (e.g., "keycloak|123")
 	Email        string     `bun:"email,notnull,unique"`
 	Name         string     `bun:"name"`
@@ -42,7 +42,7 @@ func (u *User) PrincipalSubject() string {
 type ServiceAccount struct {
 	bun.BaseModel `bun:"table:service_accounts,alias:sa"`
 
-	ID               string    `bun:"id,pk,type:uuid,default:gen_random_uuid()"`
+	ID               string    `bun:"id,pk,type:uuid"`
 	ClientID         string    `bun:"client_id,notnull,unique"`
 	ClientSecretHash string    `bun:"client_secret_hash,notnull"`
 	Name             string    `bun:"name,notnull"`
@@ -53,6 +53,9 @@ type ServiceAccount struct {
 	LastUsedAt       time.Time `bun:"last_used_at"`
 	SecretRotatedAt  time.Time `bun:"secret_rotated_at"`
 	Disabled         bool      `bun:"disabled,notnull,default:false"`
+
+	// Relationships
+	Creator *User `bun:"rel:belongs-to,join:created_by=id"`
 }
 
 // CreateConstraints represents label constraints for state creation
@@ -91,7 +94,7 @@ func (cc CreateConstraints) Value() (driver.Value, error) {
 type Role struct {
 	bun.BaseModel `bun:"table:roles,alias:r"`
 
-	ID                string            `bun:"id,pk,type:uuid,default:gen_random_uuid()"`
+	ID                string            `bun:"id,pk,type:uuid"`
 	Name              string            `bun:"name,notnull,unique"`
 	Description       string            `bun:"description"`
 	ScopeExpr         string            `bun:"scope_expr"` // go-bexpr expression string
@@ -106,31 +109,41 @@ type Role struct {
 type UserRole struct {
 	bun.BaseModel `bun:"table:user_roles,alias:ur"`
 
-	ID                  string    `bun:"id,pk,type:uuid,default:gen_random_uuid()"`
+	ID                  string    `bun:"id,pk,type:uuid"`
 	UserID              *string   `bun:"user_id,type:uuid"`            // FK to users(id), nullable
 	ServiceAccountID    *string   `bun:"service_account_id,type:uuid"` // FK to service_accounts(id), nullable
 	RoleID              string    `bun:"role_id,notnull,type:uuid"`    // FK to roles(id)
 	LabelFilterOverride LabelMap  `bun:"label_filter_override,type:jsonb"`
 	AssignedAt          time.Time `bun:"assigned_at,notnull,default:current_timestamp"`
 	AssignedBy          string    `bun:"assigned_by,notnull,type:uuid"` // FK to users(id)
+
+	// Relationships
+	User           *User           `bun:"rel:belongs-to,join:user_id=id"`
+	ServiceAccount *ServiceAccount `bun:"rel:belongs-to,join:service_account_id=id"`
+	Role           *Role           `bun:"rel:belongs-to,join:role_id=id"`
+	Assigner       *User           `bun:"rel:belongs-to,join:assigned_by=id"`
 }
 
 // GroupRole maps SSO groups to roles
 type GroupRole struct {
 	bun.BaseModel `bun:"table:group_roles,alias:gr"`
 
-	ID         string    `bun:"id,pk,type:uuid,default:gen_random_uuid()"`
+	ID         string    `bun:"id,pk,type:uuid"`
 	GroupName  string    `bun:"group_name,notnull"`
 	RoleID     string    `bun:"role_id,notnull,type:uuid"` // FK to roles(id)
 	AssignedAt time.Time `bun:"assigned_at,notnull,default:current_timestamp"`
 	AssignedBy string    `bun:"assigned_by,notnull,type:uuid"` // FK to users(id)
+
+	// Relationships
+	Role     *Role `bun:"rel:belongs-to,join:role_id=id"`
+	Assigner *User `bun:"rel:belongs-to,join:assigned_by=id"`
 }
 
 // Session tracks active sessions for human users and service accounts
 type Session struct {
 	bun.BaseModel `bun:"table:sessions,alias:sess"`
 
-	ID               string    `bun:"id,pk,type:uuid,default:gen_random_uuid()"`
+	ID               string    `bun:"id,pk,type:uuid"`
 	UserID           *string   `bun:"user_id,type:uuid"`            // FK to users(id), nullable
 	ServiceAccountID *string   `bun:"service_account_id,type:uuid"` // FK to service_accounts(id), nullable
 	TokenHash        string    `bun:"token_hash,notnull,unique"`    // SHA256 hash of bearer token
@@ -142,6 +155,10 @@ type Session struct {
 	UserAgent        *string   `bun:"user_agent"`           // Nullable for service account sessions
 	IPAddress        *string   `bun:"ip_address,type:inet"` // Nullable for service account sessions
 	Revoked          bool      `bun:"revoked,notnull,default:false"`
+
+	// Relationships
+	User           *User           `bun:"rel:belongs-to,join:user_id=id"`
+	ServiceAccount *ServiceAccount `bun:"rel:belongs-to,join:service_account_id=id"`
 }
 
 // RevokedJTI tracks revoked JWT tokens by their JTI claim for denylist-based revocation

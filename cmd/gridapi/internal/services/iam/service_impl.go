@@ -10,10 +10,10 @@ import (
 	"time"
 
 	"github.com/casbin/casbin/v2"
-	"github.com/google/uuid"
 	"github.com/hashicorp/go-bexpr"
 	"github.com/terraconstructs/grid/cmd/gridapi/internal/auth"
 	"github.com/terraconstructs/grid/cmd/gridapi/internal/config"
+	"github.com/terraconstructs/grid/cmd/gridapi/internal/db/bunx"
 	"github.com/terraconstructs/grid/cmd/gridapi/internal/db/models"
 	"github.com/terraconstructs/grid/cmd/gridapi/internal/repository"
 	"golang.org/x/crypto/bcrypt"
@@ -454,7 +454,7 @@ func (s *iamService) DisableUser(ctx context.Context, userID string) error {
 // the unhashed secret (caller must save it - it won't be shown again).
 func (s *iamService) CreateServiceAccount(ctx context.Context, name, createdBy string) (*models.ServiceAccount, string, error) {
 	// Generate client_id (UUIDv7 for time-sortable IDs)
-	clientID := uuid.Must(uuid.NewV7()).String()
+	clientID := bunx.NewUUIDv7()
 
 	// Generate client_secret (32 random bytes = 64 hex characters)
 	clientSecret, err := generateSessionToken()

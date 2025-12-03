@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/terraconstructs/grid/cmd/gridapi/internal/db/bunx"
 	"github.com/terraconstructs/grid/cmd/gridapi/internal/db/models"
 	"github.com/uptrace/bun"
 )
@@ -22,6 +23,10 @@ func NewBunServiceAccountRepository(db *bun.DB) ServiceAccountRepository {
 
 // Create inserts a new service account
 func (r *BunServiceAccountRepository) Create(ctx context.Context, sa *models.ServiceAccount) error {
+	if sa.ID == "" {
+		sa.ID = bunx.NewUUIDv7()
+	}
+
 	_, err := r.db.NewInsert().
 		Model(sa).
 		Exec(ctx)

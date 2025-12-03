@@ -48,6 +48,9 @@ func (r *BunLabelPolicyRepository) SetPolicy(ctx context.Context, policyDef *mod
 
 	now := time.Now()
 
+	// TODO: Ensure single-row constraint (ID=1) in application logic for SQLite
+	// SQLite migration skips the database-level CHECK constraint.
+	// We should verify here that no other rows exist if ID!=1 (though GetPolicy filters by ID=1).
 	if existing == nil {
 		// Create new policy with version 1
 		policy := &models.LabelPolicy{
