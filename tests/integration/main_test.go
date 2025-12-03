@@ -82,9 +82,16 @@ func startServer() error {
 		}
 	}
 
+	// Allow database URL to be overridden via environment variable
+	// Default to PostgreSQL for backward compatibility
+	dbURL := os.Getenv("GRIDAPI_DB_URL")
+	if dbURL == "" {
+		dbURL = "postgres://grid:gridpass@localhost:5432/grid?sslmode=disable"
+	}
+
 	serverCmd = exec.Command(gridapiPath, "serve",
 		"--server-addr", ":8080",
-		"--db-url", "postgres://grid:gridpass@localhost:5432/grid?sslmode=disable")
+		"--db-url", dbURL)
 
 	// Inherit environment variables from parent process
 	// This allows Mode 1 (EXTERNAL_IDP_*) and Mode 2 (OIDC_*) config to be passed through

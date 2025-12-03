@@ -1,4 +1,4 @@
-.PHONY: help build db-up db-down db-reset db-migrate oidc-dev-keys keycloak-up keycloak-down keycloak-logs keycloak-reset test test-unit test-unit-db test-contract test-integration test-integration-mode1 test-integration-mode2 test-integration-all test-e2e test-e2e-ui test-e2e-headed test-e2e-debug test-e2e-report test-all ci-test test-integration-setup test-integration-teardown test-clean clean
+.PHONY: help build db-up db-down db-reset db-migrate oidc-dev-keys keycloak-up keycloak-down keycloak-logs keycloak-reset test test-unit test-unit-db test-contract test-integration test-integration-sqlite test-integration-mode1 test-integration-mode2 test-integration-all test-e2e test-e2e-ui test-e2e-headed test-e2e-debug test-e2e-report test-all ci-test test-integration-setup test-integration-teardown test-clean clean
 
 help: ## Display available targets
 	@echo "Grid Terraform State Management - Makefile"
@@ -114,6 +114,13 @@ test-integration: ## Run integration tests (no OIDC - automated setup via TestMa
 	@docker compose up -d postgres
 	@sleep 2
 	@cd tests/integration && go test -v -race -timeout 5m -skip "TestMode1|TestMode2"
+
+test-integration-sqlite: build ## Run integration tests with SQLite (no PostgreSQL required)
+	@echo "Running integration tests with SQLite..."
+	@echo "Using SQLite in-memory database (no external dependencies)"
+	@cd tests/integration && \
+		GRIDAPI_DB_URL=":memory:" \
+		go test -v -race -timeout 5m -skip "TestMode1|TestMode2"
 
 test-integration-mode1: build ## Run Mode 1 (External IdP) integration tests with Keycloak
 	@echo "Running Mode 1 (External IdP) integration tests..."

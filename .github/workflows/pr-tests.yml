@@ -60,6 +60,23 @@ jobs:
         if: always()
         run: docker compose down -v
 
+  integration-tests-sqlite:
+    name: Integration Tests (SQLite)
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: go.work
+          cache: true
+
+      - name: Build gridapi
+        run: make build
+
+      - name: Run integration tests with SQLite
+        run: make test-integration-sqlite
+
   integration-tests-mode2:
     name: Integration Tests (Mode2)
     runs-on: ubuntu-24.04
