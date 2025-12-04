@@ -136,6 +136,9 @@ func NewOIDCProvider(ctx context.Context, cfg config.OIDCConfig, deps ProviderDe
 	if cfg.Issuer == "" {
 		return nil, ErrOIDCDisabled
 	}
+	if cfg.ClientID == "" {
+		return nil, fmt.Errorf("oidc client_id is required for internal IdP mode")
+	}
 	if deps.Users == nil || deps.ServiceAccounts == nil || deps.Sessions == nil {
 		return nil, fmt.Errorf("oidc storage dependencies incomplete")
 	}
@@ -159,9 +162,10 @@ func NewOIDCProvider(ctx context.Context, cfg config.OIDCConfig, deps ProviderDe
 		return nil, err
 	}
 
-	// Set the signer and issuer on the storage instance after the provider is created.
+	// Set the signer, issuer, and audience on the storage instance after the provider is created.
 	storage.setSigner(provider.Crypto())
 	storage.setIssuer(cfg.Issuer)
+	storage.setAudience(cfg.ClientID)
 
 	return &Provider{
 		Router:  op.CreateRouter(provider),
@@ -188,6 +192,7 @@ type providerStorage struct {
 
 	signingKey *rsaSigningKey
 	issuer     string
+	audience   string // Audience claim for issued tokens (matches OIDC ClientID)
 	signer     op.Crypto
 }
 
@@ -197,6 +202,10 @@ func (s *providerStorage) setSigner(signer op.Crypto) {
 
 func (s *providerStorage) setIssuer(issuer string) {
 	s.issuer = issuer
+}
+
+func (s *providerStorage) setAudience(audience string) {
+	s.audience = audience
 }
 
 func newProviderStorage(deps ProviderDependencies, keyPath string) (*providerStorage, error) {
@@ -291,9 +300,9 @@ func (s *providerStorage) createJWT(request op.TokenRequest, exp time.Time) (str
 	jti := uuid.NewString()
 	now := time.Now()
 
-	// For access tokens, audience should be the API (gridapi), not the client
-	// The client_id is included in a separate claim
-	audience := []string{"gridapi"}
+	// For access tokens, audience should be the configured ClientID (resource server identifier)
+	// The client_id of the requesting client is included in a separate claim
+	audience := []string{s.audience}
 
 	claims := &oidc.IDTokenClaims{
 		TokenClaims: oidc.TokenClaims{
