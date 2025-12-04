@@ -41,3 +41,18 @@ jobs:
           args: release --clean
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Create Go submodule tags
+        run: |
+          # Extract version from tag (e.g., v0.1.2)
+          VERSION=${GITHUB_REF#refs/tags/}
+
+          # Create and push tags for Go submodules
+          git tag "pkg/api/${VERSION}"
+          git tag "pkg/sdk/${VERSION}"
+          git push origin "pkg/api/${VERSION}"
+          git push origin "pkg/sdk/${VERSION}"
+
+          echo "Created submodule tags:"
+          echo "  - pkg/api/${VERSION}"
+          echo "  - pkg/sdk/${VERSION}"
