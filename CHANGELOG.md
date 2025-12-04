@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.3](https://github.com/TerraConstructs/grid/compare/v0.1.2...v0.1.3) (2025-12-04)
+
+
+### Miscellaneous
+
+* remove go mod replace ([#19](https://github.com/TerraConstructs/grid/issues/19)) ([0bbeaad](https://github.com/TerraConstructs/grid/commit/0bbeaad3d9432a09ace9b067fe2579dec8487173))
+
 ## [0.1.2](https://github.com/TerraConstructs/grid/compare/v0.1.1...v0.1.2) (2025-12-04)
 
 
