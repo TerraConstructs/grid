@@ -28,7 +28,7 @@ jobs:
         with:
           node-version: 20
           cache: 'pnpm'
-          cache-dependency-path: 'webapp/pnpm-lock.yaml'
+          cache-dependency-path: 'pnpm-lock.yaml'
 
       - name: Install webapp dependencies
         run: cd webapp && pnpm install --frozen-lockfile

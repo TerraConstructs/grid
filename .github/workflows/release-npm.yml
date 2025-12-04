@@ -32,10 +32,6 @@ jobs:
         working-directory: ./js/sdk
         run: pnpm run build
 
-      - name: Verify package contents (dry run)
-        working-directory: ./js/sdk
-        run: pnpm pack --dry-run
-
       - name: Publish to npm
         working-directory: ./js/sdk
         run: pnpm publish --access public --provenance --no-git-checks
