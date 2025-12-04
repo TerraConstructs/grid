@@ -23,8 +23,10 @@ const (
 
 // DetectDatabaseType determines the database type from a DSN string
 func DetectDatabaseType(dsn string) DatabaseType {
-	// PostgreSQL DSN patterns
-	if strings.HasPrefix(dsn, "postgres://") || strings.HasPrefix(dsn, "postgresql://") {
+	// PostgreSQL DSN patterns (including Unix socket)
+	if strings.HasPrefix(dsn, "postgres://") ||
+	   strings.HasPrefix(dsn, "postgresql://") ||
+	   strings.HasPrefix(dsn, "unix://") {
 		return DatabaseTypePostgreSQL
 	}
 	// SQLite patterns: file:, :memory:, or plain file path
