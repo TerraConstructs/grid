@@ -30,9 +30,6 @@ jobs:
           cache: 'pnpm'
           cache-dependency-path: 'pnpm-lock.yaml'
 
-      - name: Install webapp dependencies
-        run: cd webapp && pnpm install --frozen-lockfile
-
       - name: Create dist directory
         run: mkdir -p dist
 

@@ -2,8 +2,8 @@ version: 2
 
 before:
   hooks:
-    # Build webapp bundle before goreleaser runs
-    - bash -c "cd webapp && pnpm install --frozen-lockfile && pnpm run build && tar -czf ./dist/webapp.tar.gz dist/"
+    # Install dependencies, build JS SDK, then build webapp bundle
+    - bash -c "pnpm install --frozen-lockfile && cd js/sdk && pnpm run build && cd ../../webapp && pnpm run build && tar -czf ./dist/webapp.tar.gz dist/"
 
 builds:
   - id: gridapi
