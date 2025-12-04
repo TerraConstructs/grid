@@ -1,6 +1,6 @@
 {
   "name": "@tcons/grid",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "description": "TerraConstructs Grid TypeScript SDK for Terraform state management",
   "license": "Apache-2.0",
   "repository": {
