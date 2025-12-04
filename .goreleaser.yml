@@ -3,7 +3,7 @@ version: 2
 before:
   hooks:
     # Install dependencies, build JS SDK, then build webapp bundle
-    - bash -c "pnpm install --frozen-lockfile && cd js/sdk && pnpm run build && cd ../../webapp && pnpm run build && tar -czf dist/webapp.tar.gz -C dist ."
+    - bash -c "pnpm install --frozen-lockfile && cd js/sdk && pnpm run build && cd ../../webapp && pnpm run build && tar -czf webapp.tar.gz -C dist . && mv webapp.tar.gz dist/"
 
 builds:
   - id: gridapi
