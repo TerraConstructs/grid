@@ -4,12 +4,6 @@ go 1.24.0
 
 toolchain go1.24.4
 
-// required until grid is published
-replace (
-	github.com/terraconstructs/grid/pkg/api v0.0.0 => ../pkg/api
-	github.com/terraconstructs/grid/pkg/sdk v0.0.0 => ../pkg/sdk
-)
-
 require (
 	connectrpc.com/connect v1.19.0
 	github.com/gofrs/uuid v4.4.0+incompatible
@@ -17,7 +11,7 @@ require (
 	github.com/hashicorp/terraform-exec v0.24.0
 	github.com/lib/pq v1.10.9
 	github.com/stretchr/testify v1.11.1
-	github.com/terraconstructs/grid/pkg/sdk v0.0.0
+	github.com/terraconstructs/grid/pkg/sdk v0.1.2
 	gopkg.in/square/go-jose.v2 v2.6.0
 )
 
@@ -33,7 +27,7 @@ require (
 	github.com/muhlemmer/gu v0.3.1 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/sirupsen/logrus v1.9.3 // indirect
-	github.com/terraconstructs/grid/pkg/api v0.0.0 // indirect
+	github.com/terraconstructs/grid/pkg/api v0.1.2 // indirect
 	github.com/zclconf/go-cty v1.16.4 // indirect
 	github.com/zitadel/logging v0.6.2 // indirect
 	github.com/zitadel/oidc/v3 v3.45.0 // indirect

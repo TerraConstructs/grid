@@ -9,8 +9,3 @@ use (
 	./pkg/sdk
 	./tests
 )
-
-replace (
-	github.com/terraconstructs/grid/pkg/api v0.0.0 => ./pkg/api
-	github.com/terraconstructs/grid/pkg/sdk v0.0.0 => ./pkg/sdk
-)
