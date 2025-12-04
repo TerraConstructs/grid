@@ -3,7 +3,7 @@ name: Release Build
 on:
   push:
     tags:
-      - 'grid-v*'
+      - 'v*'
 
 permissions:
   contents: write

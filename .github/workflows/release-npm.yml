@@ -3,7 +3,7 @@ name: Publish npm Package
 on:
   push:
     tags:
-      - 'grid-v*'
+      - 'v*'
 
 permissions:
   contents: read

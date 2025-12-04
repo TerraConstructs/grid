@@ -3,7 +3,6 @@
   "packages": {
     ".": {
       "release-type": "go",
-      "package-name": "grid",
       "changelog-path": "CHANGELOG.md",
       "extra-files": [
         "cmd/gridapi/version.go",
