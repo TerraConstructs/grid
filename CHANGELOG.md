@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.2](https://github.com/TerraConstructs/grid/compare/v0.1.1...v0.1.2) (2025-12-04)
+
+
+### Bug Fixes
+
+* **ci:** Fix tar command in GoReleaser before hook ([e489d3f](https://github.com/TerraConstructs/grid/commit/e489d3fea6f349478f74760dbb1018d96ad3e86e))
+
 ## [0.1.1](https://github.com/TerraConstructs/grid/compare/grid-v0.1.0...grid-v0.1.1) (2025-12-03)
 
 
