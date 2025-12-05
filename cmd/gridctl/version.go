@@ -1,7 +1,7 @@
 package main
 
 // x-release-please-start-version
-const Version = "0.1.3"
+const Version = "0.1.4"
 
 // x-release-please-end
 

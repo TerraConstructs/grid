@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.1.4](https://github.com/TerraConstructs/grid/compare/v0.1.3...v0.1.4) (2025-12-05)
+
+
+### Bug Fixes
+
+* hardcoded internal IdP audience ([e9d76a5](https://github.com/TerraConstructs/grid/commit/e9d76a54cf403ec4e58319aced7dff35d13fa9c6))
+* misc bugs ([6757efb](https://github.com/TerraConstructs/grid/commit/6757efb64116adbe515a19ed9e6edf72bdf9633e))
+* missing proxy paths ([fdba42c](https://github.com/TerraConstructs/grid/commit/fdba42c995cc65f402de7d9324510e7879e1445e))
+* support pg on unix sockets ([01cca50](https://github.com/TerraConstructs/grid/commit/01cca5077117d905d83904fc43bfa37519b77aad))
+* webapp preserve assets directory ([aa9a6de](https://github.com/TerraConstructs/grid/commit/aa9a6de0b77d709795e4a9d20b91f946bc451c4b))
+
 ## [0.1.3](https://github.com/TerraConstructs/grid/compare/v0.1.2...v0.1.3) (2025-12-04)
 
 
