@@ -126,12 +126,36 @@ make db-up              # Start PostgreSQL via docker compose
 make db-down            # Stop PostgreSQL
 make db-reset           # Fresh database (removes volumes)
 
-# Initialize migration tables
+# Initialize migration tables (TCP connection)
 ./bin/gridapi db init --db-url="postgres://grid:gridpass@localhost:5432/grid?sslmode=disable"
+
+# Initialize migration tables (Unix socket connection)
+./bin/gridapi db init --db-url="unix://grid:gridpass@grid/var/run/postgresql/.s.PGSQL.5432?sslmode=disable"
 
 # Run migrations manually
 ./bin/gridapi db migrate --db-url="postgres://grid:gridpass@localhost:5432/grid?sslmode=disable"
 ```
+
+#### Database Connection Formats
+
+GridAPI supports three connection formats:
+
+1. **TCP Connection**: `postgres://user:pass@host:port/dbname?params`
+   ```bash
+   postgres://grid:gridpass@localhost:5432/grid?sslmode=disable
+   ```
+
+2. **Unix Socket Connection**: `unix://user:pass@dbname/path/to/.s.PGSQL.port?params`
+   ```bash
+   unix://grid:gridpass@grid/var/run/postgresql/.s.PGSQL.5432?sslmode=disable
+   ```
+   **Note**: The path must include the full socket filename (`.s.PGSQL.5432`), not just the directory.
+
+3. **SQLite**: File path or `:memory:`
+   ```bash
+   /path/to/database.db
+   :memory:
+   ```
 
 ### Configuration
 
@@ -152,7 +176,12 @@ GridAPI supports three configuration methods (in precedence order):
 
 Example config file (`gridapi.yaml`):
 ```yaml
+# TCP connection
 database_url: "postgres://grid:gridpass@localhost:5432/grid?sslmode=disable"
+
+# Or Unix socket connection
+# database_url: "unix://grid:gridpass@grid/var/run/postgresql/.s.PGSQL.5432?sslmode=disable"
+
 server_addr: "localhost:8080"
 server_url: "http://localhost:8080"
 debug: false

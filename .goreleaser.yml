@@ -67,9 +67,12 @@ archives:
     formats: [ tar.gz ]
     name_template: "webapp_{{ .Version }}"
     files:
-      - src: webapp/dist/*
-        dst: .
+      # Add index.html at root (strip webapp/dist parent)
+      - src: webapp/dist/index.html
         strip_parent: true
+      # Add all files from assets directory
+      - src: webapp/dist/assets/*
+        dst: assets
 
 checksum:
   name_template: "checksums.txt"

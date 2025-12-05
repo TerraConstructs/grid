@@ -231,11 +231,12 @@ func defaultSkipper(r *http.Request) bool {
 		"/auth/",
 		"/.well-known/",
 		"/device_authorization",
-		"/token",
 		"/jwks",
 		"/keys", // JWKS endpoint for JWT signature verification
-		"/authorization",
-		"/oauth/",
+		"/authorize", // OAuth2 authorization endpoint
+		"/oauth/",    // OAuth2 token, introspect, etc.
+		"/userinfo",  // OIDC userinfo endpoint
+		"/revoke",    // Token revocation endpoint
 	}
 
 	for _, prefix := range publicPrefixes {

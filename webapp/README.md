@@ -31,6 +31,14 @@ server: {
     '/api': 'http://localhost:8080',
     '/state.v1.StateService': 'http://localhost:8080',
     '/tfstate': 'http://localhost:8080',
+    // Mode 2 only: OIDC endpoints
+    '/.well-known': 'http://localhost:8080',
+    '/oauth': 'http://localhost:8080',
+    '/authorize': 'http://localhost:8080',
+    '/userinfo': 'http://localhost:8080',
+    '/revoke': 'http://localhost:8080',
+    '/keys': 'http://localhost:8080',
+    '/device_authorization': 'http://localhost:8080',
   }
 }
 ```
@@ -47,6 +55,10 @@ server: {
 - ❌ Authentication won't work
 - ❌ SSO login will fail
 - ❌ Connect RPC calls will fail with "unauthenticated"
+
+**Mode 2 (Internal IdP) specific**:
+- ❌ OIDC discovery will fail (`/.well-known/openid-configuration` 404)
+- ❌ `gridctl auth login` will fail (can't reach `/oauth/token`)
 
 **Related Issues**: See Beads issue `grid-202d` for SSO callback redirect fix
 
@@ -86,7 +98,7 @@ Use nginx/caddy/traefik to:
 - Serve static webapp files at `/`
 - Proxy API requests to gridapi backend
 
-**Example nginx config**:
+**Example nginx config (Mode 3: External IdP)**:
 
 ```nginx
 server {
@@ -128,6 +140,48 @@ server {
     }
 }
 ```
+
+**Example Caddy config (Mode 2: Internal IdP)**:
+
+When using Mode 2 (Internal IdP), gridapi acts as an OIDC provider and requires additional endpoints:
+
+```caddyfile
+grid.example.com {
+    # OIDC discovery endpoints (Mode 2 only)
+    reverse_proxy /.well-known/* 127.0.0.1:8080
+
+    # OIDC OAuth endpoints (Mode 2 only)
+    reverse_proxy /oauth/* 127.0.0.1:8080
+
+    # OIDC standard endpoints (Mode 2 only)
+    reverse_proxy /authorize 127.0.0.1:8080
+    reverse_proxy /userinfo 127.0.0.1:8080
+    reverse_proxy /revoke 127.0.0.1:8080
+    reverse_proxy /keys 127.0.0.1:8080
+    reverse_proxy /device_authorization 127.0.0.1:8080
+
+    # Grid API endpoints (all modes)
+    reverse_proxy /api/* 127.0.0.1:8080
+    reverse_proxy /auth/* 127.0.0.1:8080
+    reverse_proxy /state.v1.StateService/* 127.0.0.1:8080
+    reverse_proxy /tfstate/* 127.0.0.1:8080
+
+    # Serve webapp static files (MUST be last)
+    root * /var/www/grid/webapp
+    file_server
+}
+```
+
+**CRITICAL for Mode 2**: The OIDC endpoints (`/.well-known/*`, `/oauth/*`, `/authorize`, etc.) are required for:
+- OIDC provider discovery (allows clients to auto-configure)
+- Token endpoint (`/oauth/token`) for client credentials flow (used by `gridctl` and service accounts)
+- CLI authentication (`gridctl auth login`)
+
+**Without these endpoints**, `gridctl` and other OIDC clients will fail with:
+- `404 Not Found` when discovering the OIDC provider configuration
+- `failed to exchange client credentials for token` errors
+
+**Order matters**: `reverse_proxy` directives must come before `file_server` to ensure API/OIDC requests are proxied instead of serving them as static files.
 
 #### Option 2: Embedded Static Files
 
