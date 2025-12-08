@@ -77,12 +77,14 @@ As an authorized user, I need to permanently delete tombstoned states (within my
 
 | Edge Case | Resolution |
 |-----------|------------|
-| Renaming to a tombstoned logic_id | **Block**: Rename rejected if target name is tombstoned. User must purge the tombstoned state first or choose a different name. |
-| Concurrent rename operations | **Optimistic locking**: First operation wins, subsequent attempts fail with conflict error. |
+| Renaming an active state to a tombstoned logic_id | **Block**: Rename rejected if target name is tombstoned. User must purge the tombstoned state first, rename the tombstoned state, or choose a different name. |
+| Renaming a tombstoned state | **Allow**: Tombstoned states can be renamed to free up their logic_id for reuse without waiting for purge. |
+| Concurrent rename operations | **Optimistic locking**: First operation wins, subsequent attempts fail with ABORTED error. |
 | Tombstoning a state with dependents | **Block**: Cannot tombstone a state if other active states depend on it. Dependents must be tombstoned first. |
 | Purge with dependency links | **N/A**: Since states cannot be tombstoned with dependents, purge will never encounter dependency links. |
 | Adding dependencies to tombstoned states | **Block**: Cannot add a tombstoned state as a dependency. |
-| Stale Terraform config after rename | **Clear error**: Logic_id lookup returns "state not found" - users update config manually. GUID-based backend URLs continue working. |
+| Stale Terraform config after rename | **Clear error**: Logic_id lookup returns NOT_FOUND - users update config manually. GUID-based backend URLs continue working. |
+| Force purge scope | **Tombstoned only**: Force flag bypasses retention period check, but state MUST still be tombstoned first. Cannot force-purge active states. |
 
 ## Requirements *(mandatory)*
 
@@ -93,9 +95,10 @@ As an authorized user, I need to permanently delete tombstoned states (within my
 - **FR-002**: System MUST reject operations on states outside the user's permitted scope with an appropriate authorization error.
 
 #### Rename Operations
-- **FR-003**: System MUST allow authorized users to rename the logic_id of an existing state while preserving its GUID and all historical data.
+- **FR-003**: System MUST allow authorized users to rename the logic_id of an existing state (active or tombstoned) while preserving its GUID and all historical data.
 - **FR-004**: System MUST reject rename operations when the target logic_id already exists (active or tombstoned).
-- **FR-005**: System MUST reject rename operations on locked states.
+- **FR-004a**: System MUST allow renaming tombstoned states (to free up logic_id for reuse without purging).
+- **FR-005**: System MUST reject rename operations on locked states (active states only; tombstoned states cannot be locked).
 - **FR-006**: System MUST use optimistic locking for rename operations to handle concurrent requests (first wins, others fail with conflict).
 
 #### Tombstone (Soft Delete) Operations
@@ -113,26 +116,29 @@ As an authorized user, I need to permanently delete tombstoned states (within my
 - **FR-016**: System MUST reject purge operations on non-tombstoned (active) states.
 - **FR-017**: System MUST allow reuse of logic_ids from purged states (not from tombstoned states).
 
-#### Audit & CLI
-- **FR-018**: System MUST log all lifecycle operations (rename, tombstone, restore, purge) including the actor identity and operation details.
-- **FR-019**: CLI MUST provide commands for rename, tombstone, restore, and purge operations.
+#### CLI
+- **FR-019**: CLI MUST provide commands for rename, delete (tombstone), restore, and purge operations.
+- **FR-019a**: CLI MUST use `--all` flag for listing states including tombstoned (not `--include-deleted`).
 
-> **Note**: Uses existing `log.Printf` pattern for consistency. Structured logging migration (slog) and compliance-grade audit table are tracked separately in ROADMAP.md.
+#### Audit (Deferred)
+- **FR-018**: System SHOULD log lifecycle operations using existing `log.Printf` pattern for basic observability.
+
+> **Note**: Compliance-grade audit logging (structured slog, dedicated audit table, tamper-proof records) is tracked in ROADMAP.md, not in scope for this feature. Basic logging via `log.Printf` is sufficient for initial implementation.
 
 ### Key Entities
 
 - **State**: Extended with lifecycle status (active, tombstoned), tombstone timestamp, and deletion metadata.
-- **RetentionPolicy**: Configuration for retention period duration (system-wide default, per-state override).
+- **RetentionDays**: Global configuration for retention period duration (configured via gridapi CLI `--retention-days` flag, default: 30 days). No per-state override mechanism.
 
 ## Success Criteria *(mandatory)*
 
 ### Measurable Outcomes
 
-- **SC-001**: Authorized users can rename state logic_ids in under 5 seconds without affecting active Terraform workflows.
-- **SC-002**: Tombstoned states are excluded from default listings, reducing clutter for active state management.
-- **SC-003**: Zero accidental permanent data loss due to state deletion (all deletions go through tombstone first).
-- **SC-004**: All lifecycle operations are logged with actor identity via `log.Printf` (structured logging and compliance-grade audit deferred to ROADMAP.md).
-- **SC-005**: Users attempting Terraform operations on tombstoned states receive clear error messages within 1 second.
+- **SC-001**: Authorized users can rename state logic_ids (single operation) in under 5 seconds without affecting active Terraform workflows.
+- **SC-002**: Tombstoned states are excluded from default listings (`gridctl state list` without `--all`), reducing clutter for active state management.
+- **SC-003**: Zero accidental permanent data loss due to state deletion (all deletions go through tombstone first; force-purge only bypasses retention, not tombstone requirement).
+- **SC-004**: Basic lifecycle operation logging via existing `log.Printf` pattern (compliance-grade audit deferred to ROADMAP.md).
+- **SC-005**: Users attempting Terraform operations on tombstoned states receive clear error messages (HTTP 410 Gone with descriptive body) within 1 second.
 - **SC-006**: Tombstoned states can be restored within the retention period with zero data loss.
 - **SC-007**: Users without appropriate permissions receive clear authorization errors when attempting lifecycle operations.
 
@@ -146,10 +152,12 @@ Related features and tasks from Beads:
 
 ## Assumptions
 
-- **Retention period default**: 30 days is a reasonable default retention period before purge is allowed, balancing recovery needs with storage costs.
-- **Lock state interaction**: States must be unlocked before tombstoning to prevent orphaned locks.
+- **Retention period**: 30 days default, configured globally via gridapi `--retention-days` CLI flag. No per-state override mechanism (YAGNI).
+- **Lock state interaction**: States must be unlocked before tombstoning to prevent orphaned locks. Tombstoned states cannot be locked.
 - **Logic_id uniqueness**: Logic_ids must be unique across both active and tombstoned states to prevent confusion (purged state IDs can be reused).
+- **Tombstoned state renaming**: Tombstoned states CAN be renamed to free up their logic_id for reuse without waiting for purge.
 - **Dependency graph integrity**: States with active dependents cannot be tombstoned (enforces clean dependency graph). Dependencies cannot be added to tombstoned states.
 - **CLI-first**: All operations will be exposed via CLI (gridctl) with API support for future webapp integration.
+- **CLI terminology**: CLI uses "delete" command (user-friendly) which performs tombstone operation internally.
 - **Audit logging**: Existing `log.Printf` pattern will be used. Structured logging (slog) migration and dedicated audit table are separate ROADMAP.md items.
-- **No alias/redirect support**: After rename, old logic_id lookups return a simple "not found" error - no hints or temporary redirects.
+- **No alias/redirect support**: After rename, old logic_id lookups return NOT_FOUND error - no hints or temporary redirects.

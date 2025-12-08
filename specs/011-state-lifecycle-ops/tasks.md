@@ -82,7 +82,7 @@ This feature follows Beads' 2-level graph structure:
 bd list --label "phase:setup" --label "spec:011-state-lifecycle-ops" --status open
 ```
 
-### Tasks (7 total)
+### Tasks (9 total)
 
 | ID | Title | Component | Dependencies |
 |----|-------|-----------|--------------|
@@ -93,10 +93,12 @@ bd list --label "phase:setup" --label "spec:011-state-lifecycle-ops" --status op
 | `grid-asc3.1.5` | Create migration for lifecycle columns | migration | grid-asc3.1.4 |
 | `grid-asc3.1.6` | Add lifecycle methods to StateRepository interface | repository | grid-asc3.1.4 |
 | `grid-asc3.1.7` | Implement lifecycle methods in BunStateRepository | repository | grid-asc3.1.5, grid-asc3.1.6 |
+| `grid-v3sy` | Add --retention-days config flag to gridapi serve | config | grid-asc3.1 |
+| `grid-di2z` | Add lifecycle actions to product-engineer seed policy | auth | grid-asc3.1.3 |
 
-**Parallel Opportunities**: T1, T3, T4 can run in parallel. T2 waits on T1. T5, T6 wait on T4. T7 waits on T5, T6.
+**Parallel Opportunities**: T1, T3, T4 can run in parallel. T2 waits on T1. T5, T6 wait on T4. T7 waits on T5, T6. Config and policy tasks can run after their dependencies.
 
-**Checkpoint**: Setup complete when all 7 tasks closed. Foundational phase can begin.
+**Checkpoint**: Setup complete when all 9 tasks closed. Foundational phase can begin.
 
 ---
 
@@ -138,7 +140,7 @@ bd list --label "phase:foundational" --label "spec:011-state-lifecycle-ops" --st
 bd list --label "story:US1" --label "spec:011-state-lifecycle-ops" --status open
 ```
 
-### Tasks (7 total)
+### Tasks (10 total)
 
 | ID | Title | Component | Dependencies |
 |----|-------|-----------|--------------|
@@ -149,6 +151,11 @@ bd list --label "story:US1" --label "spec:011-state-lifecycle-ops" --status open
 | `grid-asc3.3.5` | Integration test: Rename state happy path | test | grid-asc3.3.4 |
 | `grid-asc3.3.6` | Integration test: Rename to existing name fails | test | grid-asc3.3.5 |
 | `grid-asc3.3.7` | Integration test: Rename locked state fails | test | grid-asc3.3.5 |
+| `grid-z6k7` | Integration test: Concurrent rename returns ABORTED | test | grid-asc3.3.5 |
+| `grid-9bm0` | Integration test: Lookup by old logic_id returns NOT_FOUND | test | grid-asc3.3.5 |
+| `grid-ukbi` | Integration test: Rename tombstoned state to free logic_id | test | grid-asc3.4.10 |
+
+**Note**: `grid-ukbi` depends on US2 (tombstone) but tests rename functionality.
 
 **Checkpoint**: US1 complete. Rename functionality fully working and tested.
 
@@ -168,7 +175,7 @@ bd list --label "story:US1" --label "spec:011-state-lifecycle-ops" --status open
 bd list --label "story:US2" --label "spec:011-state-lifecycle-ops" --status open
 ```
 
-### Tasks (15 total)
+### Tasks (14 total)
 
 | ID | Title | Component | Dependencies |
 |----|-------|-----------|--------------|
@@ -180,13 +187,14 @@ bd list --label "story:US2" --label "spec:011-state-lifecycle-ops" --status open
 | `grid-asc3.4.6` | Add RestoreState method to Go SDK | sdk | grid-asc3.4.4 |
 | `grid-asc3.4.7` | Implement gridctl state delete command | cli | grid-asc3.4.5 |
 | `grid-asc3.4.8` | Implement gridctl state restore command | cli | grid-asc3.4.6 |
-| `grid-asc3.4.9` | Add --include-deleted flag to gridctl state list | cli | grid-asc3.2.3 |
+| `grid-asc3.4.9` | Add --all flag to gridctl state list | cli | grid-asc3.2.3 |
 | `grid-asc3.4.10` | Integration test: Tombstone state happy path | test | grid-asc3.4.7 |
 | `grid-asc3.4.11` | Integration test: Tombstone state with dependents fails | test | grid-asc3.4.10 |
 | `grid-asc3.4.12` | Integration test: Restore tombstoned state | test | grid-asc3.4.8 |
-| `grid-asc3.4.13` | Integration test: Rename tombstoned state fails | test | grid-asc3.4.10 |
 | `grid-asc3.4.14` | Integration test: Rename to tombstoned name fails | test | grid-asc3.4.10 |
 | `grid-asc3.4.15` | Integration test: Add dependency to tombstoned state fails | test | grid-asc3.4.10 |
+
+**Note**: `grid-asc3.4.13` closed (obsolete) - policy changed to ALLOW renaming tombstoned states. See `grid-ukbi` for that test.
 
 **Parallel Opportunities**: Tombstone track (T1→T2→T5→T7) and Restore track (T3→T4→T6→T8) can run in parallel. T9 depends only on Phase 2.
 
@@ -258,20 +266,27 @@ Phase 1 (Setup)
     ↓
 Phase 2 (Foundational) ─── BLOCKS ALL USER STORIES
     ↓
-┌───┴───┬───────┐
-↓       ↓       ↓
-US1    US2    US3     ← Can run in parallel after Phase 2
-(P1)   (P2)   (P3)
-↓       ↓       ↓
-└───┬───┴───────┘
-    ↓
+┌───┴───┐
+↓       ↓
+US1    US2           ← US1 and US2 can run in parallel after Phase 2
+(P1)   (P2)
+        ↓
+       US3           ← US3 depends on US2 (purge requires tombstone)
+       (P3)
+        ↓
+┌───────┴───────┐
+↓               ↓
 Phase 6 (Polish)
 ```
+
+**Note**: US3 (Purge) depends on US2 (Tombstone) because:
+- `gridctl state delete --purge` extends the delete command from US2
+- Purge operation requires state to be tombstoned first
 
 ### Recommended Execution Order
 
 1. **MVP (US1 only)**: Setup → Foundational → US1 → Validate
-2. **Full Feature**: Setup → Foundational → US1 || US2 || US3 → Polish
+2. **Full Feature**: Setup → Foundational → (US1 || US2) → US3 → Polish
 
 ### Within Each User Story
 
@@ -312,12 +327,12 @@ bd list --label "story:US1" --label "spec:011-state-lifecycle-ops"
 
 | Metric | Count |
 |--------|-------|
-| Total Issues | 50 |
+| Total Issues | 54 |
 | Epic | 1 |
 | Features (Phases) | 6 |
-| Tasks | 43 |
-| P1 (MVP) Tasks | 17 |
-| P2 Tasks | 15 |
+| Tasks | 47 |
+| P1 (MVP) Tasks | 21 (+2 rename tests, +2 setup: config, seed policy) |
+| P2 Tasks | 15 (+1 tombstone rename test, -1 obsolete) |
 | P3 Tasks | 11 |
 | Slow Tests | 2 |
 
@@ -333,7 +348,7 @@ bd list --label "story:US1" --label "spec:011-state-lifecycle-ops"
 
 - **Phase 1**: 3 independent tracks (proto, auth, model)
 - **Phase 2**: All 3 tasks can run in parallel
-- **User Stories**: US1, US2, US3 can run in parallel after Phase 2
+- **User Stories**: US1 and US2 can run in parallel after Phase 2; US3 depends on US2
 - **Within US2**: Tombstone and Restore tracks can parallelize
 
 ---

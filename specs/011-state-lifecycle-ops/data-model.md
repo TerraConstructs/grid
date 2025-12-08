@@ -29,7 +29,9 @@ The existing `State` entity is extended with lifecycle status tracking.
 | `status` | VARCHAR(20) | NOT NULL, DEFAULT 'active' | Lifecycle status: 'active' or 'tombstoned' |
 | `tombstoned_at` | TIMESTAMP | NULL | When state was tombstoned |
 | `tombstoned_by` | VARCHAR(255) | NULL | Principal ID who performed tombstone |
-| `retention_days` | INTEGER | NOT NULL, DEFAULT 30 | Days before eligible for purge |
+| `retention_days` | INTEGER | NOT NULL, DEFAULT 30 | Days before eligible for purge (captured from global config at tombstone time) |
+
+**Configuration Note**: `retention_days` is set from global server config (`--retention-days` flag) when tombstoning. No per-state override API.
 
 #### Go Struct Update
 
@@ -226,20 +228,27 @@ func validateStatus(status StateStatus) error {
     │  NEW   │ ────────► │ ACTIVE │ ◄────────┤
     └────────┘           └────────┘          │
                               │              │
-                         tombstone           │
-                              │              │
+                    rename    │  tombstone   │
+                    ────►     │              │
                               ▼              │
                         ┌────────────┐       │
                         │ TOMBSTONED │ ──────┘
                         └────────────┘
-                              │
-                         purge (after retention)
+                              │ ↑
+                              │ │ rename (allowed)
+                         purge (after retention,
+                         or force within retention)
                               │
                               ▼
                         ┌────────────┐
                         │  DELETED   │ (no record)
                         └────────────┘
 ```
+
+**Rename flows**:
+- ACTIVE → ACTIVE (rename): Allowed (target must not exist as active or tombstoned)
+- TOMBSTONED → TOMBSTONED (rename): Allowed (frees up logic_id for reuse)
+- ACTIVE → tombstoned logic_id: Blocked (purge or rename tombstoned state first)
 
 ### Transition Rules
 
@@ -257,10 +266,13 @@ func validateStatus(status StateStatus) error {
 | Rule | Description | Error Code |
 |------|-------------|------------|
 | State exists | GUID must exist | NOT_FOUND |
-| Not tombstoned | Cannot rename tombstoned state | FAILED_PRECONDITION |
-| Not locked | Cannot rename locked state | FAILED_PRECONDITION |
+| Not locked | Cannot rename locked state (active states only) | FAILED_PRECONDITION |
 | Target unique | New logic_id must not exist (active or tombstoned) | ALREADY_EXISTS |
 | Valid format | Logic_id must match pattern `^[a-zA-Z0-9/_-]+$` | INVALID_ARGUMENT |
+
+**Special Cases**:
+- **Tombstoned states CAN be renamed**: This allows freeing up a logic_id for reuse without waiting for purge.
+- **Active states CANNOT be renamed to a tombstoned logic_id**: User must purge the tombstoned state first, or rename the tombstoned state to a different name.
 
 ### Tombstone Operation
 
@@ -284,12 +296,14 @@ func validateStatus(status StateStatus) error {
 | Rule | Description | Error Code |
 |------|-------------|------------|
 | State exists | GUID must exist | NOT_FOUND |
-| Is tombstoned | Cannot purge active state | FAILED_PRECONDITION |
+| Is tombstoned | Cannot purge active state (even with force=true) | FAILED_PRECONDITION |
 | Past retention | Must be past retention (unless force=true) | FAILED_PRECONDITION |
+
+**Note**: `force=true` only bypasses the retention period check. It does NOT bypass the tombstone requirement. Active states must always be tombstoned first before they can be purged.
 
 ## Query Patterns
 
-### List Active States (Default)
+### List Active States (Default: `gridctl state list`)
 
 ```sql
 SELECT * FROM states
@@ -297,7 +311,7 @@ WHERE status = 'active'
 ORDER BY updated_at DESC;
 ```
 
-### List Including Tombstoned
+### List All States (`gridctl state list --all`)
 
 ```sql
 SELECT * FROM states
@@ -305,6 +319,8 @@ ORDER BY
     CASE WHEN status = 'active' THEN 0 ELSE 1 END,
     updated_at DESC;
 ```
+
+**CLI Note**: Uses `--all` flag, not `--include-deleted`. The SDK uses `IncludeTombstoned` parameter for the same functionality.
 
 ### Check Active Dependents
 

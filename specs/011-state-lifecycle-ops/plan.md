@@ -138,23 +138,31 @@ The authz interceptor will load state labels for dynamic checks, matching the ex
 
 ### Seed Policy Updates
 
-Add lifecycle actions to **platform-engineer role only** in migration seed data:
+Add lifecycle actions to roles in migration seed data:
 
 ```go
 // In 20251203000000_init_schema.go or new migration
 // platform-engineer already has wildcard: {Ptype: "p", V0: "role:platform-engineer", V1: "*", V2: "*", V4: "allow"}
 // This covers state:rename, state:tombstone, state:restore, state:purge automatically
 
-// product-engineer does NOT get lifecycle actions (destructive operations require admin)
+// product-engineer gets lifecycle actions SCOPED to their label permissions
+// Add explicit policies for lifecycle actions:
+{Ptype: "p", V0: "role:product-engineer", V1: "state", V2: "state:rename", V3: "env == 'dev'", V4: "allow"},
+{Ptype: "p", V0: "role:product-engineer", V1: "state", V2: "state:tombstone", V3: "env == 'dev'", V4: "allow"},
+{Ptype: "p", V0: "role:product-engineer", V1: "state", V2: "state:restore", V3: "env == 'dev'", V4: "allow"},
+{Ptype: "p", V0: "role:product-engineer", V1: "state", V2: "state:purge", V3: "env == 'dev'", V4: "allow"},
+
 // service-account does NOT get lifecycle actions (automation shouldn't rename/delete)
 ```
 
-**Rationale**: Lifecycle operations are potentially destructive. Restricting to platform-engineer ensures only admins can rename, tombstone, or purge states. Product engineers can request via workflow if needed.
+**Rationale**: Product engineers can manage lifecycle of states within their scope (determined by label-based access control). Platform engineers have unrestricted access. Service accounts are blocked from destructive operations.
 
 ### Tombstoned State Handling
 
 - **Connect RPC**: New lifecycle RPCs check tombstone status in service layer
-- **Terraform HTTP Backend**: Middleware checks tombstone status and returns 410 Gone for tombstoned states
+- **Terraform HTTP Backend**: Middleware checks tombstone status via `StateService.GetStateByGUID()` (Constitution Principle IX compliant - no direct repository access) and returns 410 Gone with descriptive JSON error body for tombstoned states
+- **Rename**: Tombstoned states CAN be renamed (to free up logic_id without purging). Active states CANNOT be renamed to a tombstoned logic_id.
+- **Dependencies**: Cannot add dependencies to tombstoned states
 
 ## Data Model Changes
 
@@ -165,7 +173,9 @@ Add lifecycle actions to **platform-engineer role only** in migration seed data:
 | `status` | VARCHAR(20) | 'active' | Lifecycle status: 'active' or 'tombstoned' |
 | `tombstoned_at` | TIMESTAMP | NULL | When state was tombstoned |
 | `tombstoned_by` | VARCHAR(255) | NULL | Principal ID who tombstoned |
-| `retention_days` | INT | 30 | Days before purge eligible (system default, per-state override) |
+| `retention_days` | INT | 30 | Days before purge eligible (captured from global config at tombstone time) |
+
+**Note**: `retention_days` is set from global server config (`--retention-days` flag) when tombstoning. No per-state override API.
 
 ### Index Additions
 
@@ -193,11 +203,16 @@ rpc PurgeState(PurgeStateRequest) returns (PurgeStateResponse);
 
 | Command | Description | Flags |
 |---------|-------------|-------|
-| `gridctl state rename <ref> <new-logic-id>` | Rename state logic_id | `--logic-id`, `--guid` |
-| `gridctl state tombstone <ref>` | Soft delete state | `--logic-id`, `--guid` |
-| `gridctl state restore <ref>` | Restore tombstoned state | `--logic-id`, `--guid` |
-| `gridctl state purge <ref>` | Permanently delete | `--logic-id`, `--guid`, `--force` |
-| `gridctl state list` | List states | `--include-deleted` (new flag) |
+| `gridctl state rename <new-logic-id>` | Rename state logic_id | `--logic-id`, `--guid` (for explicit ref) |
+| `gridctl state delete` | Soft delete (tombstone) state | `--logic-id`, `--guid`, `--purge`, `--force` |
+| `gridctl state restore` | Restore tombstoned state | `--logic-id`, `--guid` |
+| `gridctl state list` | List states | `--all` (include tombstoned) |
+
+**CLI Design Notes**:
+- `delete` without flags = tombstone (soft delete)
+- `delete --purge` = permanent delete (requires tombstoned state)
+- `delete --purge --force` = permanent delete within retention period
+- Uses dirCtx (`.grid` context) by default, explicit `--logic-id` or `--guid` when needed
 
 ## Testing Strategy
 
@@ -297,7 +312,7 @@ go test -v -run "TestPurgeState_Force" -timeout 120s
 
 ### Authorization Test Matrix
 
-Each lifecycle action requires authorization testing:
+Each lifecycle action requires authorization testing. Product engineers can perform lifecycle operations on states within their label scope.
 
 | Action | Role: platform-engineer | Role: product-engineer (scoped) | Role: service-account |
 |--------|------------------------|--------------------------------|----------------------|
@@ -305,3 +320,5 @@ Each lifecycle action requires authorization testing:
 | `state:tombstone` | ✅ Allow | ✅ Allow (in scope) | ❌ Deny |
 | `state:restore` | ✅ Allow | ✅ Allow (in scope) | ❌ Deny |
 | `state:purge` | ✅ Allow | ✅ Allow (in scope) | ❌ Deny |
+
+**Scope enforcement**: Product engineers' label-based policies determine which states they can manage. Out-of-scope operations return PERMISSION_DENIED.

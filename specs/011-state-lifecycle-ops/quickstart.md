@@ -2,8 +2,20 @@
 
 **Feature**: 011-state-lifecycle-ops
 **Date**: 2025-12-08
+**Updated**: 2025-12-08 (post-analysis refinements)
 
-This guide demonstrates the state lifecycle operations: rename, tombstone, restore, and purge.
+This guide demonstrates the state lifecycle operations: rename, delete (soft), restore, and purge.
+
+## Decision Log
+
+| Decision | Choice | Rationale |
+|----------|--------|-----------|
+| Tombstoned state rename | **Allowed** | Allows freeing up logic_id without waiting for purge |
+| Restore vs undelete | **restore** | Matches SDK terminology, standard database term |
+| List flag for deleted | **--all** | Simple, intuitive - shows all states regardless of status |
+| Force purge scope | **Tombstoned only** | Force bypasses retention, not tombstone requirement (safer two-step) |
+| CLI command | **delete** | User-friendly; internally maps to tombstone operation |
+| Retention config | **Global only** | Configured via gridapi CLI, not per-state |
 
 ## Prerequisites
 
@@ -57,6 +69,28 @@ gridctl state rename --logic-id alpha/production beta/production
 gridctl state rename --guid 01JEDA... beta/production
 ```
 
+### Renaming a Tombstoned State
+
+Tombstoned states can be renamed to free up their logic_id for reuse without waiting for purge:
+
+```bash
+# 1. Find the tombstoned state
+gridctl state list --all
+# Output: legacy/test [DELETED]
+
+# 2. Rename the tombstoned state to a new name
+gridctl state rename --logic-id legacy/test archived/legacy-test
+# Output:
+# State renamed successfully
+# GUID:      01JEDC... (unchanged)
+# Old Name:  legacy/test
+# New Name:  archived/legacy-test
+
+# 3. Now "legacy/test" is available for active states
+gridctl state create legacy/test
+# Works - creates new state with new GUID
+```
+
 ### Error Cases
 
 ```bash
@@ -68,9 +102,9 @@ gridctl state rename beta/production
 gridctl state rename gamma/staging
 # Error: cannot rename locked state (unlock first or wait for Terraform to release)
 
-# Rename to tombstoned name
+# Rename active state to tombstoned name
 gridctl state rename legacy/test
-# Error: target logic_id "legacy/test" is tombstoned (purge it first)
+# Error: target logic_id "legacy/test" is tombstoned (purge it first or rename the tombstoned state)
 ```
 
 ## Scenario 2: Delete (Soft Delete) a State
@@ -115,7 +149,7 @@ gridctl state delete --logic-id legacy/production
 gridctl state list
 # Output: legacy/production NOT shown
 
-gridctl state list --include-deleted
+gridctl state list --all
 # Output: Shows legacy/production with [DELETED] indicator
 
 # 5. Terraform operations are blocked
@@ -149,7 +183,7 @@ The decommissioning was cancelled. States need to be restored.
 
 ```bash
 # 1. List tombstoned states
-gridctl state list --include-deleted
+gridctl state list --all
 # Output shows: legacy/production [DELETED]
 
 # 2. Restore the state (uses dirCtx or explicit reference)
@@ -198,7 +232,7 @@ After compliance retention period, permanently remove old states.
 
 ```bash
 # 1. Find purge-eligible states
-gridctl state list --include-deleted
+gridctl state list --all
 # Output shows: old/project [DELETED] (purge eligible)
 
 # 2. Purge the state (uses dirCtx or explicit reference)
@@ -308,14 +342,14 @@ gridctl state restore --logic-id legacy/prod  # Restore by logic_id
 gridctl state restore --guid 01JEDA...        # Restore by GUID
 ```
 
-### List with Deleted States
+### List with All States
 
 ```bash
-gridctl state list [--include-deleted]
+gridctl state list [--all]
 
 # Examples:
-gridctl state list                    # Active states only (default)
-gridctl state list --include-deleted  # Include tombstoned states
+gridctl state list        # Active states only (default)
+gridctl state list --all  # Include tombstoned (deleted) states
 ```
 
 ## SDK Usage (Go)
@@ -341,7 +375,8 @@ result, err := client.PurgeState(ctx, sdk.PurgeStateInput{
     Force: true,
 })
 
-// List with tombstoned
+// List all states (including tombstoned)
+// Note: SDK uses 'IncludeTombstoned', CLI uses '--all' for user-friendliness
 states, err := client.ListStatesWithOptions(ctx, sdk.ListStatesOptions{
     IncludeTombstoned: true,
 })
@@ -353,11 +388,17 @@ These scenarios should be validated as integration tests:
 
 1. **Rename happy path**: Create state, rename, verify GUID unchanged
 2. **Rename conflict**: Attempt rename to existing name, expect error
-3. **Tombstone happy path**: Create state, tombstone, verify hidden from listings
-4. **Tombstone with dependents**: Create dependency, attempt tombstone producer, expect error
-5. **Restore happy path**: Tombstone state, restore, verify active
-6. **Restore expired**: Tombstone state, set past retention, attempt restore, expect error
-7. **Purge happy path**: Tombstone state, wait retention, purge, verify deleted
-8. **Purge active**: Attempt purge active state, expect error
-9. **Force purge**: Tombstone state, force purge within retention, verify deleted
-10. **Terraform 410**: Tombstone state, run terraform plan, expect 410 Gone
+3. **Rename locked**: Attempt rename of locked state, expect error
+4. **Rename tombstoned state**: Rename a tombstoned state to free up logic_id
+5. **Rename to tombstoned name**: Attempt rename active state to tombstoned name, expect error
+6. **Rename concurrent conflict**: Two concurrent renames, first wins, second gets ABORTED
+7. **Lookup old logic_id**: After rename, lookup by old logic_id returns NOT_FOUND
+8. **Tombstone happy path**: Create state, tombstone, verify hidden from listings
+9. **Tombstone with dependents**: Create dependency, attempt tombstone producer, expect error
+10. **Restore happy path**: Tombstone state, restore, verify active
+11. **Restore expired**: Tombstone state, set past retention, attempt restore, expect error (slow)
+12. **Purge happy path**: Tombstone state, wait retention, purge, verify deleted (slow)
+13. **Purge active**: Attempt purge active state, expect error
+14. **Force purge**: Tombstone state, force purge within retention, verify deleted
+15. **Terraform 410**: Tombstone state, run terraform plan, expect 410 Gone with error body
+16. **Add dependency to tombstoned**: Attempt add dependency to tombstoned state, expect error
