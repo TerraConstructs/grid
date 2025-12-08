@@ -19,7 +19,7 @@ You **MUST** consider the user input before proceeding (if not empty).
    - **Optional**: data-model.md (entities), contracts/ (API endpoints), research.md (decisions), quickstart.md (test scenarios)
    - Note: Not all projects have all documents. Generate tasks based on what's available.
 
-3. *** Epic Creation**: From spec.md, create an epic in Beads Tools for the feature using feature name from plan.md.
+3. *** Epic Creation**: From spec.md, create an epic using bd (beads) issue tracking for the feature using the feature name from plan.md.
    - Use the Beads CLI `bd create` to create one top-level issue of type `epic`
    - Title: pulled from plan.md or feature folder name
    - Description: summarize from plan.md + top of spec.md
