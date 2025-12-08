@@ -5,7 +5,7 @@ description: "Task list template for feature implementation"
 # Tasks Index: [FEATURE NAME]
 
 Beads Issue Graph Index into the tasks and phases for this feature implementation.
-This index does **not contain tasks directly**—those are fully managed through Beads CLI and MCP agent APIs.
+This index does **not contain tasks directly**—those are fully managed through Beads CLI.
 
 ## Feature Tracking
 
@@ -25,19 +25,18 @@ Use the `bd` CLI to query and manipulate the issue graph:
 bd list --label spec:[epic-id] --status open --limit 5
 
 # Find ready tasks to implement
-bd ready --limit 5
+bd ready --label spec:[epic-id] --limit 5
 
 # See dependencies for issue
 bd dep tree [issue-id]
 
 # View issues by component
-bd list --label 'component:backend-services' --label 'spec:[epic-id]'
+bd list --label 'component:backend-services' --label 'spec:[epic-id]' --limit 5
 
 # Define dependencies
-bd dep add [from-issue-id] [to-issue-id] --type [dependency-type]
-
-# valid dependency types
+# valid dependency-types
 # (blocks|related|parent-child|discovered-from) (default "blocks")
+bd dep add [from-issue-id] [to-issue-id] --type [dependency-type]
 
 # Show all phases
 bd list --type feature --label 'spec:[epic-id]'
@@ -83,28 +82,22 @@ bd list --label spec:[feature-name] --label story:US1
 # Add a new task
 bd create "Implement OAuth redirect handler" -t task --parent [grid-auth-feature] --label spec:[feature-name] --label component:backend-services
 
-# Add a comment to an issue based on research
+# Update notes on a task
+bd update grid-xyz123 --notes "Re-use helper functions from auth module"
+
+# Add a comment to an issue based on research or findings during implementation
 bd comments add grid-xyz123 "Additional research identified bcrypt as best hashing algo"
 ```
 
-### Exploring comments for context
-
-Use `bd comments` to add notes, research findings, or any relevant context to a task. This helps in task generation and exploration by providing additional details that might not fit into the task title, description, design or notes sections on the task directly.
-
-**Example:**
-```bash
-bd comments grid-044b
-```
-
-This will show comments associated with `grid-044b`, such as:
-
-```console
-Comments on grid-044b:
-[vincentdesmet] Research hashicorp/js-bexpr library: https://github.com/hashicorp/js-bexpr - This may provide go-bexpr compatible syntax for browser. Alternative: expr-eval or custom parser. at
- 2025-11-04 23:49
-```
-
 # Mark task as completed with context
+
+```bash
+bd close grid-xyz123 --reason "Completed with bcrypt, 12 rounds, <100ms"
+```
+
+or use `update` to set status and additional fields.
+
+```bash
 bd update grid-xyz123 --status closed --notes "Completed with bcrypt, 12 rounds, <100ms"
 ```
 
@@ -117,7 +110,7 @@ Status is tracked only in Beads:
 * **Blocked** → dependency unresolved
 * **Closed** → complete
 
-Use `bd ready`, `bd blocked`, `bd stats` to query progress.
+Use `bd ready`, `bd blocked`, `bd stats` with appropriate filters to query progress.
 
 ---
 

@@ -328,6 +328,8 @@ Integration tests in `tests/integration/`:
 - N/A (CI/CD infrastructure only) (008-cicd-workflows)
 - Go 1.24+, TypeScript 5.x (webapp) (010-output-schema-support)
 - PostgreSQL (existing), new columns in `state_outputs` table (010-output-schema-support)
+- Go 1.24+ + Bun ORM, Connect RPC, Casbin (RBAC), bexpr (label filtering) (011-state-lifecycle-ops)
+- PostgreSQL (primary), SQLite (fallback) (011-state-lifecycle-ops)
 
 ## Recent Changes
 - 007-webapp-auth: Added TypeScript 5.x (webapp), React 18 (UI framework) + React, @connectrpc/connect-web (RPC client), Vite (build tool), Tailwind CSS (styling), Lucide React (icons)

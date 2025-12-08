@@ -61,17 +61,18 @@ You **MUST** consider the user input before proceeding (if not empty).
    This file does **not** list every task.
    - tasks.md acts as an index for querying Beads
    - For each phase and task described below also create corresponding use beads as shown in Phase 1 example
-   - Phase 1: Setup tasks (project initialization) create a `feature`-type issue using the CLI `bd create` tool
+   - Phase 1: Setup tasks (project initialization) create a `feature`-type issue using the CLI `bd create` command.
       - Set `--parent <epic-id>` from the epic created above
       - Labels:
          - `phase:<phase-name>` (e.g. `phase:setup`, `phase:us1`, `phase:foundational`)
          - All carry the `spec:<feature-slug>` label
-      - For each task, use `create` tool with `issue_type: "task"` and `--parent <feature-id>`
+      - For each task, use `bd create` with `--type task` and `--parent <feature-id>`
       - Tasks must include:
          - `title` (short summary)
-         - `description` (what to implement, where, inputs/outputs)
-         - `priority` (from story priority)
-         - `acceptance` criteria if available
+         - `description` Problem statement (WHY this matters) - immutable (what to implement, where, inputs/outputs)
+         - `design` HOW to build, Which files, references (can change during work)
+         - `acceptance` Acceptance: WHAT success looks like (stays stable)
+         - `priority` (from story priority, 0=critical, 1=high, 2=normal, 3=low)
          - Labels:
             - `story:US1`, `story:US2`, etc. (mapped from spec.md)
             - `component:<area>` (e.g. `component:auth`, `component:db`)
@@ -88,8 +89,8 @@ You **MUST** consider the user input before proceeding (if not empty).
      - List of features (setup, foundational, stories)
      - Beads commands to filter each group:
        ```bash
-       bd list --label: "spec:<slug>" -n 10
-       bd ready -n 5
+       bd list --label "spec:<slug>" -n 10
+       bd ready --label "spec:<slug>" -n 5
        ```
      - MVP and incremental delivery summary
      - Links back to spec.md and plan.md
@@ -110,7 +111,7 @@ You **MUST** consider the user input before proceeding (if not empty).
 
 Context for task generation: $ARGUMENTS
 
-The tasks.md should be immediately executable - each task must be specific enough that an LLM can complete it without additional context.
+The tasks.md should be immediately executable - each task must be specific enough that an LLM can complete it without additional context. Particularly focus on breaking down by user story to enable independent implementation and testing against agreed interfaces and with clear instructions not to duplicate work (Provide assumptions based on task completion by other agents for parallel work).
 
 ## Task Generation Rules
 
@@ -177,8 +178,33 @@ bd create "Login Feature" --description "..." --type "epic" --labels "spec:006-l
 bd create "Setup Phase" --description "..." --type "feature" --deps "parent-child:grid-epic-id" --labels "spec:006-login-auth,phase:setup,component:infra" --priority 1
 ```
 
+**Use --design flag for:**
+- Implementation approach decisions
+- Architecture notes
+- Trade-offs considered
+
+**Use --acceptance flag for:**
+- Definition of done
+- Testing requirements
+- Success metrics
+
+
 ### Task
 
 ```bash
 bd create "Add React LoginForm" --description "..." --type "task" --deps "parent-child:grid-feature-id" --labels "spec:006-login-auth,story:US1,component:webapp" --priority 2
 ```
+
+**Use --design flag for:**
+- Implementation approach decisions
+- HOW to build
+- WHERE to build (which files, which modules to depend on)
+
+**Use --acceptance flag for:**
+- Definition of done
+- Acceptance: WHAT success looks like (stays stable)
+- Testing mechanism
+
+**Use --notes flag for:**
+- Additional context
+- References to research or design docs

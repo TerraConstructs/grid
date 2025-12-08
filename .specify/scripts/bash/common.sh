@@ -68,13 +68,13 @@ check_mapped_branch() {
 	local repo_root="$2"
 	local mapping_file="$repo_root/specs/branch-map.json"
 	if [[ ! -f "$mapping_file" ]]; then
-		echo "Mapping file not found: $mapping_file" >&2
+		# echo "Mapping file not found: $mapping_file" >&2
 		return 1
 	fi
 	local mapped_branch
 	mapped_branch=$(get_mapped_branch "$branch" "$repo_root")
 	if [[ -z "$mapped_branch" ]]; then
-		echo "ERROR: Current branch '$branch' is not mapped in $mapping_file" >&2
+		# echo "ERROR: Current branch '$branch' is not mapped in $mapping_file" >&2
 		return 1
 	fi
 	return 0
@@ -133,9 +133,13 @@ get_feature_paths() {
 
 
 	# Check if branch is mapped in branch-map.json
-	local repo_root=$(get_repo_root)
-	check_mapped_branch "$current_branch" "$repo_root" || return 1
-	current_branch=$(get_mapped_branch "$current_branch" "$repo_root")
+	local mapping_file="$repo_root/specs/branch-map.json"
+	if [[ -f "$mapping_file" ]]; then
+		local mapped_branch=$(get_mapped_branch "$current_branch" "$repo_root")
+		if [[ -n "$mapped_branch" ]]; then
+			current_branch="$mapped_branch"
+		fi
+	fi
 
     local feature_dir=$(get_feature_dir "$repo_root" "$current_branch")
 
