@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.1.5](https://github.com/TerraConstructs/grid/compare/v0.1.4...v0.1.5) (2025-12-08)
+
+
+### Miscellaneous
+
+* inline Claude SKILL ([e8fa11d](https://github.com/TerraConstructs/grid/commit/e8fa11d65abe4822d6958417c3127972e6928e25))
+* upgrade bd to 0.26.0 ([431f6f5](https://github.com/TerraConstructs/grid/commit/431f6f592a98f674990232d564f2bffdcb75c9b2))
+
 ## [0.1.4](https://github.com/TerraConstructs/grid/compare/v0.1.3...v0.1.4) (2025-12-05)
 
 
