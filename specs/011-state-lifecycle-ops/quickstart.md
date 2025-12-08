@@ -20,16 +20,17 @@ Project "alpha" is being renamed to "beta". All state logic IDs need updating.
 ### Steps
 
 ```bash
-# 1. Check current state
-gridctl state get alpha/production
+# 1. Navigate to state directory (with .grid context) and check current state
+cd /path/to/alpha-terraform
+gridctl state get
 # Output:
 # GUID:      01JEDA...
 # Logic ID:  alpha/production
 # Status:    active
 # Created:   2025-12-01 10:00:00
 
-# 2. Rename the state
-gridctl state rename alpha/production beta/production
+# 2. Rename the state (uses dirCtx for current state)
+gridctl state rename beta/production
 # Output:
 # State renamed successfully
 # GUID:      01JEDA... (unchanged)
@@ -37,35 +38,42 @@ gridctl state rename alpha/production beta/production
 # New Name:  beta/production
 
 # 3. Verify the rename
-gridctl state get beta/production
+gridctl state get
 # Output:
 # GUID:      01JEDA...
 # Logic ID:  beta/production
 # Status:    active
 
 # 4. Terraform continues to work (GUID unchanged)
-cd /path/to/terraform
 terraform plan
 # Works - backend uses GUID-based URL, not logic_id
+```
+
+### Without dirCtx (explicit reference)
+
+```bash
+# When not in a state directory, use --logic-id or --guid
+gridctl state rename --logic-id alpha/production beta/production
+gridctl state rename --guid 01JEDA... beta/production
 ```
 
 ### Error Cases
 
 ```bash
 # Rename to existing name
-gridctl state rename alpha/dev beta/production
+gridctl state rename beta/production
 # Error: target logic_id "beta/production" already exists
 
 # Rename locked state
-gridctl state rename alpha/staging gamma/staging
+gridctl state rename gamma/staging
 # Error: cannot rename locked state (unlock first or wait for Terraform to release)
 
 # Rename to tombstoned name
-gridctl state rename alpha/test legacy/test
+gridctl state rename legacy/test
 # Error: target logic_id "legacy/test" is tombstoned (purge it first)
 ```
 
-## Scenario 2: Tombstone (Soft Delete) a State
+## Scenario 2: Delete (Soft Delete) a State
 
 ### Use Case
 
@@ -75,27 +83,29 @@ Project "legacy" is being decommissioned. States should be hidden but preserved 
 
 ```bash
 # 1. Check state dependencies first
-gridctl state get legacy/production
+gridctl state get --logic-id legacy/production
 # Output shows:
 # Dependents: app/frontend, app/backend  <-- These depend on this state
 
-# 2. Tombstone dependent states first (leaf nodes)
-gridctl state tombstone app/frontend
+# 2. Delete dependent states first (leaf nodes) - soft delete by default
+cd /path/to/app-frontend-terraform
+gridctl state delete
 # Output:
-# State tombstoned successfully
+# State deleted (tombstoned) successfully
 # GUID:      01JEDB...
 # Logic ID:  app/frontend
 # Status:    tombstoned
 # Purge eligible: 2026-01-07 (30 days)
 
-gridctl state tombstone app/backend
+cd /path/to/app-backend-terraform
+gridctl state delete
 # Output:
-# State tombstoned successfully
+# State deleted (tombstoned) successfully
 
-# 3. Now tombstone the producer state
-gridctl state tombstone legacy/production
+# 3. Now delete the producer state
+gridctl state delete --logic-id legacy/production
 # Output:
-# State tombstoned successfully
+# State deleted (tombstoned) successfully
 # GUID:      01JEDA...
 # Logic ID:  legacy/production
 # Status:    tombstoned
@@ -117,16 +127,16 @@ terraform plan
 ### Error Cases
 
 ```bash
-# Tombstone locked state
-gridctl state tombstone active/locked-state
-# Error: cannot tombstone locked state (unlock first)
+# Delete locked state
+gridctl state delete
+# Error: cannot delete locked state (unlock first)
 
-# Tombstone state with active dependents
-gridctl state tombstone network/vpc
-# Error: cannot tombstone state with active dependents:
+# Delete state with active dependents
+gridctl state delete --logic-id network/vpc
+# Error: cannot delete state with active dependents:
 #   - app/frontend
 #   - app/backend
-# Tombstone these states first.
+# Delete these states first.
 ```
 
 ## Scenario 3: Restore a Tombstoned State
@@ -142,20 +152,23 @@ The decommissioning was cancelled. States need to be restored.
 gridctl state list --include-deleted
 # Output shows: legacy/production [DELETED]
 
-# 2. Restore the state
-gridctl state restore legacy/production
+# 2. Restore the state (uses dirCtx or explicit reference)
+cd /path/to/legacy-terraform
+gridctl state restore
 # Output:
 # State restored successfully
 # GUID:      01JEDA...
 # Logic ID:  legacy/production
 # Status:    active
 
+# Or without dirCtx:
+gridctl state restore --logic-id legacy/production
+
 # 3. Verify restoration
-gridctl state get legacy/production
+gridctl state get
 # Output shows status: active
 
 # 4. Terraform operations work again
-cd /path/to/legacy-terraform
 terraform plan
 # Works normally
 ```
@@ -164,11 +177,11 @@ terraform plan
 
 ```bash
 # Restore active state
-gridctl state restore active/production
+gridctl state restore
 # Error: state is not tombstoned
 
 # Restore after retention period
-gridctl state restore very-old/expired-state
+gridctl state restore --logic-id very-old/expired-state
 # Error: cannot restore state past retention period
 # Tombstoned: 2025-10-01
 # Retention: 30 days
@@ -188,16 +201,20 @@ After compliance retention period, permanently remove old states.
 gridctl state list --include-deleted
 # Output shows: old/project [DELETED] (purge eligible)
 
-# 2. Purge the state
-gridctl state purge old/project
+# 2. Purge the state (uses dirCtx or explicit reference)
+cd /path/to/old-project-terraform
+gridctl state delete --purge
 # Output:
 # State purged successfully
 # GUID:      01JED9...
 # Logic ID:  old/project
 # WARNING: This action is irreversible. All data has been permanently deleted.
 
+# Or without dirCtx:
+gridctl state delete --purge --logic-id old/project
+
 # 3. Verify purge
-gridctl state get old/project
+gridctl state get --logic-id old/project
 # Error: state not found
 
 # 4. Logic ID is now reusable
@@ -209,22 +226,26 @@ gridctl state create old/project
 
 ```bash
 # Force purge before retention period expires
-gridctl state purge recent/tombstoned --force
+gridctl state delete --purge --force --logic-id recent/tombstoned
 # Output:
 # WARNING: State is within retention period (eligible: 2026-01-15)
 # Are you sure you want to permanently delete this state? [y/N]: y
 # State purged successfully
+
+# Or with dirCtx:
+cd /path/to/recent-tombstoned-terraform
+gridctl state delete --purge --force
 ```
 
 ### Error Cases
 
 ```bash
 # Purge active state
-gridctl state purge active/production
-# Error: cannot purge active state (tombstone first)
+gridctl state delete --purge
+# Error: cannot purge active state (delete without --purge first)
 
 # Purge within retention without force
-gridctl state purge recent/tombstoned
+gridctl state delete --purge
 # Error: state is within retention period
 # Tombstoned: 2025-12-01
 # Purge eligible: 2025-12-31
@@ -236,46 +257,58 @@ gridctl state purge recent/tombstoned
 ### Rename
 
 ```bash
-gridctl state rename [--logic-id <current>] [--guid <guid>] <new-logic-id>
+gridctl state rename <new-logic-id>                    # Uses dirCtx for current state
+gridctl state rename --logic-id <current> <new-logic-id>  # Explicit current state
+gridctl state rename --guid <guid> <new-logic-id>      # By GUID
 
-# Examples:
-gridctl state rename alpha/prod beta/prod          # By logic_id (positional)
-gridctl state rename --logic-id alpha/prod beta/prod  # By logic_id (flag)
-gridctl state rename --guid 01JEDA... beta/prod    # By GUID
+# Examples (in state directory with .grid context):
+gridctl state rename beta/prod                         # Rename current state
+
+# Examples (explicit reference):
+gridctl state rename --logic-id alpha/prod beta/prod
+gridctl state rename --guid 01JEDA... beta/prod
 ```
 
-### Tombstone
+### Delete (Soft Delete / Tombstone)
 
 ```bash
-gridctl state tombstone [--logic-id <id>] [--guid <guid>] [<logic-id>]
+gridctl state delete                          # Uses dirCtx, soft delete (tombstone)
+gridctl state delete --logic-id <id>          # Explicit reference
+gridctl state delete --guid <guid>            # By GUID
 
 # Examples:
-gridctl state tombstone legacy/prod               # By logic_id
-gridctl state tombstone --guid 01JEDA...          # By GUID
+gridctl state delete                          # Soft delete current state
+gridctl state delete --logic-id legacy/prod   # Soft delete by logic_id
+gridctl state delete --guid 01JEDA...         # Soft delete by GUID
+```
+
+### Delete with Purge (Permanent Delete)
+
+```bash
+gridctl state delete --purge                  # Purge tombstoned state (uses dirCtx)
+gridctl state delete --purge --force          # Force purge within retention period
+gridctl state delete --purge --logic-id <id>  # Explicit reference
+
+# Examples:
+gridctl state delete --purge                            # Purge current tombstoned state
+gridctl state delete --purge --logic-id old/project     # Purge by logic_id
+gridctl state delete --purge --force --guid 01JEDA...   # Force purge by GUID
 ```
 
 ### Restore
 
 ```bash
-gridctl state restore [--logic-id <id>] [--guid <guid>] [<logic-id>]
+gridctl state restore                         # Uses dirCtx
+gridctl state restore --logic-id <id>         # Explicit reference
+gridctl state restore --guid <guid>           # By GUID
 
 # Examples:
-gridctl state restore legacy/prod                 # By logic_id
-gridctl state restore --guid 01JEDA...            # By GUID
+gridctl state restore                         # Restore current tombstoned state
+gridctl state restore --logic-id legacy/prod  # Restore by logic_id
+gridctl state restore --guid 01JEDA...        # Restore by GUID
 ```
 
-### Purge
-
-```bash
-gridctl state purge [--logic-id <id>] [--guid <guid>] [--force] [<logic-id>]
-
-# Examples:
-gridctl state purge old/project                   # Normal purge (after retention)
-gridctl state purge --force recent/project        # Force purge (within retention)
-gridctl state purge --guid 01JEDA... --force      # Force purge by GUID
-```
-
-### List with Tombstoned
+### List with Deleted States
 
 ```bash
 gridctl state list [--include-deleted]
