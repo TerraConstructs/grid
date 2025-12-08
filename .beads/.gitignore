@@ -4,6 +4,14 @@
 *.db-wal
 *.db-shm
 
+beads.base.jsonl
+beads.left.jsonl
+beads.right.jsonl
+beads.base.meta.json
+beads.left.meta.json
+beads.right.meta.json
+*.db?*
+
 # Daemon runtime files
 daemon.lock
 daemon.log

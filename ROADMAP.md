@@ -1,3 +1,9 @@
+- [ ] Add support for Garbage Collection and Renaming State LogicId
+  - [ ] Currently fogg>gridops creates States when PR is opened, but does not clean up if PR is closed without merging
+  - [ ] Currently fogg>gridops does not support renaming LogicIds when a State is renamed in fogg, this is due to missing RPC in proto/state/v1/state.proto
+- [ ] Add support for sign in through GitHub OAuth2 as an ExternalIdP
+  - [ ] When setting up request for a single org membership scope
+  - [ ] Ensure requested user scopes include team membership and use existing ExternalIdP OIDC GroupToRole logic
 - [ ] Observability:
   - [ ] Logging Library
   - [ ] OTEL Support for Logs, Tracing and Metrics
