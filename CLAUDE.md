@@ -3,6 +3,16 @@
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
 **Note**: This project uses [bd (beads)](https://github.com/steveyegge/beads) for issue tracking. Use `bd` commands instead of markdown TODOs. See AGENTS.md for workflow details.
+## Common mistakes to avoid
+
+### ⚠️ CRITICAL: Always use the make targets to run integration tests 
+
+they set crucial env variables, mimic these if you want to run individual tests) (make test-integration-sqlite uses in-memory database and has no psql dependencies). 
+
+>Tip to only see the test run results and keep all the details on disk for deep dive without re-running tests
+> ```bash
+> make test-... 2>&1 | tee /tmp/integration-test-no-auth.txt | grep -E "(^=== RUN|^--- PASS|^--- FAIL|PASS:|FAIL:)"
+> ```
 
 ## Beads (Issue Tracking) Best Practices
 

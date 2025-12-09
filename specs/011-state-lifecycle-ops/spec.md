@@ -107,7 +107,7 @@ As an authorized user, I need to permanently delete tombstoned states (within my
 - **FR-009**: System MUST support filtering state listings to include or exclude tombstoned states (respecting user's scope).
 - **FR-010**: System MUST support restoring tombstoned states to active status within the retention period.
 - **FR-011**: System MUST block tombstoning of states that have active dependents - dependents must be tombstoned first.
-- **FR-012**: System MUST reject adding dependencies to tombstoned states.
+- **FR-012**: System MUST reject adding dependencies to tombstoned states. Cannot add a dependency where EITHER the FROM or TO state is tombstoned
 
 #### Purge (Permanent Delete) Operations
 - **FR-013**: System MUST support permanent deletion (purge) of tombstoned states after the retention period.

@@ -414,6 +414,64 @@ func NewAuthzInterceptor(deps AuthzDependencies) connect.UnaryInterceptorFunc {
 				labels = make(map[string]any, len(state.Labels))
 				maps.Copy(labels, state.Labels)
 
+			case statev1connect.StateServiceTombstoneStateProcedure:
+				obj = auth.ObjectTypeState
+				action = auth.StateTombstone
+				var stateID string
+				r := req.Any().(*statev1.TombstoneStateRequest)
+
+				// Handle oneof state (logic_id or guid)
+				switch state := r.State.(type) {
+				case *statev1.TombstoneStateRequest_LogicId:
+					// Resolve logic_id to GUID
+					guid, _, err := deps.StateService.GetStateConfig(ctx, state.LogicId)
+					if err != nil {
+						return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("state not found: %w", err))
+					}
+					stateID = guid
+				case *statev1.TombstoneStateRequest_Guid:
+					stateID = state.Guid
+				default:
+					return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("state reference required (logic_id or guid)"))
+				}
+
+				// Load state to get labels for authorization
+				state, err := deps.StateService.GetStateByGUID(ctx, stateID)
+				if err != nil {
+					return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("state not found for authz: %w", err))
+				}
+				labels = make(map[string]any, len(state.Labels))
+				maps.Copy(labels, state.Labels)
+
+			case statev1connect.StateServiceRestoreStateProcedure:
+				obj = auth.ObjectTypeState
+				action = auth.StateRestore
+				var stateID string
+				r := req.Any().(*statev1.RestoreStateRequest)
+
+				// Handle oneof state (logic_id or guid)
+				switch state := r.State.(type) {
+				case *statev1.RestoreStateRequest_LogicId:
+					// Resolve logic_id to GUID
+					guid, _, err := deps.StateService.GetStateConfig(ctx, state.LogicId)
+					if err != nil {
+						return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("state not found: %w", err))
+					}
+					stateID = guid
+				case *statev1.RestoreStateRequest_Guid:
+					stateID = state.Guid
+				default:
+					return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("state reference required (logic_id or guid)"))
+				}
+
+				// Load state to get labels for authorization
+				state, err := deps.StateService.GetStateByGUID(ctx, stateID)
+				if err != nil {
+					return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("state not found for authz: %w", err))
+				}
+				labels = make(map[string]any, len(state.Labels))
+				maps.Copy(labels, state.Labels)
+
 			// --- Output Schema Management ---
 			case statev1connect.StateServiceSetOutputSchemaProcedure:
 				obj = auth.ObjectTypeState

@@ -59,7 +59,10 @@ func (s *Service) AddDependency(ctx context.Context, req *AddDependencyRequest) 
 		return nil, false, fmt.Errorf("resolve to state: %w", err)
 	}
 
-	// FR-012: Reject dependencies to tombstoned states
+	// FR-012: Reject dependencies involving tombstoned states
+	if fromState.IsTombstoned() {
+		return nil, false, fmt.Errorf("cannot add dependency from tombstoned state: %s", fromState.LogicID)
+	}
 	if toState.IsTombstoned() {
 		return nil, false, fmt.Errorf("cannot add dependency to tombstoned state: %s", toState.LogicID)
 	}

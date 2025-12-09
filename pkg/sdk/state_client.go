@@ -76,6 +76,7 @@ func (c *Client) CreateState(ctx context.Context, input CreateStateInput) (*Stat
 
 	guid := input.GUID
 	if guid == "" {
+		// TODO: Should be GUIDv7
 		guid = uuid.NewString()
 	}
 
@@ -138,6 +139,70 @@ func (c *Client) RenameState(ctx context.Context, input RenameStateInput) (*Rena
 		NewLogicID:    resp.Msg.GetNewLogicId(),
 		BackendConfig: backendConfigFromProto(resp.Msg.BackendConfig),
 		RenamedAt:     resp.Msg.GetRenamedAt().AsTime(),
+	}, nil
+}
+
+// TombstoneState soft-deletes a state, hiding it from default listings.
+// The state reference can specify either GUID or LogicID.
+// Returns an error if the state is locked or has active dependents.
+func (c *Client) TombstoneState(ctx context.Context, state StateReference) (*TombstoneStateResult, error) {
+	if state.GUID == "" && state.LogicID == "" {
+		return nil, fmt.Errorf("state reference requires guid or logic ID")
+	}
+
+	req := connect.NewRequest(&statev1.TombstoneStateRequest{})
+
+	// Set state reference (prefer GUID if both are provided)
+	if state.GUID != "" {
+		req.Msg.State = &statev1.TombstoneStateRequest_Guid{Guid: state.GUID}
+	} else {
+		req.Msg.State = &statev1.TombstoneStateRequest_LogicId{LogicId: state.LogicID}
+	}
+
+	resp, err := c.rpc.TombstoneState(ctx, req)
+	if err != nil {
+		return nil, err
+	}
+
+	return &TombstoneStateResult{
+		GUID:            resp.Msg.GetGuid(),
+		LogicID:         resp.Msg.GetLogicId(),
+		Status:          resp.Msg.GetStatus().String(),
+		TombstonedAt:    resp.Msg.GetTombstonedAt().AsTime(),
+		TombstonedBy:    resp.Msg.GetTombstonedBy(),
+		RetentionDays:   int(resp.Msg.GetRetentionDays()),
+		PurgeEligibleAt: resp.Msg.GetPurgeEligibleAt().AsTime(),
+	}, nil
+}
+
+// RestoreState recovers a tombstoned state to active status.
+// The state reference can specify either GUID or LogicID.
+// Returns an error if the state is not tombstoned or is past the retention period.
+func (c *Client) RestoreState(ctx context.Context, state StateReference) (*RestoreStateResult, error) {
+	if state.GUID == "" && state.LogicID == "" {
+		return nil, fmt.Errorf("state reference requires guid or logic ID")
+	}
+
+	req := connect.NewRequest(&statev1.RestoreStateRequest{})
+
+	// Set state reference (prefer GUID if both are provided)
+	if state.GUID != "" {
+		req.Msg.State = &statev1.RestoreStateRequest_Guid{Guid: state.GUID}
+	} else {
+		req.Msg.State = &statev1.RestoreStateRequest_LogicId{LogicId: state.LogicID}
+	}
+
+	resp, err := c.rpc.RestoreState(ctx, req)
+	if err != nil {
+		return nil, err
+	}
+
+	return &RestoreStateResult{
+		GUID:          resp.Msg.GetGuid(),
+		LogicID:       resp.Msg.GetLogicId(),
+		Status:        resp.Msg.GetStatus().String(),
+		BackendConfig: backendConfigFromProto(resp.Msg.BackendConfig),
+		RestoredAt:    resp.Msg.GetRestoredAt().AsTime(),
 	}, nil
 }
 

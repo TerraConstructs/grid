@@ -560,6 +560,98 @@ func (h *StateServiceHandler) RenameState(
 	return connect.NewResponse(resp), nil
 }
 
+// TombstoneState soft-deletes a state, hiding it from default listings.
+// State must not be locked and must not have active dependents.
+func (h *StateServiceHandler) TombstoneState(
+	ctx context.Context,
+	req *connect.Request[statev1.TombstoneStateRequest],
+) (*connect.Response[statev1.TombstoneStateResponse], error) {
+	// Resolve state reference (logic_id or guid) to GUID
+	var stateID string
+	switch state := req.Msg.State.(type) {
+	case *statev1.TombstoneStateRequest_LogicId:
+		// Resolve logic_id to GUID
+		guid, _, err := h.service.GetStateConfig(ctx, state.LogicId)
+		if err != nil {
+			return nil, mapServiceError(err)
+		}
+		stateID = guid
+	case *statev1.TombstoneStateRequest_Guid:
+		stateID = state.Guid
+	default:
+		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("state reference required (logic_id or guid)"))
+	}
+
+	// Get principal ID from context (optional - use "system" if not authenticated)
+	principalID := "system"
+	if principal, ok := auth.GetUserFromContext(ctx); ok {
+		principalID = principal.PrincipalID
+	}
+
+	// Call service layer to perform tombstone
+	result, err := h.service.TombstoneState(ctx, stateID, principalID)
+	if err != nil {
+		return nil, mapServiceError(err)
+	}
+
+	// Build response
+	resp := &statev1.TombstoneStateResponse{
+		Guid:            result.GUID,
+		LogicId:         result.LogicID,
+		Status:          statev1.StateLifecycleStatus_STATE_LIFECYCLE_STATUS_TOMBSTONED,
+		TombstonedAt:    timestamppb.New(result.TombstonedAt),
+		TombstonedBy:    result.TombstonedBy,
+		RetentionDays:   int32(result.RetentionDays),
+		PurgeEligibleAt: timestamppb.New(result.PurgeEligibleAt),
+	}
+
+	return connect.NewResponse(resp), nil
+}
+
+// RestoreState recovers a tombstoned state to active status.
+// State must be tombstoned and within the retention period.
+func (h *StateServiceHandler) RestoreState(
+	ctx context.Context,
+	req *connect.Request[statev1.RestoreStateRequest],
+) (*connect.Response[statev1.RestoreStateResponse], error) {
+	// Resolve state reference (logic_id or guid) to GUID
+	var stateID string
+	switch state := req.Msg.State.(type) {
+	case *statev1.RestoreStateRequest_LogicId:
+		// Resolve logic_id to GUID
+		guid, _, err := h.service.GetStateConfig(ctx, state.LogicId)
+		if err != nil {
+			return nil, mapServiceError(err)
+		}
+		stateID = guid
+	case *statev1.RestoreStateRequest_Guid:
+		stateID = state.Guid
+	default:
+		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("state reference required (logic_id or guid)"))
+	}
+
+	// Call service layer to perform restore
+	result, err := h.service.RestoreState(ctx, stateID)
+	if err != nil {
+		return nil, mapServiceError(err)
+	}
+
+	// Build response
+	resp := &statev1.RestoreStateResponse{
+		Guid:    result.GUID,
+		LogicId: result.LogicID,
+		Status:  statev1.StateLifecycleStatus_STATE_LIFECYCLE_STATUS_ACTIVE,
+		BackendConfig: &statev1.BackendConfig{
+			Address:       result.BackendConfig.Address,
+			LockAddress:   result.BackendConfig.LockAddress,
+			UnlockAddress: result.BackendConfig.UnlockAddress,
+		},
+		RestoredAt: timestamppb.New(result.RestoredAt),
+	}
+
+	return connect.NewResponse(resp), nil
+}
+
 // Helper functions for label value conversion
 
 // protoLabelValueToGo converts proto LabelValue to Go value (string, float64, or bool).

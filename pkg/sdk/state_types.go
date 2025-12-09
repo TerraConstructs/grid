@@ -167,6 +167,26 @@ type RenameStateResult struct {
 	RenamedAt     time.Time
 }
 
+// TombstoneStateResult contains the result of a tombstone operation.
+type TombstoneStateResult struct {
+	GUID            string
+	LogicID         string
+	Status          string
+	TombstonedAt    time.Time
+	TombstonedBy    string
+	RetentionDays   int
+	PurgeEligibleAt time.Time
+}
+
+// RestoreStateResult contains the result of a restore operation.
+type RestoreStateResult struct {
+	GUID          string
+	LogicID       string
+	Status        string
+	BackendConfig BackendConfig
+	RestoredAt    time.Time
+}
+
 // TopologyDirection indicates the traversal direction for topological ordering.
 type TopologyDirection string
 
