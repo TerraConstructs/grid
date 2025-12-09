@@ -29,6 +29,10 @@ type Config struct {
 	// IAM cache refresh interval (default: 5m)
 	CacheRefreshInterval time.Duration `mapstructure:"cache_refresh_interval"`
 
+	// RetentionDays is the default retention period for tombstoned states (default: 30)
+	// After this period, tombstoned states become eligible for purge.
+	RetentionDays int `mapstructure:"retention_days"`
+
 	// OIDC authentication configuration
 	OIDC OIDCConfig `mapstructure:"oidc"`
 }
@@ -167,6 +171,7 @@ func setDefaults(v *viper.Viper) {
 	v.SetDefault("max_db_connections", 25)
 	v.SetDefault("debug", false)
 	v.SetDefault("cache_refresh_interval", "5m")
+	v.SetDefault("retention_days", 30) // Default tombstone retention period
 
 	// OIDC defaults
 	v.SetDefault("oidc.groups_claim_field", "groups")

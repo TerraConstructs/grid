@@ -92,7 +92,8 @@ var serveCmd = &cobra.Command{
 			WithOutputRepository(outputRepo).
 			WithEdgeRepository(edgeRepo).
 			WithPolicyRepository(labelPolicyRepo).
-			WithInferrer(inferrer)
+			WithInferrer(inferrer).
+			WithRetentionDays(cfg.RetentionDays)
 		depService := dependency.NewService(edgeRepo, stateRepo).
 			WithOutputRepository(outputRepo)
 		edgeUpdater := server.NewEdgeUpdateJob(edgeRepo, stateRepo)

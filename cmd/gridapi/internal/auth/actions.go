@@ -21,6 +21,18 @@ const (
 
 	// StateDelete allows deleting states
 	StateDelete = "state:delete"
+
+	// StateRename allows renaming state logic_id
+	StateRename = "state:rename"
+
+	// StateTombstone allows soft-deleting states
+	StateTombstone = "state:tombstone"
+
+	// StateRestore allows recovering tombstoned states
+	StateRestore = "state:restore"
+
+	// StatePurge allows permanently deleting tombstoned states
+	StatePurge = "state:purge"
 )
 
 // Data Plane Actions (Terraform HTTP backend)
@@ -158,6 +170,10 @@ func ValidateAction(action string) bool {
 		StateList:         true,
 		StateUpdateLabels: true,
 		StateDelete:       true,
+		StateRename:       true,
+		StateTombstone:    true,
+		StateRestore:      true,
+		StatePurge:        true,
 		// Data Plane
 		TfstateRead:   true,
 		TfstateWrite:  true,
@@ -200,11 +216,11 @@ func ValidateAction(action string) bool {
 }
 
 // ExpandWildcard expands wildcard actions to their concrete actions
-// Example: "state:*" → ["state:create", "state:read", "state:list", "state:update-labels", "state:delete"]
+// Example: "state:*" → ["state:create", "state:read", "state:list", "state:update-labels", "state:delete", "state:rename", "state:tombstone", "state:restore", "state:purge"]
 func ExpandWildcard(action string) []string {
 	switch action {
 	case StateWildcard:
-		return []string{StateCreate, StateRead, StateList, StateUpdateLabels, StateDelete}
+		return []string{StateCreate, StateRead, StateList, StateUpdateLabels, StateDelete, StateRename, StateTombstone, StateRestore, StatePurge}
 	case TfstateWildcard:
 		return []string{TfstateRead, TfstateWrite, TfstateLock, TfstateUnlock}
 	case DependencyWildcard:

@@ -118,6 +118,25 @@ service StateService {
 
   // GetOutputSchema retrieves the JSON Schema for a specific state output.
   rpc GetOutputSchema(GetOutputSchemaRequest) returns (GetOutputSchemaResponse);
+
+  // --- State Lifecycle Operations ---
+
+  // RenameState changes the logic_id of an existing state while preserving GUID.
+  // Rejects if: state is locked, target logic_id exists (active or tombstoned).
+  rpc RenameState(RenameStateRequest) returns (RenameStateResponse);
+
+  // TombstoneState soft-deletes a state, hiding it from default listings.
+  // Rejects if: state is locked, state has active dependents.
+  // Terraform operations on tombstoned states return 410 Gone.
+  rpc TombstoneState(TombstoneStateRequest) returns (TombstoneStateResponse);
+
+  // RestoreState recovers a tombstoned state to active status.
+  // Only allowed within the retention period.
+  rpc RestoreState(RestoreStateRequest) returns (RestoreStateResponse);
+
+  // PurgeState permanently deletes a tombstoned state and all associated data.
+  // Requires state to be tombstoned and past retention period (unless force=true).
+  rpc PurgeState(PurgeStateRequest) returns (PurgeStateResponse);
 }
 
 // CreateStateRequest creates a new state using a client-generated GUID.
@@ -146,6 +165,9 @@ message ListStatesRequest {
   // WARNING: This requires computing status for EVERY state which can be expensive (N+1 pattern).
   // Set to false if you don't need real-time status to improve performance significantly.
   optional bool include_status = 3;
+
+  // Whether to include tombstoned (soft-deleted) states in results (default: false)
+  optional bool include_tombstoned = 4;
 }
 
 // ListStatesResponse returns all states with basic info.
@@ -173,6 +195,15 @@ message StateInfo {
   optional int32 dependencies_count = 10; // Number of incoming dependency edges
   optional int32 dependents_count = 11; // Number of outgoing dependency edges
   optional int32 outputs_count = 12; // Number of outputs available from this state
+
+  // Lifecycle status (active or tombstoned)
+  StateLifecycleStatus lifecycle_status = 13;
+
+  // Tombstone metadata (only populated if tombstoned)
+  optional google.protobuf.Timestamp tombstoned_at = 14;
+  optional string tombstoned_by = 15;
+  optional int32 retention_days = 16;
+  optional google.protobuf.Timestamp purge_eligible_at = 17;
 }
 
 // BackendConfig contains Terraform backend configuration URLs.
@@ -535,6 +566,15 @@ message GetStateInfoResponse {
 
   // State labels (key-value pairs with typed values)
   map<string, LabelValue> labels = 11;
+
+  // Lifecycle status
+  StateLifecycleStatus lifecycle_status = 12;
+
+  // Tombstone metadata (only populated if tombstoned)
+  optional google.protobuf.Timestamp tombstoned_at = 13;
+  optional string tombstoned_by = 14;
+  optional int32 retention_days = 15;
+  optional google.protobuf.Timestamp purge_eligible_at = 16;
 }
 
 // ListAllEdgesRequest currently has no parameters.
@@ -911,4 +951,120 @@ message GetOutputSchemaResponse {
 
   // JSON Schema definition (empty string if no schema has been set)
   string schema_json = 4;
+}
+
+// --- State Lifecycle Messages ---
+
+// StateLifecycleStatus represents the lifecycle state of a Terraform state.
+enum StateLifecycleStatus {
+  STATE_LIFECYCLE_STATUS_UNSPECIFIED = 0;
+  STATE_LIFECYCLE_STATUS_ACTIVE = 1;      // Normal operating state
+  STATE_LIFECYCLE_STATUS_TOMBSTONED = 2;  // Soft-deleted, recoverable
+}
+
+// RenameStateRequest changes the logic_id of an existing state.
+message RenameStateRequest {
+  // State identifier (prefer GUID for precision, logic_id for UX)
+  oneof state {
+    string logic_id = 1;  // Current logic ID
+    string guid = 2;      // State GUID
+  }
+
+  // New logic ID to assign
+  string new_logic_id = 3;
+}
+
+// RenameStateResponse confirms rename and returns updated state info.
+message RenameStateResponse {
+  // State identifiers after rename
+  string guid = 1;
+  string old_logic_id = 2;
+  string new_logic_id = 3;
+
+  // Backend configuration remains unchanged (GUID-based URLs)
+  BackendConfig backend_config = 4;
+
+  // Operation timestamp
+  google.protobuf.Timestamp renamed_at = 5;
+}
+
+// TombstoneStateRequest soft-deletes a state.
+message TombstoneStateRequest {
+  // State identifier
+  oneof state {
+    string logic_id = 1;
+    string guid = 2;
+  }
+
+  // Optional reason for tombstoning (stored in audit log)
+  optional string reason = 3;
+}
+
+// TombstoneStateResponse confirms tombstone and returns retention info.
+message TombstoneStateResponse {
+  // State identifiers
+  string guid = 1;
+  string logic_id = 2;
+
+  // Lifecycle status
+  StateLifecycleStatus status = 3;
+
+  // Tombstone metadata
+  google.protobuf.Timestamp tombstoned_at = 4;
+  string tombstoned_by = 5;  // Principal ID
+
+  // Retention information
+  int32 retention_days = 6;
+  google.protobuf.Timestamp purge_eligible_at = 7;
+}
+
+// RestoreStateRequest recovers a tombstoned state.
+message RestoreStateRequest {
+  // State identifier (tombstoned state)
+  oneof state {
+    string logic_id = 1;
+    string guid = 2;
+  }
+}
+
+// RestoreStateResponse confirms restoration to active status.
+message RestoreStateResponse {
+  // State identifiers
+  string guid = 1;
+  string logic_id = 2;
+
+  // Lifecycle status (should be ACTIVE after restore)
+  StateLifecycleStatus status = 3;
+
+  // Backend configuration (unchanged)
+  BackendConfig backend_config = 4;
+
+  // Operation timestamp
+  google.protobuf.Timestamp restored_at = 5;
+}
+
+// PurgeStateRequest permanently deletes a tombstoned state.
+message PurgeStateRequest {
+  // State identifier (must be tombstoned)
+  oneof state {
+    string logic_id = 1;
+    string guid = 2;
+  }
+
+  // Force purge even if within retention period
+  // Requires explicit acknowledgment of permanent data loss
+  bool force = 3;
+}
+
+// PurgeStateResponse confirms permanent deletion.
+message PurgeStateResponse {
+  // Confirms permanent deletion
+  bool success = 1;
+
+  // State identifiers (for confirmation/audit)
+  string guid = 2;
+  string logic_id = 3;
+
+  // Operation timestamp
+  google.protobuf.Timestamp purged_at = 4;
 }

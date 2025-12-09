@@ -140,6 +140,17 @@ const (
 	// StateServiceGetOutputSchemaProcedure is the fully-qualified name of the StateService's
 	// GetOutputSchema RPC.
 	StateServiceGetOutputSchemaProcedure = "/state.v1.StateService/GetOutputSchema"
+	// StateServiceRenameStateProcedure is the fully-qualified name of the StateService's RenameState
+	// RPC.
+	StateServiceRenameStateProcedure = "/state.v1.StateService/RenameState"
+	// StateServiceTombstoneStateProcedure is the fully-qualified name of the StateService's
+	// TombstoneState RPC.
+	StateServiceTombstoneStateProcedure = "/state.v1.StateService/TombstoneState"
+	// StateServiceRestoreStateProcedure is the fully-qualified name of the StateService's RestoreState
+	// RPC.
+	StateServiceRestoreStateProcedure = "/state.v1.StateService/RestoreState"
+	// StateServicePurgeStateProcedure is the fully-qualified name of the StateService's PurgeState RPC.
+	StateServicePurgeStateProcedure = "/state.v1.StateService/PurgeState"
 )
 
 // StateServiceClient is a client for the state.v1.StateService service.
@@ -222,6 +233,19 @@ type StateServiceClient interface {
 	SetOutputSchema(context.Context, *connect.Request[v1.SetOutputSchemaRequest]) (*connect.Response[v1.SetOutputSchemaResponse], error)
 	// GetOutputSchema retrieves the JSON Schema for a specific state output.
 	GetOutputSchema(context.Context, *connect.Request[v1.GetOutputSchemaRequest]) (*connect.Response[v1.GetOutputSchemaResponse], error)
+	// RenameState changes the logic_id of an existing state while preserving GUID.
+	// Rejects if: state is locked, target logic_id exists (active or tombstoned).
+	RenameState(context.Context, *connect.Request[v1.RenameStateRequest]) (*connect.Response[v1.RenameStateResponse], error)
+	// TombstoneState soft-deletes a state, hiding it from default listings.
+	// Rejects if: state is locked, state has active dependents.
+	// Terraform operations on tombstoned states return 410 Gone.
+	TombstoneState(context.Context, *connect.Request[v1.TombstoneStateRequest]) (*connect.Response[v1.TombstoneStateResponse], error)
+	// RestoreState recovers a tombstoned state to active status.
+	// Only allowed within the retention period.
+	RestoreState(context.Context, *connect.Request[v1.RestoreStateRequest]) (*connect.Response[v1.RestoreStateResponse], error)
+	// PurgeState permanently deletes a tombstoned state and all associated data.
+	// Requires state to be tombstoned and past retention period (unless force=true).
+	PurgeState(context.Context, *connect.Request[v1.PurgeStateRequest]) (*connect.Response[v1.PurgeStateResponse], error)
 }
 
 // NewStateServiceClient constructs a client for the state.v1.StateService service. By default, it
@@ -463,6 +487,30 @@ func NewStateServiceClient(httpClient connect.HTTPClient, baseURL string, opts .
 			connect.WithSchema(stateServiceMethods.ByName("GetOutputSchema")),
 			connect.WithClientOptions(opts...),
 		),
+		renameState: connect.NewClient[v1.RenameStateRequest, v1.RenameStateResponse](
+			httpClient,
+			baseURL+StateServiceRenameStateProcedure,
+			connect.WithSchema(stateServiceMethods.ByName("RenameState")),
+			connect.WithClientOptions(opts...),
+		),
+		tombstoneState: connect.NewClient[v1.TombstoneStateRequest, v1.TombstoneStateResponse](
+			httpClient,
+			baseURL+StateServiceTombstoneStateProcedure,
+			connect.WithSchema(stateServiceMethods.ByName("TombstoneState")),
+			connect.WithClientOptions(opts...),
+		),
+		restoreState: connect.NewClient[v1.RestoreStateRequest, v1.RestoreStateResponse](
+			httpClient,
+			baseURL+StateServiceRestoreStateProcedure,
+			connect.WithSchema(stateServiceMethods.ByName("RestoreState")),
+			connect.WithClientOptions(opts...),
+		),
+		purgeState: connect.NewClient[v1.PurgeStateRequest, v1.PurgeStateResponse](
+			httpClient,
+			baseURL+StateServicePurgeStateProcedure,
+			connect.WithSchema(stateServiceMethods.ByName("PurgeState")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
@@ -506,6 +554,10 @@ type stateServiceClient struct {
 	revokeSession           *connect.Client[v1.RevokeSessionRequest, v1.RevokeSessionResponse]
 	setOutputSchema         *connect.Client[v1.SetOutputSchemaRequest, v1.SetOutputSchemaResponse]
 	getOutputSchema         *connect.Client[v1.GetOutputSchemaRequest, v1.GetOutputSchemaResponse]
+	renameState             *connect.Client[v1.RenameStateRequest, v1.RenameStateResponse]
+	tombstoneState          *connect.Client[v1.TombstoneStateRequest, v1.TombstoneStateResponse]
+	restoreState            *connect.Client[v1.RestoreStateRequest, v1.RestoreStateResponse]
+	purgeState              *connect.Client[v1.PurgeStateRequest, v1.PurgeStateResponse]
 }
 
 // CreateState calls state.v1.StateService.CreateState.
@@ -698,6 +750,26 @@ func (c *stateServiceClient) GetOutputSchema(ctx context.Context, req *connect.R
 	return c.getOutputSchema.CallUnary(ctx, req)
 }
 
+// RenameState calls state.v1.StateService.RenameState.
+func (c *stateServiceClient) RenameState(ctx context.Context, req *connect.Request[v1.RenameStateRequest]) (*connect.Response[v1.RenameStateResponse], error) {
+	return c.renameState.CallUnary(ctx, req)
+}
+
+// TombstoneState calls state.v1.StateService.TombstoneState.
+func (c *stateServiceClient) TombstoneState(ctx context.Context, req *connect.Request[v1.TombstoneStateRequest]) (*connect.Response[v1.TombstoneStateResponse], error) {
+	return c.tombstoneState.CallUnary(ctx, req)
+}
+
+// RestoreState calls state.v1.StateService.RestoreState.
+func (c *stateServiceClient) RestoreState(ctx context.Context, req *connect.Request[v1.RestoreStateRequest]) (*connect.Response[v1.RestoreStateResponse], error) {
+	return c.restoreState.CallUnary(ctx, req)
+}
+
+// PurgeState calls state.v1.StateService.PurgeState.
+func (c *stateServiceClient) PurgeState(ctx context.Context, req *connect.Request[v1.PurgeStateRequest]) (*connect.Response[v1.PurgeStateResponse], error) {
+	return c.purgeState.CallUnary(ctx, req)
+}
+
 // StateServiceHandler is an implementation of the state.v1.StateService service.
 type StateServiceHandler interface {
 	// CreateState creates a new state with client-generated GUID and logic ID.
@@ -778,6 +850,19 @@ type StateServiceHandler interface {
 	SetOutputSchema(context.Context, *connect.Request[v1.SetOutputSchemaRequest]) (*connect.Response[v1.SetOutputSchemaResponse], error)
 	// GetOutputSchema retrieves the JSON Schema for a specific state output.
 	GetOutputSchema(context.Context, *connect.Request[v1.GetOutputSchemaRequest]) (*connect.Response[v1.GetOutputSchemaResponse], error)
+	// RenameState changes the logic_id of an existing state while preserving GUID.
+	// Rejects if: state is locked, target logic_id exists (active or tombstoned).
+	RenameState(context.Context, *connect.Request[v1.RenameStateRequest]) (*connect.Response[v1.RenameStateResponse], error)
+	// TombstoneState soft-deletes a state, hiding it from default listings.
+	// Rejects if: state is locked, state has active dependents.
+	// Terraform operations on tombstoned states return 410 Gone.
+	TombstoneState(context.Context, *connect.Request[v1.TombstoneStateRequest]) (*connect.Response[v1.TombstoneStateResponse], error)
+	// RestoreState recovers a tombstoned state to active status.
+	// Only allowed within the retention period.
+	RestoreState(context.Context, *connect.Request[v1.RestoreStateRequest]) (*connect.Response[v1.RestoreStateResponse], error)
+	// PurgeState permanently deletes a tombstoned state and all associated data.
+	// Requires state to be tombstoned and past retention period (unless force=true).
+	PurgeState(context.Context, *connect.Request[v1.PurgeStateRequest]) (*connect.Response[v1.PurgeStateResponse], error)
 }
 
 // NewStateServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -1015,6 +1100,30 @@ func NewStateServiceHandler(svc StateServiceHandler, opts ...connect.HandlerOpti
 		connect.WithSchema(stateServiceMethods.ByName("GetOutputSchema")),
 		connect.WithHandlerOptions(opts...),
 	)
+	stateServiceRenameStateHandler := connect.NewUnaryHandler(
+		StateServiceRenameStateProcedure,
+		svc.RenameState,
+		connect.WithSchema(stateServiceMethods.ByName("RenameState")),
+		connect.WithHandlerOptions(opts...),
+	)
+	stateServiceTombstoneStateHandler := connect.NewUnaryHandler(
+		StateServiceTombstoneStateProcedure,
+		svc.TombstoneState,
+		connect.WithSchema(stateServiceMethods.ByName("TombstoneState")),
+		connect.WithHandlerOptions(opts...),
+	)
+	stateServiceRestoreStateHandler := connect.NewUnaryHandler(
+		StateServiceRestoreStateProcedure,
+		svc.RestoreState,
+		connect.WithSchema(stateServiceMethods.ByName("RestoreState")),
+		connect.WithHandlerOptions(opts...),
+	)
+	stateServicePurgeStateHandler := connect.NewUnaryHandler(
+		StateServicePurgeStateProcedure,
+		svc.PurgeState,
+		connect.WithSchema(stateServiceMethods.ByName("PurgeState")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/state.v1.StateService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case StateServiceCreateStateProcedure:
@@ -1093,6 +1202,14 @@ func NewStateServiceHandler(svc StateServiceHandler, opts ...connect.HandlerOpti
 			stateServiceSetOutputSchemaHandler.ServeHTTP(w, r)
 		case StateServiceGetOutputSchemaProcedure:
 			stateServiceGetOutputSchemaHandler.ServeHTTP(w, r)
+		case StateServiceRenameStateProcedure:
+			stateServiceRenameStateHandler.ServeHTTP(w, r)
+		case StateServiceTombstoneStateProcedure:
+			stateServiceTombstoneStateHandler.ServeHTTP(w, r)
+		case StateServiceRestoreStateProcedure:
+			stateServiceRestoreStateHandler.ServeHTTP(w, r)
+		case StateServicePurgeStateProcedure:
+			stateServicePurgeStateHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -1252,4 +1369,20 @@ func (UnimplementedStateServiceHandler) SetOutputSchema(context.Context, *connec
 
 func (UnimplementedStateServiceHandler) GetOutputSchema(context.Context, *connect.Request[v1.GetOutputSchemaRequest]) (*connect.Response[v1.GetOutputSchemaResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("state.v1.StateService.GetOutputSchema is not implemented"))
+}
+
+func (UnimplementedStateServiceHandler) RenameState(context.Context, *connect.Request[v1.RenameStateRequest]) (*connect.Response[v1.RenameStateResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("state.v1.StateService.RenameState is not implemented"))
+}
+
+func (UnimplementedStateServiceHandler) TombstoneState(context.Context, *connect.Request[v1.TombstoneStateRequest]) (*connect.Response[v1.TombstoneStateResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("state.v1.StateService.TombstoneState is not implemented"))
+}
+
+func (UnimplementedStateServiceHandler) RestoreState(context.Context, *connect.Request[v1.RestoreStateRequest]) (*connect.Response[v1.RestoreStateResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("state.v1.StateService.RestoreState is not implemented"))
+}
+
+func (UnimplementedStateServiceHandler) PurgeState(context.Context, *connect.Request[v1.PurgeStateRequest]) (*connect.Response[v1.PurgeStateResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("state.v1.StateService.PurgeState is not implemented"))
 }

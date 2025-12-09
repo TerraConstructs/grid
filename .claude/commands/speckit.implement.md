@@ -106,7 +106,7 @@ You **MUST** consider the user input before proceeding (if not empty).
    - **Polish and validation**: Unit tests, performance optimization, documentation
 
 8. Progress tracking and error handling:
-   - Find ready tasks using `bd ready --json | jq -r '.[] | select(.labels // [] | contains(["spec:......"])) | select (.issue_type == "task")| [.id, .title] | @tsv'`
+   - Find ready tasks using `bd ready --label "spec:......"`
    - Update Beads Issues progress with Comments and Progress
    - Report progress after each completed task
    - Halt execution if any sequential task fails
