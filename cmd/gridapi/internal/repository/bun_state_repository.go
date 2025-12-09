@@ -312,7 +312,8 @@ func (r *BunStateRepository) Unlock(ctx context.Context, guid string, lockID str
 // ListWithFilter returns states matching bexpr filter with deterministic label ordering and counts.
 // T026: Implements in-memory bexpr filtering per data-model.md lines 360-411.
 // Includes efficient COUNT subqueries for relationship counts.
-func (r *BunStateRepository) ListWithFilter(ctx context.Context, filter string, pageSize int, offset int) ([]models.State, error) {
+// status filtering: When includeAll is true, returns all states. Otherwise, filters by status.
+func (r *BunStateRepository) ListWithFilter(ctx context.Context, filter string, pageSize int, offset int, status models.StateStatus, includeAll bool) ([]models.State, error) {
 	// 1. Fetch states from DB (over-fetch for in-memory filtering)
 	var states []models.State
 	fetchSize := pageSize * 3 // heuristic: 3x over-fetch
@@ -320,15 +321,23 @@ func (r *BunStateRepository) ListWithFilter(ctx context.Context, filter string, 
 		fetchSize = 100
 	}
 
-	err := r.db.NewSelect().
+	query := r.db.NewSelect().
 		Model(&states).
-		Column("guid", "logic_id", "locked", "created_at", "updated_at", "labels").
-		ColumnExpr("length(state_content) AS size_bytes").
+		ModelTableExpr("states AS s").
+		Column("s.guid", "s.logic_id", "s.locked", "s.created_at", "s.updated_at", "s.labels",
+			"s.status", "s.tombstoned_at", "s.tombstoned_by", "s.retention_days").
+		ColumnExpr("length(s.state_content) AS size_bytes").
 		// Efficient COUNT subqueries using correlated subqueries
 		ColumnExpr("(SELECT COUNT(*) FROM edges WHERE to_state = s.guid) AS dependencies_count").
 		ColumnExpr("(SELECT COUNT(*) FROM edges WHERE from_state = s.guid) AS dependents_count").
-		ColumnExpr("(SELECT COUNT(*) FROM state_outputs WHERE state_guid = s.guid) AS outputs_count").
-		Order("updated_at DESC").
+		ColumnExpr("(SELECT COUNT(*) FROM state_outputs WHERE state_guid = s.guid) AS outputs_count")
+
+	// Apply status filter if not including all
+	if !includeAll && status != "" {
+		query = query.Where("s.status = ?", status)
+	}
+
+	err := query.Order("s.updated_at DESC").
 		Limit(fetchSize).
 		Offset(offset).
 		Scan(ctx)

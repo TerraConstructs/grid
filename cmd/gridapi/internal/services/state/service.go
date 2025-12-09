@@ -165,8 +165,19 @@ func (s *Service) CreateState(ctx context.Context, guid, logicID string, labels 
 }
 
 // ListStates returns summaries for all states ordered newest first.
-func (s *Service) ListStates(ctx context.Context) ([]StateSummary, error) {
-	records, err := s.repo.List(ctx)
+// includeTombstoned controls whether tombstoned states are included (default: false).
+// When false, only active states are returned. When true, all states are returned.
+func (s *Service) ListStates(ctx context.Context, includeTombstoned bool) ([]StateSummary, error) {
+	var records []models.State
+	var err error
+
+	if includeTombstoned {
+		// Return all states regardless of lifecycle status
+		records, err = s.repo.ListWithStatus(ctx, "", true)
+	} else {
+		// Return only active states
+		records, err = s.repo.ListWithStatus(ctx, models.StateStatusActive, false)
+	}
 	if err != nil {
 		return nil, fmt.Errorf("list states: %w", err)
 	}
@@ -181,8 +192,21 @@ func (s *Service) ListStates(ctx context.Context) ([]StateSummary, error) {
 }
 
 // ListStatesWithFilter returns states matching bexpr filter with pagination.
-func (s *Service) ListStatesWithFilter(ctx context.Context, filter string, pageSize int, offset int) ([]StateSummary, error) {
-	states, err := s.repo.ListWithFilter(ctx, filter, pageSize, offset)
+// includeTombstoned controls whether tombstoned states are included (default: false).
+// When false, only active states are returned. When true, all states are returned.
+func (s *Service) ListStatesWithFilter(ctx context.Context, filter string, pageSize int, offset int, includeTombstoned bool) ([]StateSummary, error) {
+	var status models.StateStatus
+	includeAll := false
+
+	if includeTombstoned {
+		// Return all states regardless of lifecycle status
+		includeAll = true
+	} else {
+		// Return only active states
+		status = models.StateStatusActive
+	}
+
+	states, err := s.repo.ListWithFilter(ctx, filter, pageSize, offset, status, includeAll)
 	if err != nil {
 		return nil, fmt.Errorf("list states with filter: %w", err)
 	}

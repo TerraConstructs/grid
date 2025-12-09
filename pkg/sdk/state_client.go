@@ -21,9 +21,10 @@ type Client struct {
 
 // ListStatesOptions configures optional parameters for ListStatesWithOptions.
 type ListStatesOptions struct {
-	Filter        string
-	IncludeLabels *bool
-	IncludeStatus *bool // Whether to compute status for each state (default: true, expensive N+1 operation)
+	Filter            string
+	IncludeLabels     *bool
+	IncludeStatus     *bool // Whether to compute status for each state (default: true, expensive N+1 operation)
+	IncludeTombstoned *bool // Whether to include tombstoned (soft-deleted) states (default: false)
 }
 
 // UpdateStateLabelsInput describes label mutations for UpdateStateLabels.
@@ -104,6 +105,42 @@ func (c *Client) CreateState(ctx context.Context, input CreateStateInput) (*Stat
 	}, nil
 }
 
+// RenameState changes the logic ID of an existing state while preserving its GUID.
+// The state reference can specify either GUID or LogicID.
+// Returns an error if the state is locked (active states) or if the new logic ID already exists.
+func (c *Client) RenameState(ctx context.Context, input RenameStateInput) (*RenameStateResult, error) {
+	if input.NewLogicID == "" {
+		return nil, fmt.Errorf("new logic ID is required")
+	}
+	if input.State.GUID == "" && input.State.LogicID == "" {
+		return nil, fmt.Errorf("state reference requires guid or logic ID")
+	}
+
+	req := connect.NewRequest(&statev1.RenameStateRequest{
+		NewLogicId: input.NewLogicID,
+	})
+
+	// Set state reference (prefer GUID if both are provided)
+	if input.State.GUID != "" {
+		req.Msg.State = &statev1.RenameStateRequest_Guid{Guid: input.State.GUID}
+	} else {
+		req.Msg.State = &statev1.RenameStateRequest_LogicId{LogicId: input.State.LogicID}
+	}
+
+	resp, err := c.rpc.RenameState(ctx, req)
+	if err != nil {
+		return nil, err
+	}
+
+	return &RenameStateResult{
+		GUID:          resp.Msg.GetGuid(),
+		OldLogicID:    resp.Msg.GetOldLogicId(),
+		NewLogicID:    resp.Msg.GetNewLogicId(),
+		BackendConfig: backendConfigFromProto(resp.Msg.BackendConfig),
+		RenamedAt:     resp.Msg.GetRenamedAt().AsTime(),
+	}, nil
+}
+
 // ListStates returns summary information for all states managed by the server.
 func (c *Client) ListStates(ctx context.Context) ([]StateSummary, error) {
 	return c.ListStatesWithOptions(ctx, ListStatesOptions{})
@@ -120,6 +157,9 @@ func (c *Client) ListStatesWithOptions(ctx context.Context, opts ListStatesOptio
 	}
 	if opts.IncludeStatus != nil {
 		req.Msg.IncludeStatus = opts.IncludeStatus
+	}
+	if opts.IncludeTombstoned != nil {
+		req.Msg.IncludeTombstoned = opts.IncludeTombstoned
 	}
 
 	resp, err := c.rpc.ListStates(ctx, req)

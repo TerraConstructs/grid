@@ -33,7 +33,8 @@ type StateRepository interface {
 
 	// ListWithFilter returns states matching bexpr filter with pagination.
 	// T029: Added for label filtering support.
-	ListWithFilter(ctx context.Context, filter string, pageSize int, offset int) ([]models.State, error)
+	// status filtering: When includeAll is true, returns all states. Otherwise, filters by status.
+	ListWithFilter(ctx context.Context, filter string, pageSize int, offset int, status models.StateStatus, includeAll bool) ([]models.State, error)
 
 	// GetByGUIDs fetches multiple states by GUIDs in a single query (batch operation).
 	// Returns a map of GUID -> State for efficient lookup. Missing GUIDs are omitted from result.

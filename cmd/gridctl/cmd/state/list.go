@@ -47,7 +47,11 @@ var listCmd = &cobra.Command{
 		}
 
 		include := true
-		states, err := gridClient.ListStatesWithOptions(ctx, sdk.ListStatesOptions{Filter: finalFilter, IncludeLabels: &include})
+		states, err := gridClient.ListStatesWithOptions(ctx, sdk.ListStatesOptions{
+			Filter:            finalFilter,
+			IncludeLabels:     &include,
+			IncludeTombstoned: &listAll,
+		})
 		if err != nil {
 			return fmt.Errorf("failed to list states: %w", err)
 		}
@@ -56,6 +60,12 @@ var listCmd = &cobra.Command{
 		_, _ = fmt.Fprintln(w, "LOGIC_ID\tGUID\tLABELS\tCOMPUTED_STATUS\tDEPENDENCIES")
 
 		for _, state := range states {
+			logicID := state.LogicID
+			// Show [DELETED] indicator for tombstoned states
+			if state.IsTombstoned {
+				logicID = pterm.Red(state.LogicID + " [DELETED]")
+			}
+
 			status := "-"
 			if state.ComputedStatus != "" {
 				status = state.ComputedStatus
@@ -68,7 +78,7 @@ var listCmd = &cobra.Command{
 				deps = strings.Join(logicIDs, ", ")
 			}
 
-			_, _ = fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\n", state.LogicID, state.GUID, formatLabelPreview(state.Labels), status, deps)
+			_, _ = fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\n", logicID, state.GUID, formatLabelPreview(state.Labels), status, deps)
 		}
 
 		_ = w.Flush()
@@ -80,9 +90,11 @@ var listCmd = &cobra.Command{
 var (
 	listFilter          string
 	listLabelFilterArgs []string
+	listAll             bool
 )
 
 func init() {
 	listCmd.Flags().StringVar(&listFilter, "filter", "", "bexpr filter expression (e.g. env == \"prod\")")
 	listCmd.Flags().StringArrayVarP(&listLabelFilterArgs, "label", "l", nil, "Filter by label equality (key=value). Converted to bexpr AND expression")
+	listCmd.Flags().BoolVar(&listAll, "all", false, "Include tombstoned (deleted) states in output")
 }

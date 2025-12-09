@@ -59,6 +59,11 @@ func (s *Service) AddDependency(ctx context.Context, req *AddDependencyRequest) 
 		return nil, false, fmt.Errorf("resolve to state: %w", err)
 	}
 
+	// FR-012: Reject dependencies to tombstoned states
+	if toState.IsTombstoned() {
+		return nil, false, fmt.Errorf("cannot add dependency to tombstoned state: %s", toState.LogicID)
+	}
+
 	// Generate default to_input_name if not provided
 	toInputName := req.ToInputName
 	if toInputName == "" {

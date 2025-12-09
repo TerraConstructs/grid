@@ -384,6 +384,36 @@ func NewAuthzInterceptor(deps AuthzDependencies) connect.UnaryInterceptorFunc {
 				labels = make(map[string]any, len(state.Labels))
 				maps.Copy(labels, state.Labels)
 
+			// --- Lifecycle Operations ---
+			case statev1connect.StateServiceRenameStateProcedure:
+				obj = auth.ObjectTypeState
+				action = auth.StateRename
+				var stateID string
+				r := req.Any().(*statev1.RenameStateRequest)
+
+				// Handle oneof state (logic_id or guid)
+				switch state := r.State.(type) {
+				case *statev1.RenameStateRequest_LogicId:
+					// Resolve logic_id to GUID
+					guid, _, err := deps.StateService.GetStateConfig(ctx, state.LogicId)
+					if err != nil {
+						return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("state not found: %w", err))
+					}
+					stateID = guid
+				case *statev1.RenameStateRequest_Guid:
+					stateID = state.Guid
+				default:
+					return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("state reference required (logic_id or guid)"))
+				}
+
+				// Load state to get labels for authorization
+				state, err := deps.StateService.GetStateByGUID(ctx, stateID)
+				if err != nil {
+					return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("state not found for authz: %w", err))
+				}
+				labels = make(map[string]any, len(state.Labels))
+				maps.Copy(labels, state.Labels)
+
 			// --- Output Schema Management ---
 			case statev1connect.StateServiceSetOutputSchemaProcedure:
 				obj = auth.ObjectTypeState
