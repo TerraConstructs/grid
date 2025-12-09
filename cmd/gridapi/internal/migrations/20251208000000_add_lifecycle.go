@@ -15,28 +15,91 @@ func init() {
 func up_20251208000000(ctx context.Context, db *bun.DB) error {
 	fmt.Print(" [up] adding lifecycle columns to states table...")
 
-	// Add status column
-	_, err := db.Exec(`ALTER TABLE states ADD COLUMN status VARCHAR(20) NOT NULL DEFAULT 'active'`)
-	if err != nil {
-		return fmt.Errorf("add status column: %w", err)
+	var err error
+
+	// Add status column (IF NOT EXISTS for PostgreSQL, idempotent for fresh DBs)
+	if IsPostgreSQL(db) {
+		_, err = db.Exec(`ALTER TABLE states ADD COLUMN IF NOT EXISTS status VARCHAR(20) NOT NULL DEFAULT 'active'`)
+		if err != nil {
+			return fmt.Errorf("add status column: %w", err)
+		}
+	} else {
+		// SQLite doesn't support IF NOT EXISTS in ALTER TABLE, check column existence first
+		var exists bool
+		err = db.NewSelect().
+			ColumnExpr("COUNT(*) > 0").
+			TableExpr("pragma_table_info('states')").
+			Where("name = ?", "status").
+			Scan(ctx, &exists)
+		if err == nil && !exists {
+			_, err = db.Exec(`ALTER TABLE states ADD COLUMN status VARCHAR(20) NOT NULL DEFAULT 'active'`)
+			if err != nil {
+				return fmt.Errorf("add status column: %w", err)
+			}
+		}
 	}
 
 	// Add tombstoned_at column
-	_, err = db.Exec(`ALTER TABLE states ADD COLUMN tombstoned_at TIMESTAMP NULL`)
-	if err != nil {
-		return fmt.Errorf("add tombstoned_at column: %w", err)
+	if IsPostgreSQL(db) {
+		_, err = db.Exec(`ALTER TABLE states ADD COLUMN IF NOT EXISTS tombstoned_at TIMESTAMP NULL`)
+		if err != nil {
+			return fmt.Errorf("add tombstoned_at column: %w", err)
+		}
+	} else {
+		var exists bool
+		err = db.NewSelect().
+			ColumnExpr("COUNT(*) > 0").
+			TableExpr("pragma_table_info('states')").
+			Where("name = ?", "tombstoned_at").
+			Scan(ctx, &exists)
+		if err == nil && !exists {
+			_, err = db.Exec(`ALTER TABLE states ADD COLUMN tombstoned_at TIMESTAMP NULL`)
+			if err != nil {
+				return fmt.Errorf("add tombstoned_at column: %w", err)
+			}
+		}
 	}
 
 	// Add tombstoned_by column
-	_, err = db.Exec(`ALTER TABLE states ADD COLUMN tombstoned_by VARCHAR(255) NULL`)
-	if err != nil {
-		return fmt.Errorf("add tombstoned_by column: %w", err)
+	if IsPostgreSQL(db) {
+		_, err = db.Exec(`ALTER TABLE states ADD COLUMN IF NOT EXISTS tombstoned_by VARCHAR(255) NULL`)
+		if err != nil {
+			return fmt.Errorf("add tombstoned_by column: %w", err)
+		}
+	} else {
+		var exists bool
+		err = db.NewSelect().
+			ColumnExpr("COUNT(*) > 0").
+			TableExpr("pragma_table_info('states')").
+			Where("name = ?", "tombstoned_by").
+			Scan(ctx, &exists)
+		if err == nil && !exists {
+			_, err = db.Exec(`ALTER TABLE states ADD COLUMN tombstoned_by VARCHAR(255) NULL`)
+			if err != nil {
+				return fmt.Errorf("add tombstoned_by column: %w", err)
+			}
+		}
 	}
 
 	// Add retention_days column
-	_, err = db.Exec(`ALTER TABLE states ADD COLUMN retention_days INTEGER NOT NULL DEFAULT 30`)
-	if err != nil {
-		return fmt.Errorf("add retention_days column: %w", err)
+	if IsPostgreSQL(db) {
+		_, err = db.Exec(`ALTER TABLE states ADD COLUMN IF NOT EXISTS retention_days INTEGER NOT NULL DEFAULT 30`)
+		if err != nil {
+			return fmt.Errorf("add retention_days column: %w", err)
+		}
+	} else {
+		var exists bool
+		err = db.NewSelect().
+			ColumnExpr("COUNT(*) > 0").
+			TableExpr("pragma_table_info('states')").
+			Where("name = ?", "retention_days").
+			Scan(ctx, &exists)
+		if err == nil && !exists {
+			_, err = db.Exec(`ALTER TABLE states ADD COLUMN retention_days INTEGER NOT NULL DEFAULT 30`)
+			if err != nil {
+				return fmt.Errorf("add retention_days column: %w", err)
+			}
+		}
 	}
 
 	// Create index for efficient status filtering

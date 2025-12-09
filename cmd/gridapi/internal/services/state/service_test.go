@@ -66,8 +66,8 @@ func (m *MockStateRepository) UpdateContentAndUpsertOutputs(ctx context.Context,
 	return args.Error(0)
 }
 
-func (m *MockStateRepository) ListWithFilter(ctx context.Context, filter string, pageSize int, offset int) ([]models.State, error) {
-	args := m.Called(ctx, filter, pageSize, offset)
+func (m *MockStateRepository) ListWithFilter(ctx context.Context, filter string, pageSize int, offset int, status models.StateStatus, includeAll bool) ([]models.State, error) {
+	args := m.Called(ctx, filter, pageSize, offset, status, includeAll)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
@@ -96,6 +96,41 @@ func (m *MockStateRepository) ListStatesWithOutputs(ctx context.Context) ([]*mod
 		return nil, args.Error(1)
 	}
 	return args.Get(0).([]*models.State), args.Error(1)
+}
+
+// Lifecycle methods
+
+func (m *MockStateRepository) ListWithStatus(ctx context.Context, status models.StateStatus, includeAll bool) ([]models.State, error) {
+	args := m.Called(ctx, status, includeAll)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).([]models.State), args.Error(1)
+}
+
+func (m *MockStateRepository) UpdateLogicID(ctx context.Context, guid, newLogicID string, originalUpdatedAt time.Time) error {
+	args := m.Called(ctx, guid, newLogicID, originalUpdatedAt)
+	return args.Error(0)
+}
+
+func (m *MockStateRepository) SetTombstoned(ctx context.Context, guid, principalID string, retentionDays int) error {
+	args := m.Called(ctx, guid, principalID, retentionDays)
+	return args.Error(0)
+}
+
+func (m *MockStateRepository) ClearTombstone(ctx context.Context, guid string) error {
+	args := m.Called(ctx, guid)
+	return args.Error(0)
+}
+
+func (m *MockStateRepository) Delete(ctx context.Context, guid string) error {
+	args := m.Called(ctx, guid)
+	return args.Error(0)
+}
+
+func (m *MockStateRepository) HasActiveDependents(ctx context.Context, guid string) (bool, error) {
+	args := m.Called(ctx, guid)
+	return args.Bool(0), args.Error(1)
 }
 
 // T015: Test StateService.CreateState with labels
