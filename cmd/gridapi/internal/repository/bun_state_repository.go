@@ -312,7 +312,8 @@ func (r *BunStateRepository) Unlock(ctx context.Context, guid string, lockID str
 // ListWithFilter returns states matching bexpr filter with deterministic label ordering and counts.
 // T026: Implements in-memory bexpr filtering per data-model.md lines 360-411.
 // Includes efficient COUNT subqueries for relationship counts.
-func (r *BunStateRepository) ListWithFilter(ctx context.Context, filter string, pageSize int, offset int) ([]models.State, error) {
+// status filtering: When includeAll is true, returns all states. Otherwise, filters by status.
+func (r *BunStateRepository) ListWithFilter(ctx context.Context, filter string, pageSize int, offset int, status models.StateStatus, includeAll bool) ([]models.State, error) {
 	// 1. Fetch states from DB (over-fetch for in-memory filtering)
 	var states []models.State
 	fetchSize := pageSize * 3 // heuristic: 3x over-fetch
@@ -320,15 +321,23 @@ func (r *BunStateRepository) ListWithFilter(ctx context.Context, filter string, 
 		fetchSize = 100
 	}
 
-	err := r.db.NewSelect().
+	query := r.db.NewSelect().
 		Model(&states).
-		Column("guid", "logic_id", "locked", "created_at", "updated_at", "labels").
-		ColumnExpr("length(state_content) AS size_bytes").
+		ModelTableExpr("states AS s").
+		Column("s.guid", "s.logic_id", "s.locked", "s.created_at", "s.updated_at", "s.labels",
+			"s.status", "s.tombstoned_at", "s.tombstoned_by", "s.retention_days").
+		ColumnExpr("length(s.state_content) AS size_bytes").
 		// Efficient COUNT subqueries using correlated subqueries
 		ColumnExpr("(SELECT COUNT(*) FROM edges WHERE to_state = s.guid) AS dependencies_count").
 		ColumnExpr("(SELECT COUNT(*) FROM edges WHERE from_state = s.guid) AS dependents_count").
-		ColumnExpr("(SELECT COUNT(*) FROM state_outputs WHERE state_guid = s.guid) AS outputs_count").
-		Order("updated_at DESC").
+		ColumnExpr("(SELECT COUNT(*) FROM state_outputs WHERE state_guid = s.guid) AS outputs_count")
+
+	// Apply status filter if not including all
+	if !includeAll && status != "" {
+		query = query.Where("s.status = ?", status)
+	}
+
+	err := query.Order("s.updated_at DESC").
 		Limit(fetchSize).
 		Offset(offset).
 		Scan(ctx)
@@ -469,4 +478,166 @@ func isDuplicateKeyError(err error) bool {
 
 	msg := err.Error()
 	return strings.Contains(msg, "duplicate key value") || strings.Contains(msg, "unique constraint") || strings.Contains(msg, "UNIQUE constraint") || strings.Contains(msg, "23505")
+}
+
+// === Lifecycle Operations ===
+
+// ListWithStatus returns states filtered by lifecycle status.
+// status can be "active", "tombstoned", or empty for all states.
+// When includeAll is true, returns all states regardless of lifecycle status.
+func (r *BunStateRepository) ListWithStatus(ctx context.Context, status models.StateStatus, includeAll bool) ([]models.State, error) {
+	var states []models.State
+	query := r.db.NewSelect().
+		Model(&states).
+		ModelTableExpr("states AS s").
+		Column("s.guid", "s.logic_id", "s.locked", "s.created_at", "s.updated_at", "s.labels",
+			"s.status", "s.tombstoned_at", "s.tombstoned_by", "s.retention_days").
+		ColumnExpr("length(s.state_content) AS size_bytes").
+		ColumnExpr("(SELECT COUNT(*) FROM edges WHERE to_state = s.guid) AS dependencies_count").
+		ColumnExpr("(SELECT COUNT(*) FROM edges WHERE from_state = s.guid) AS dependents_count").
+		ColumnExpr("(SELECT COUNT(*) FROM state_outputs WHERE state_guid = s.guid) AS outputs_count")
+
+	if !includeAll && status != "" {
+		query = query.Where("s.status = ?", status)
+	}
+
+	if err := query.Order("s.created_at DESC").Scan(ctx); err != nil {
+		return nil, fmt.Errorf("list states with status: %w", err)
+	}
+
+	if states == nil {
+		states = []models.State{}
+	}
+	return states, nil
+}
+
+// UpdateLogicID atomically renames a state's logic_id with optimistic locking.
+// Returns ErrConcurrentModification if the state was modified since originalUpdatedAt.
+func (r *BunStateRepository) UpdateLogicID(ctx context.Context, guid, newLogicID string, originalUpdatedAt time.Time) error {
+	now := time.Now()
+	result, err := r.db.NewUpdate().
+		Model((*models.State)(nil)).
+		Set("logic_id = ?", newLogicID).
+		Set("updated_at = ?", now).
+		Where("guid = ?", guid).
+		Where("updated_at = ?", originalUpdatedAt). // Optimistic lock
+		Exec(ctx)
+	if err != nil {
+		if isDuplicateKeyError(err) {
+			return fmt.Errorf("logic_id '%s' already exists", newLogicID)
+		}
+		return fmt.Errorf("rename state: %w", err)
+	}
+
+	rows, _ := result.RowsAffected()
+	if rows == 0 {
+		// Could be concurrent modification or state not found
+		// Check if state exists
+		_, lookupErr := r.GetByGUID(ctx, guid)
+		if lookupErr != nil {
+			return fmt.Errorf("state with guid '%s' not found", guid)
+		}
+		return ErrConcurrentModification
+	}
+	return nil
+}
+
+// SetTombstoned marks a state as tombstoned (soft-deleted).
+func (r *BunStateRepository) SetTombstoned(ctx context.Context, guid, principalID string, retentionDays int) error {
+	now := time.Now()
+	result, err := r.db.NewUpdate().
+		Model((*models.State)(nil)).
+		Set("status = ?", models.StateStatusTombstoned).
+		Set("tombstoned_at = ?", now).
+		Set("tombstoned_by = ?", principalID).
+		Set("retention_days = ?", retentionDays).
+		Set("updated_at = ?", now).
+		Where("guid = ?", guid).
+		Where("status = ?", models.StateStatusActive). // Only tombstone active states
+		Exec(ctx)
+	if err != nil {
+		return fmt.Errorf("tombstone state: %w", err)
+	}
+
+	rows, _ := result.RowsAffected()
+	if rows == 0 {
+		// Could be state not found or already tombstoned
+		state, lookupErr := r.GetByGUID(ctx, guid)
+		if lookupErr != nil {
+			return fmt.Errorf("state with guid '%s' not found", guid)
+		}
+		if state.Status == models.StateStatusTombstoned {
+			return fmt.Errorf("state is already tombstoned")
+		}
+		return fmt.Errorf("state with guid '%s' not found", guid)
+	}
+	return nil
+}
+
+// ClearTombstone restores a tombstoned state to active status.
+func (r *BunStateRepository) ClearTombstone(ctx context.Context, guid string) error {
+	now := time.Now()
+	result, err := r.db.NewUpdate().
+		Model((*models.State)(nil)).
+		Set("status = ?", models.StateStatusActive).
+		Set("tombstoned_at = ?", nil).
+		Set("tombstoned_by = ?", nil).
+		Set("updated_at = ?", now).
+		Where("guid = ?", guid).
+		Where("status = ?", models.StateStatusTombstoned). // Only restore tombstoned states
+		Exec(ctx)
+	if err != nil {
+		return fmt.Errorf("restore state: %w", err)
+	}
+
+	rows, _ := result.RowsAffected()
+	if rows == 0 {
+		// Could be state not found or not tombstoned
+		state, lookupErr := r.GetByGUID(ctx, guid)
+		if lookupErr != nil {
+			return fmt.Errorf("state with guid '%s' not found", guid)
+		}
+		if state.Status == models.StateStatusActive {
+			return fmt.Errorf("state is not tombstoned")
+		}
+		return fmt.Errorf("state with guid '%s' not found", guid)
+	}
+	return nil
+}
+
+// Delete permanently removes a state from the database.
+// CASCADE deletes handle related outputs and edges.
+func (r *BunStateRepository) Delete(ctx context.Context, guid string) error {
+	result, err := r.db.NewDelete().
+		Model((*models.State)(nil)).
+		Where("guid = ?", guid).
+		Exec(ctx)
+	if err != nil {
+		return fmt.Errorf("delete state: %w", err)
+	}
+
+	rows, _ := result.RowsAffected()
+	if rows == 0 {
+		return fmt.Errorf("state with guid '%s' not found", guid)
+	}
+	return nil
+}
+
+// HasActiveDependents checks if any active states depend on the given state.
+// Returns true if there are outgoing edges to states with status='active'.
+// In the edge model: from_state is the producer, to_state is the consumer.
+// Dependents are consumers that depend on this state's outputs.
+func (r *BunStateRepository) HasActiveDependents(ctx context.Context, guid string) (bool, error) {
+	// Check if any active states consume outputs FROM this state
+	// edges.from_state = this state (producer), edges.to_state = consumer
+	count, err := r.db.NewSelect().
+		TableExpr("edges AS e").
+		Join("JOIN states AS s ON e.to_state = s.guid"). // Join on consumer state
+		Where("e.from_state = ?", guid).                 // This state is the producer
+		Where("s.status = ?", models.StateStatusActive). // Consumer is active
+		Count(ctx)
+	if err != nil {
+		return false, fmt.Errorf("check active dependents: %w", err)
+	}
+	return count > 0, nil
 }

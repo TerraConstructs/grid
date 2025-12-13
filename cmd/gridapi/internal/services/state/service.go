@@ -37,6 +37,13 @@ type StateSummary struct {
 	DependenciesCount int
 	DependentsCount   int
 	OutputsCount      int
+
+	// Lifecycle fields
+	Status           models.StateStatus
+	TombstonedAt     *time.Time
+	TombstonedBy     *string
+	RetentionDays    int
+	PurgeEligibleAt  *time.Time
 }
 
 // StateInfo provides comprehensive state information including dependencies, dependents, and outputs.
@@ -51,16 +58,24 @@ type StateInfo struct {
 	UpdatedAt     time.Time
 	SizeBytes     int64
 	Labels        models.LabelMap
+
+	// Lifecycle fields
+	Status          models.StateStatus
+	TombstonedAt    *time.Time
+	TombstonedBy    *string
+	RetentionDays   int
+	PurgeEligibleAt *time.Time
 }
 
 // Service orchestrates state persistence and validation for RPC handlers.
 type Service struct {
-	repo       repository.StateRepository
-	outputRepo repository.StateOutputRepository
-	edgeRepo   repository.EdgeRepository
-	policyRepo repository.LabelPolicyRepository
-	inferrer   SchemaInferrer
-	serverURL  string
+	repo          repository.StateRepository
+	outputRepo    repository.StateOutputRepository
+	edgeRepo      repository.EdgeRepository
+	policyRepo    repository.LabelPolicyRepository
+	inferrer      SchemaInferrer
+	serverURL     string
+	retentionDays int // Default retention days for tombstoned states
 }
 
 // SchemaInferrer defines the interface for schema inference.
@@ -77,7 +92,13 @@ type InferredSchema struct {
 
 // NewService constructs a new Service instance.
 func NewService(repo repository.StateRepository, serverURL string) *Service {
-	return &Service{repo: repo, serverURL: serverURL}
+	return &Service{repo: repo, serverURL: serverURL, retentionDays: 30}
+}
+
+// WithRetentionDays sets the default retention period for tombstoned states.
+func (s *Service) WithRetentionDays(days int) *Service {
+	s.retentionDays = days
+	return s
 }
 
 // WithOutputRepository adds the output repository to the service (optional dependency).
@@ -144,8 +165,19 @@ func (s *Service) CreateState(ctx context.Context, guid, logicID string, labels 
 }
 
 // ListStates returns summaries for all states ordered newest first.
-func (s *Service) ListStates(ctx context.Context) ([]StateSummary, error) {
-	records, err := s.repo.List(ctx)
+// includeTombstoned controls whether tombstoned states are included (default: false).
+// When false, only active states are returned. When true, all states are returned.
+func (s *Service) ListStates(ctx context.Context, includeTombstoned bool) ([]StateSummary, error) {
+	var records []models.State
+	var err error
+
+	if includeTombstoned {
+		// Return all states regardless of lifecycle status
+		records, err = s.repo.ListWithStatus(ctx, "", true)
+	} else {
+		// Return only active states
+		records, err = s.repo.ListWithStatus(ctx, models.StateStatusActive, false)
+	}
 	if err != nil {
 		return nil, fmt.Errorf("list states: %w", err)
 	}
@@ -160,8 +192,21 @@ func (s *Service) ListStates(ctx context.Context) ([]StateSummary, error) {
 }
 
 // ListStatesWithFilter returns states matching bexpr filter with pagination.
-func (s *Service) ListStatesWithFilter(ctx context.Context, filter string, pageSize int, offset int) ([]StateSummary, error) {
-	states, err := s.repo.ListWithFilter(ctx, filter, pageSize, offset)
+// includeTombstoned controls whether tombstoned states are included (default: false).
+// When false, only active states are returned. When true, all states are returned.
+func (s *Service) ListStatesWithFilter(ctx context.Context, filter string, pageSize int, offset int, includeTombstoned bool) ([]StateSummary, error) {
+	var status models.StateStatus
+	includeAll := false
+
+	if includeTombstoned {
+		// Return all states regardless of lifecycle status
+		includeAll = true
+	} else {
+		// Return only active states
+		status = models.StateStatusActive
+	}
+
+	states, err := s.repo.ListWithFilter(ctx, filter, pageSize, offset, status, includeAll)
 	if err != nil {
 		return nil, fmt.Errorf("list states with filter: %w", err)
 	}
@@ -362,6 +407,12 @@ func toSummary(record *models.State) StateSummary {
 		}
 	}
 
+	// Default status to active if not set (backward compatibility)
+	status := record.Status
+	if status == "" {
+		status = models.StateStatusActive
+	}
+
 	return StateSummary{
 		GUID:              record.GUID,
 		LogicID:           record.LogicID,
@@ -374,6 +425,12 @@ func toSummary(record *models.State) StateSummary {
 		DependenciesCount: record.DependenciesCount,
 		DependentsCount:   record.DependentsCount,
 		OutputsCount:      record.OutputsCount,
+		// Lifecycle fields
+		Status:          status,
+		TombstonedAt:    record.TombstonedAt,
+		TombstonedBy:    record.TombstonedBy,
+		RetentionDays:   record.RetentionDays,
+		PurgeEligibleAt: record.PurgeEligibleAt(),
 	}
 }
 
@@ -677,4 +734,219 @@ func (s *Service) GetOutputSchema(ctx context.Context, guid string, outputKey st
 	}
 
 	return s.outputRepo.GetOutputSchema(ctx, guid, outputKey)
+}
+
+// === Lifecycle Operations ===
+
+// RenameResult contains the result of a rename operation.
+type RenameResult struct {
+	GUID         string
+	OldLogicID   string
+	NewLogicID   string
+	BackendConfig *BackendConfig
+	RenamedAt    time.Time
+}
+
+// RenameState changes the logic_id of a state while preserving its GUID.
+// Active states: Must not be locked.
+// Tombstoned states: Can always be renamed (to free the logic_id).
+// Target logic_id must not exist (active or tombstoned).
+func (s *Service) RenameState(ctx context.Context, guid, newLogicID string) (*RenameResult, error) {
+	// Validate new logic_id format
+	if err := validateLogicID(newLogicID); err != nil {
+		return nil, err
+	}
+
+	// Get current state
+	state, err := s.repo.GetByGUID(ctx, guid)
+	if err != nil {
+		return nil, fmt.Errorf("state not found: %w", err)
+	}
+
+	oldLogicID := state.LogicID
+
+	// Active states cannot be renamed while locked
+	if state.IsActive() && state.Locked {
+		return nil, fmt.Errorf("cannot rename locked state")
+	}
+	// Tombstoned states can always be renamed (even if somehow locked)
+
+	// Check if target logic_id already exists (including tombstoned states)
+	existing, err := s.repo.GetByLogicID(ctx, newLogicID)
+	if err == nil && existing != nil {
+		return nil, fmt.Errorf("logic_id '%s' already exists", newLogicID)
+	}
+
+	// Perform the rename with optimistic locking
+	if err := s.repo.UpdateLogicID(ctx, guid, newLogicID, state.UpdatedAt); err != nil {
+		return nil, fmt.Errorf("rename state: %w", err)
+	}
+
+	fmt.Printf("state %s renamed from %q to %q\n", guid, oldLogicID, newLogicID)
+
+	return &RenameResult{
+		GUID:          guid,
+		OldLogicID:    oldLogicID,
+		NewLogicID:    newLogicID,
+		BackendConfig: s.backendConfig(guid),
+		RenamedAt:     time.Now(),
+	}, nil
+}
+
+// TombstoneResult contains the result of a tombstone operation.
+type TombstoneResult struct {
+	GUID            string
+	LogicID         string
+	Status          models.StateStatus
+	TombstonedAt    time.Time
+	TombstonedBy    string
+	RetentionDays   int
+	PurgeEligibleAt time.Time
+}
+
+// TombstoneState soft-deletes a state, hiding it from default listings.
+// State must not be locked and must not have active dependents.
+// Terraform operations on tombstoned states return 410 Gone.
+func (s *Service) TombstoneState(ctx context.Context, guid, principalID string) (*TombstoneResult, error) {
+	// Get current state
+	state, err := s.repo.GetByGUID(ctx, guid)
+	if err != nil {
+		return nil, fmt.Errorf("state not found: %w", err)
+	}
+
+	// Check if already tombstoned
+	if state.IsTombstoned() {
+		return nil, fmt.Errorf("state is already tombstoned")
+	}
+
+	// Cannot tombstone locked states
+	if state.Locked {
+		return nil, fmt.Errorf("cannot tombstone locked state")
+	}
+
+	// Check for active dependents (FR-011)
+	hasActive, err := s.repo.HasActiveDependents(ctx, guid)
+	if err != nil {
+		return nil, fmt.Errorf("check active dependents: %w", err)
+	}
+	if hasActive {
+		return nil, fmt.Errorf("cannot tombstone state with active dependents")
+	}
+
+	// Perform the tombstone
+	retentionDays := s.retentionDays
+	if err := s.repo.SetTombstoned(ctx, guid, principalID, retentionDays); err != nil {
+		return nil, fmt.Errorf("tombstone state: %w", err)
+	}
+
+	tombstonedAt := time.Now()
+	purgeEligibleAt := tombstonedAt.AddDate(0, 0, retentionDays)
+
+	fmt.Printf("state %s (%s) tombstoned by %s, purge eligible at %s\n",
+		guid, state.LogicID, principalID, purgeEligibleAt.Format(time.RFC3339))
+
+	return &TombstoneResult{
+		GUID:            guid,
+		LogicID:         state.LogicID,
+		Status:          models.StateStatusTombstoned,
+		TombstonedAt:    tombstonedAt,
+		TombstonedBy:    principalID,
+		RetentionDays:   retentionDays,
+		PurgeEligibleAt: purgeEligibleAt,
+	}, nil
+}
+
+// RestoreResult contains the result of a restore operation.
+type RestoreResult struct {
+	GUID          string
+	LogicID       string
+	Status        models.StateStatus
+	BackendConfig *BackendConfig
+	RestoredAt    time.Time
+}
+
+// RestoreState recovers a tombstoned state to active status.
+// State must be tombstoned and within the retention period.
+func (s *Service) RestoreState(ctx context.Context, guid string) (*RestoreResult, error) {
+	// Get current state
+	state, err := s.repo.GetByGUID(ctx, guid)
+	if err != nil {
+		return nil, fmt.Errorf("state not found: %w", err)
+	}
+
+	// Must be tombstoned
+	if !state.IsTombstoned() {
+		return nil, fmt.Errorf("state is not tombstoned")
+	}
+
+	// Check retention period
+	if state.IsPurgeEligible() {
+		return nil, fmt.Errorf("state has exceeded retention period and cannot be restored")
+	}
+
+	// Perform the restore
+	if err := s.repo.ClearTombstone(ctx, guid); err != nil {
+		return nil, fmt.Errorf("restore state: %w", err)
+	}
+
+	fmt.Printf("state %s (%s) restored to active status\n", guid, state.LogicID)
+
+	return &RestoreResult{
+		GUID:          guid,
+		LogicID:       state.LogicID,
+		Status:        models.StateStatusActive,
+		BackendConfig: s.backendConfig(guid),
+		RestoredAt:    time.Now(),
+	}, nil
+}
+
+// PurgeResult contains the result of a purge operation.
+type PurgeResult struct {
+	Success  bool
+	GUID     string
+	LogicID  string
+	PurgedAt time.Time
+}
+
+// PurgeState permanently deletes a tombstoned state and all associated data.
+// State must be tombstoned and past the retention period (unless force=true).
+func (s *Service) PurgeState(ctx context.Context, guid string, force bool) (*PurgeResult, error) {
+	// Get current state
+	state, err := s.repo.GetByGUID(ctx, guid)
+	if err != nil {
+		return nil, fmt.Errorf("state not found: %w", err)
+	}
+
+	// Must be tombstoned
+	if !state.IsTombstoned() {
+		return nil, fmt.Errorf("can only purge tombstoned states")
+	}
+
+	// Check retention period (unless force=true)
+	if !force && !state.IsPurgeEligible() {
+		purgeEligible := state.PurgeEligibleAt()
+		if purgeEligible != nil {
+			return nil, fmt.Errorf("state not yet eligible for purge (eligible at %s), use force=true to override",
+				purgeEligible.Format(time.RFC3339))
+		}
+		return nil, fmt.Errorf("state not eligible for purge, use force=true to override")
+	}
+
+	// Perform the delete
+	if err := s.repo.Delete(ctx, guid); err != nil {
+		return nil, fmt.Errorf("purge state: %w", err)
+	}
+
+	forceMsg := ""
+	if force && !state.IsPurgeEligible() {
+		forceMsg = " (force=true)"
+	}
+	fmt.Printf("state %s (%s) permanently purged%s\n", guid, state.LogicID, forceMsg)
+
+	return &PurgeResult{
+		Success:  true,
+		GUID:     guid,
+		LogicID:  state.LogicID,
+		PurgedAt: time.Now(),
+	}, nil
 }

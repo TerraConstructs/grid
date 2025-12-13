@@ -800,7 +800,7 @@ func TestBunStateRepository_ListWithFilter(t *testing.T) {
 
 	t.Run("filter by equality", func(t *testing.T) {
 		// Filter: env == "staging"
-		results, err := repo.ListWithFilter(ctx, `env == "staging"`, 10, 0)
+		results, err := repo.ListWithFilter(ctx, `env == "staging"`, 10, 0, models.StateStatusActive, false)
 		require.NoError(t, err)
 		assert.Len(t, results, 2, "Should return 2 staging states")
 		for _, r := range results {
@@ -810,7 +810,7 @@ func TestBunStateRepository_ListWithFilter(t *testing.T) {
 
 	t.Run("filter by AND expression", func(t *testing.T) {
 		// Filter: env == "prod" and team == "platform"
-		results, err := repo.ListWithFilter(ctx, `env == "prod" and team == "platform"`, 10, 0)
+		results, err := repo.ListWithFilter(ctx, `env == "prod" and team == "platform"`, 10, 0, models.StateStatusActive, false)
 		require.NoError(t, err)
 		assert.Len(t, results, 1, "Should return 1 prod+platform state")
 		assert.Equal(t, "test-filter-4", results[0].LogicID)
@@ -818,7 +818,7 @@ func TestBunStateRepository_ListWithFilter(t *testing.T) {
 
 	t.Run("filter by OR expression", func(t *testing.T) {
 		// Filter: team == "core" or region == "us-west"
-		results, err := repo.ListWithFilter(ctx, `team == "core" or region == "us-west"`, 10, 0)
+		results, err := repo.ListWithFilter(ctx, `team == "core" or region == "us-west"`, 10, 0, models.StateStatusActive, false)
 		require.NoError(t, err)
 		assert.GreaterOrEqual(t, len(results), 3, "Should return at least 3 states")
 	})
@@ -826,25 +826,25 @@ func TestBunStateRepository_ListWithFilter(t *testing.T) {
 	t.Run("filter by in expression", func(t *testing.T) {
 		// Filter: env == "staging" or env == "prod"
 		// Note: bexpr doesn't support "field in [array]" syntax, use OR instead
-		results, err := repo.ListWithFilter(ctx, `env == "staging" or env == "prod"`, 10, 0)
+		results, err := repo.ListWithFilter(ctx, `env == "staging" or env == "prod"`, 10, 0, models.StateStatusActive, false)
 		require.NoError(t, err)
 		assert.GreaterOrEqual(t, len(results), 4, "Should return all 4 test states")
 	})
 
 	t.Run("empty filter returns all", func(t *testing.T) {
-		results, err := repo.ListWithFilter(ctx, "", 10, 0)
+		results, err := repo.ListWithFilter(ctx, "", 10, 0, models.StateStatusActive, false)
 		require.NoError(t, err)
 		assert.GreaterOrEqual(t, len(results), 4, "Should return all states")
 	})
 
 	t.Run("invalid bexpr returns error", func(t *testing.T) {
-		_, err := repo.ListWithFilter(ctx, `env = "invalid syntax"`, 10, 0)
+		_, err := repo.ListWithFilter(ctx, `env = "invalid syntax"`, 10, 0, models.StateStatusActive, false)
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "invalid filter expression")
 	})
 
 	t.Run("pagination limits results", func(t *testing.T) {
-		results, err := repo.ListWithFilter(ctx, "", 2, 0)
+		results, err := repo.ListWithFilter(ctx, "", 2, 0, models.StateStatusActive, false)
 		require.NoError(t, err)
 		assert.LessOrEqual(t, len(results), 2, "Should respect page_size limit")
 	})
@@ -888,5 +888,81 @@ func TestBunStateRepository_DeterministicLabelOrdering(t *testing.T) {
 		assert.Contains(t, keys, "alpha")
 		assert.Contains(t, keys, "middle")
 		assert.Contains(t, keys, "zebra")
+	})
+}
+
+// TestBunStateRepository_ConcurrentRename tests optimistic locking for concurrent rename operations
+func TestBunStateRepository_ConcurrentRename(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+	defer cleanupTestData(t, db)
+
+	repo := NewBunStateRepository(db)
+	ctx := context.Background()
+
+	t.Run("concurrent renames - second fails with ErrConcurrentModification", func(t *testing.T) {
+		// Create a test state
+		state := &models.State{
+			GUID:    uuid.NewString(),
+			LogicID: "test-concurrent-" + uuid.NewString()[:8],
+		}
+		err := repo.Create(ctx, state)
+		require.NoError(t, err)
+
+		// Fetch the state to get the updated_at timestamp
+		original, err := repo.GetByGUID(ctx, state.GUID)
+		require.NoError(t, err)
+		originalUpdatedAt := original.UpdatedAt
+
+		// First rename - should succeed
+		newLogicID1 := "test-renamed-1-" + uuid.NewString()[:8]
+		err = repo.UpdateLogicID(ctx, state.GUID, newLogicID1, originalUpdatedAt)
+		require.NoError(t, err, "First rename should succeed")
+
+		// Second rename using SAME originalUpdatedAt - should fail with ErrConcurrentModification
+		newLogicID2 := "test-renamed-2-" + uuid.NewString()[:8]
+		err = repo.UpdateLogicID(ctx, state.GUID, newLogicID2, originalUpdatedAt)
+		require.Error(t, err, "Second rename with stale timestamp should fail")
+		assert.Equal(t, ErrConcurrentModification, err, "Should return ErrConcurrentModification")
+
+		// Verify final state has the first rename's logic_id
+		final, err := repo.GetByGUID(ctx, state.GUID)
+		require.NoError(t, err)
+		assert.Equal(t, newLogicID1, final.LogicID, "State should have first rename's logic_id")
+	})
+
+	t.Run("concurrent renames with fresh timestamp succeeds", func(t *testing.T) {
+		// Create a test state
+		state := &models.State{
+			GUID:    uuid.NewString(),
+			LogicID: "test-concurrent-fresh-" + uuid.NewString()[:8],
+		}
+		err := repo.Create(ctx, state)
+		require.NoError(t, err)
+
+		// Fetch the state
+		original, err := repo.GetByGUID(ctx, state.GUID)
+		require.NoError(t, err)
+		originalUpdatedAt := original.UpdatedAt
+
+		// First rename
+		newLogicID1 := "test-renamed-fresh-1-" + uuid.NewString()[:8]
+		err = repo.UpdateLogicID(ctx, state.GUID, newLogicID1, originalUpdatedAt)
+		require.NoError(t, err, "First rename should succeed")
+
+		// Fetch state again to get NEW timestamp
+		intermediate, err := repo.GetByGUID(ctx, state.GUID)
+		require.NoError(t, err)
+		intermediateUpdatedAt := intermediate.UpdatedAt
+
+		// Second rename with FRESH timestamp - should succeed
+		newLogicID2 := "test-renamed-fresh-2-" + uuid.NewString()[:8]
+		err = repo.UpdateLogicID(ctx, state.GUID, newLogicID2, intermediateUpdatedAt)
+		require.NoError(t, err, "Second rename with fresh timestamp should succeed")
+
+		// Verify final state has the second rename's logic_id
+		final, err := repo.GetByGUID(ctx, state.GUID)
+		require.NoError(t, err)
+		assert.Equal(t, newLogicID2, final.LogicID, "State should have second rename's logic_id")
 	})
 }

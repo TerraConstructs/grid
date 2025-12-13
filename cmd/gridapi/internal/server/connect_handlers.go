@@ -113,14 +113,20 @@ func (h *StateServiceHandler) ListStates(
 		includeStatus = *req.Msg.IncludeStatus
 	}
 
+	// Determine if tombstoned states should be included (default: false)
+	includeTombstoned := false
+	if req.Msg.IncludeTombstoned != nil {
+		includeTombstoned = *req.Msg.IncludeTombstoned
+	}
+
 	// Get states - use ListWithFilter if filter provided
 	var summaries []statepkg.StateSummary
 	var err error
 
 	if filter != "" {
-		summaries, err = h.service.ListStatesWithFilter(ctx, filter, 1000, 0)
+		summaries, err = h.service.ListStatesWithFilter(ctx, filter, 1000, 0, includeTombstoned)
 	} else {
-		summaries, err = h.service.ListStates(ctx)
+		summaries, err = h.service.ListStates(ctx, includeTombstoned)
 	}
 	if err != nil {
 		return nil, mapServiceError(err)
@@ -251,6 +257,26 @@ func summaryToProto(summary statepkg.StateSummary) *statev1.StateInfo {
 	if !summary.UpdatedAt.IsZero() {
 		info.UpdatedAt = timestamppb.New(summary.UpdatedAt)
 	}
+
+	// ALWAYS include lifecycle fields in response (grid-asc3.2.3)
+	// The include_tombstoned parameter affects WHICH states are returned, not WHAT fields
+	if summary.Status == models.StateStatusTombstoned {
+		info.LifecycleStatus = statev1.StateLifecycleStatus_STATE_LIFECYCLE_STATUS_TOMBSTONED
+	} else {
+		info.LifecycleStatus = statev1.StateLifecycleStatus_STATE_LIFECYCLE_STATUS_ACTIVE
+	}
+	if summary.TombstonedAt != nil {
+		info.TombstonedAt = timestamppb.New(*summary.TombstonedAt)
+	}
+	if summary.TombstonedBy != nil {
+		info.TombstonedBy = summary.TombstonedBy
+	}
+	retentionDays := int32(summary.RetentionDays)
+	info.RetentionDays = &retentionDays
+	if summary.PurgeEligibleAt != nil {
+		info.PurgeEligibleAt = timestamppb.New(*summary.PurgeEligibleAt)
+	}
+
 	return info
 }
 
@@ -286,6 +312,8 @@ func mapServiceError(err error) error {
 		return connect.NewError(connect.CodeFailedPrecondition, err)
 	case strings.Contains(msg, "cycle"), strings.Contains(msg, "conflict"):
 		return connect.NewError(connect.CodeFailedPrecondition, err)
+	case strings.Contains(msg, "concurrent modification"):
+		return connect.NewError(connect.CodeAborted, err)
 	default:
 		return connect.NewError(connect.CodeInternal, err)
 	}
@@ -480,6 +508,187 @@ func (h *StateServiceHandler) filterStatesByRoleScopes(ctx context.Context, summ
 	}
 
 	return filtered, nil
+}
+
+// Lifecycle Operation Handlers
+
+// RenameState changes the logic_id of an existing state while preserving GUID.
+func (h *StateServiceHandler) RenameState(
+	ctx context.Context,
+	req *connect.Request[statev1.RenameStateRequest],
+) (*connect.Response[statev1.RenameStateResponse], error) {
+	// Validate new logic_id
+	if req.Msg.NewLogicId == "" {
+		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("new_logic_id is required"))
+	}
+
+	// Resolve state reference (logic_id or guid) to GUID
+	var stateID string
+	switch state := req.Msg.State.(type) {
+	case *statev1.RenameStateRequest_LogicId:
+		// Resolve logic_id to GUID
+		guid, _, err := h.service.GetStateConfig(ctx, state.LogicId)
+		if err != nil {
+			return nil, mapServiceError(err)
+		}
+		stateID = guid
+	case *statev1.RenameStateRequest_Guid:
+		stateID = state.Guid
+	default:
+		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("state reference required (logic_id or guid)"))
+	}
+
+	// Call service layer to perform rename
+	result, err := h.service.RenameState(ctx, stateID, req.Msg.NewLogicId)
+	if err != nil {
+		return nil, mapServiceError(err)
+	}
+
+	// Build response
+	resp := &statev1.RenameStateResponse{
+		Guid:        result.GUID,
+		OldLogicId:  result.OldLogicID,
+		NewLogicId:  result.NewLogicID,
+		BackendConfig: &statev1.BackendConfig{
+			Address:       result.BackendConfig.Address,
+			LockAddress:   result.BackendConfig.LockAddress,
+			UnlockAddress: result.BackendConfig.UnlockAddress,
+		},
+		RenamedAt: timestamppb.New(result.RenamedAt),
+	}
+
+	return connect.NewResponse(resp), nil
+}
+
+// TombstoneState soft-deletes a state, hiding it from default listings.
+// State must not be locked and must not have active dependents.
+func (h *StateServiceHandler) TombstoneState(
+	ctx context.Context,
+	req *connect.Request[statev1.TombstoneStateRequest],
+) (*connect.Response[statev1.TombstoneStateResponse], error) {
+	// Resolve state reference (logic_id or guid) to GUID
+	var stateID string
+	switch state := req.Msg.State.(type) {
+	case *statev1.TombstoneStateRequest_LogicId:
+		// Resolve logic_id to GUID
+		guid, _, err := h.service.GetStateConfig(ctx, state.LogicId)
+		if err != nil {
+			return nil, mapServiceError(err)
+		}
+		stateID = guid
+	case *statev1.TombstoneStateRequest_Guid:
+		stateID = state.Guid
+	default:
+		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("state reference required (logic_id or guid)"))
+	}
+
+	// Get principal ID from context (optional - use "system" if not authenticated)
+	principalID := "system"
+	if principal, ok := auth.GetUserFromContext(ctx); ok {
+		principalID = principal.PrincipalID
+	}
+
+	// Call service layer to perform tombstone
+	result, err := h.service.TombstoneState(ctx, stateID, principalID)
+	if err != nil {
+		return nil, mapServiceError(err)
+	}
+
+	// Build response
+	resp := &statev1.TombstoneStateResponse{
+		Guid:            result.GUID,
+		LogicId:         result.LogicID,
+		Status:          statev1.StateLifecycleStatus_STATE_LIFECYCLE_STATUS_TOMBSTONED,
+		TombstonedAt:    timestamppb.New(result.TombstonedAt),
+		TombstonedBy:    result.TombstonedBy,
+		RetentionDays:   int32(result.RetentionDays),
+		PurgeEligibleAt: timestamppb.New(result.PurgeEligibleAt),
+	}
+
+	return connect.NewResponse(resp), nil
+}
+
+// RestoreState recovers a tombstoned state to active status.
+// State must be tombstoned and within the retention period.
+func (h *StateServiceHandler) RestoreState(
+	ctx context.Context,
+	req *connect.Request[statev1.RestoreStateRequest],
+) (*connect.Response[statev1.RestoreStateResponse], error) {
+	// Resolve state reference (logic_id or guid) to GUID
+	var stateID string
+	switch state := req.Msg.State.(type) {
+	case *statev1.RestoreStateRequest_LogicId:
+		// Resolve logic_id to GUID
+		guid, _, err := h.service.GetStateConfig(ctx, state.LogicId)
+		if err != nil {
+			return nil, mapServiceError(err)
+		}
+		stateID = guid
+	case *statev1.RestoreStateRequest_Guid:
+		stateID = state.Guid
+	default:
+		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("state reference required (logic_id or guid)"))
+	}
+
+	// Call service layer to perform restore
+	result, err := h.service.RestoreState(ctx, stateID)
+	if err != nil {
+		return nil, mapServiceError(err)
+	}
+
+	// Build response
+	resp := &statev1.RestoreStateResponse{
+		Guid:    result.GUID,
+		LogicId: result.LogicID,
+		Status:  statev1.StateLifecycleStatus_STATE_LIFECYCLE_STATUS_ACTIVE,
+		BackendConfig: &statev1.BackendConfig{
+			Address:       result.BackendConfig.Address,
+			LockAddress:   result.BackendConfig.LockAddress,
+			UnlockAddress: result.BackendConfig.UnlockAddress,
+		},
+		RestoredAt: timestamppb.New(result.RestoredAt),
+	}
+
+	return connect.NewResponse(resp), nil
+}
+
+// PurgeState permanently deletes a tombstoned state and all associated data.
+// State must be tombstoned. Retention period check can be bypassed with force=true.
+func (h *StateServiceHandler) PurgeState(
+	ctx context.Context,
+	req *connect.Request[statev1.PurgeStateRequest],
+) (*connect.Response[statev1.PurgeStateResponse], error) {
+	// Resolve state reference (logic_id or guid) to GUID
+	var stateID string
+	switch state := req.Msg.State.(type) {
+	case *statev1.PurgeStateRequest_LogicId:
+		// Resolve logic_id to GUID
+		guid, _, err := h.service.GetStateConfig(ctx, state.LogicId)
+		if err != nil {
+			return nil, mapServiceError(err)
+		}
+		stateID = guid
+	case *statev1.PurgeStateRequest_Guid:
+		stateID = state.Guid
+	default:
+		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("state reference required (logic_id or guid)"))
+	}
+
+	// Call service layer to perform purge
+	result, err := h.service.PurgeState(ctx, stateID, req.Msg.Force)
+	if err != nil {
+		return nil, mapServiceError(err)
+	}
+
+	// Build response
+	resp := &statev1.PurgeStateResponse{
+		Success:  result.Success,
+		Guid:     result.GUID,
+		LogicId:  result.LogicID,
+		PurgedAt: timestamppb.New(result.PurgedAt),
+	}
+
+	return connect.NewResponse(resp), nil
 }
 
 // Helper functions for label value conversion

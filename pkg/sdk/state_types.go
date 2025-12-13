@@ -43,6 +43,10 @@ type StateSummary struct {
 	DependenciesCount int32
 	DependentsCount   int32
 	OutputsCount      int32
+
+	// Lifecycle status
+	LifecycleStatus string // "ACTIVE" or "TOMBSTONED"
+	IsTombstoned    bool   // Convenience field derived from LifecycleStatus
 }
 
 // LockInfo contains details about a Terraform state lock.
@@ -146,6 +150,49 @@ type CreateStateInput struct {
 	GUID    string
 	LogicID string
 	Labels  LabelMap
+}
+
+// RenameStateInput describes the payload required to rename a state's logic ID.
+type RenameStateInput struct {
+	State      StateReference
+	NewLogicID string
+}
+
+// RenameStateResult contains the result of a rename operation.
+type RenameStateResult struct {
+	GUID          string
+	OldLogicID    string
+	NewLogicID    string
+	BackendConfig BackendConfig
+	RenamedAt     time.Time
+}
+
+// TombstoneStateResult contains the result of a tombstone operation.
+type TombstoneStateResult struct {
+	GUID            string
+	LogicID         string
+	Status          string
+	TombstonedAt    time.Time
+	TombstonedBy    string
+	RetentionDays   int
+	PurgeEligibleAt time.Time
+}
+
+// RestoreStateResult contains the result of a restore operation.
+type RestoreStateResult struct {
+	GUID          string
+	LogicID       string
+	Status        string
+	BackendConfig BackendConfig
+	RestoredAt    time.Time
+}
+
+// PurgeStateResult contains the result of a purge operation.
+type PurgeStateResult struct {
+	Success  bool
+	GUID     string
+	LogicID  string
+	PurgedAt time.Time
 }
 
 // TopologyDirection indicates the traversal direction for topological ordering.
@@ -326,6 +373,8 @@ func stateSummaryFromProto(info *statev1.StateInfo) StateSummary {
 		DependenciesCount:  info.GetDependenciesCount(),
 		DependentsCount:    info.GetDependentsCount(),
 		OutputsCount:       info.GetOutputsCount(),
+		LifecycleStatus:    info.GetLifecycleStatus().String(),
+		IsTombstoned:       info.GetLifecycleStatus() == statev1.StateLifecycleStatus_STATE_LIFECYCLE_STATUS_TOMBSTONED,
 	}
 	if info.CreatedAt != nil {
 		t := info.CreatedAt.AsTime()

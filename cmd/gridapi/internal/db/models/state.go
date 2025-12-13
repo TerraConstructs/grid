@@ -13,6 +13,14 @@ import (
 
 const StateSizeWarningThreshold = 10 * 1024 * 1024 // 10MB
 
+// StateStatus represents the lifecycle status of a state
+type StateStatus string
+
+const (
+	StateStatusActive     StateStatus = "active"
+	StateStatusTombstoned StateStatus = "tombstoned"
+)
+
 // LabelMap represents typed label values (string | float64 | bool)
 type LabelMap map[string]any
 
@@ -64,6 +72,12 @@ type State struct {
 	// Labels stores typed label key/value pairs
 	Labels LabelMap `bun:"labels,type:jsonb,notnull,default:'{}'"`
 
+	// Lifecycle fields
+	Status        StateStatus `bun:"status,notnull,default:'active'"`
+	TombstonedAt  *time.Time  `bun:"tombstoned_at"`
+	TombstonedBy  *string     `bun:"tombstoned_by"`
+	RetentionDays int         `bun:"retention_days,notnull,default:30"`
+
 	// Relationships for eager loading (populated only when using Relation())
 	Outputs       []*StateOutput `bun:"rel:has-many,join:guid=state_guid"`
 	OutgoingEdges []*Edge        `bun:"rel:has-many,join:guid=from_state"`
@@ -114,4 +128,33 @@ func (s *State) ValidateForCreate() error {
 // SizeExceedsThreshold reports whether the state content triggers a warning.
 func (s *State) SizeExceedsThreshold() bool {
 	return len(s.StateContent) > StateSizeWarningThreshold
+}
+
+// IsTombstoned returns true if the state is soft-deleted.
+func (s *State) IsTombstoned() bool {
+	return s.Status == StateStatusTombstoned
+}
+
+// IsActive returns true if the state is in active lifecycle status.
+func (s *State) IsActive() bool {
+	return s.Status == StateStatusActive
+}
+
+// PurgeEligibleAt returns the timestamp when the state becomes eligible for purge.
+// Returns nil if the state is not tombstoned.
+func (s *State) PurgeEligibleAt() *time.Time {
+	if s.TombstonedAt == nil {
+		return nil
+	}
+	t := s.TombstonedAt.AddDate(0, 0, s.RetentionDays)
+	return &t
+}
+
+// IsPurgeEligible returns true if the state is tombstoned and past retention period.
+func (s *State) IsPurgeEligible() bool {
+	eligible := s.PurgeEligibleAt()
+	if eligible == nil {
+		return false
+	}
+	return time.Now().After(*eligible)
 }

@@ -1,0 +1,295 @@
+// State Lifecycle Operations - Proto Additions
+// Feature: 011-state-lifecycle-ops
+// Date: 2025-12-08
+//
+// This file documents the additions to proto/state/v1/state.proto
+// These are NOT standalone proto definitions - they should be merged into the main proto file
+
+// ========================================================================
+// NEW SERVICE METHODS (add to StateService)
+// ========================================================================
+
+// Add these RPCs to the StateService definition:
+
+//   // --- State Lifecycle Operations ---
+//
+//   // RenameState changes the logic_id of an existing state while preserving GUID.
+//   // Rejects if: state is locked, target logic_id exists (active or tombstoned).
+//   rpc RenameState(RenameStateRequest) returns (RenameStateResponse);
+//
+//   // TombstoneState soft-deletes a state, hiding it from default listings.
+//   // Rejects if: state is locked, state has active dependents.
+//   // Terraform operations on tombstoned states return 410 Gone.
+//   rpc TombstoneState(TombstoneStateRequest) returns (TombstoneStateResponse);
+//
+//   // RestoreState recovers a tombstoned state to active status.
+//   // Only allowed within the retention period.
+//   rpc RestoreState(RestoreStateRequest) returns (RestoreStateResponse);
+//
+//   // PurgeState permanently deletes a tombstoned state and all associated data.
+//   // Requires state to be tombstoned and past retention period (unless force=true).
+//   rpc PurgeState(PurgeStateRequest) returns (PurgeStateResponse);
+
+// ========================================================================
+// NEW MESSAGES
+// ========================================================================
+
+// --- Lifecycle Status Enum ---
+
+// StateLifecycleStatus represents the lifecycle state of a Terraform state.
+// enum StateLifecycleStatus {
+//   STATE_LIFECYCLE_STATUS_UNSPECIFIED = 0;
+//   STATE_LIFECYCLE_STATUS_ACTIVE = 1;      // Normal operating state
+//   STATE_LIFECYCLE_STATUS_TOMBSTONED = 2;  // Soft-deleted, recoverable
+// }
+
+// --- Rename Messages ---
+
+// message RenameStateRequest {
+//   // State identifier (prefer GUID for precision, logic_id for UX)
+//   oneof state {
+//     string logic_id = 1;  // Current logic ID
+//     string guid = 2;      // State GUID
+//   }
+//
+//   // New logic ID to assign
+//   string new_logic_id = 3;
+// }
+
+// message RenameStateResponse {
+//   // State identifiers after rename
+//   string guid = 1;
+//   string old_logic_id = 2;
+//   string new_logic_id = 3;
+//
+//   // Backend configuration remains unchanged (GUID-based URLs)
+//   BackendConfig backend_config = 4;
+//
+//   // Operation timestamp
+//   google.protobuf.Timestamp renamed_at = 5;
+// }
+
+// --- Tombstone Messages ---
+
+// message TombstoneStateRequest {
+//   // State identifier
+//   oneof state {
+//     string logic_id = 1;
+//     string guid = 2;
+//   }
+//
+//   // Optional reason for tombstoning (stored in audit log)
+//   optional string reason = 3;
+// }
+
+// message TombstoneStateResponse {
+//   // State identifiers
+//   string guid = 1;
+//   string logic_id = 2;
+//
+//   // Lifecycle status
+//   StateLifecycleStatus status = 3;
+//
+//   // Tombstone metadata
+//   google.protobuf.Timestamp tombstoned_at = 4;
+//   string tombstoned_by = 5;  // Principal ID
+//
+//   // Retention information
+//   int32 retention_days = 6;
+//   google.protobuf.Timestamp purge_eligible_at = 7;
+// }
+
+// --- Restore Messages ---
+
+// message RestoreStateRequest {
+//   // State identifier (tombstoned state)
+//   oneof state {
+//     string logic_id = 1;
+//     string guid = 2;
+//   }
+// }
+
+// message RestoreStateResponse {
+//   // State identifiers
+//   string guid = 1;
+//   string logic_id = 2;
+//
+//   // Lifecycle status (should be ACTIVE after restore)
+//   StateLifecycleStatus status = 3;
+//
+//   // Backend configuration (unchanged)
+//   BackendConfig backend_config = 4;
+//
+//   // Operation timestamp
+//   google.protobuf.Timestamp restored_at = 5;
+// }
+
+// --- Purge Messages ---
+
+// message PurgeStateRequest {
+//   // State identifier (must be tombstoned)
+//   oneof state {
+//     string logic_id = 1;
+//     string guid = 2;
+//   }
+//
+//   // Force purge even if within retention period
+//   // Requires explicit acknowledgment of permanent data loss
+//   bool force = 3;
+// }
+
+// message PurgeStateResponse {
+//   // Confirms permanent deletion
+//   bool success = 1;
+//
+//   // State identifiers (for confirmation/audit)
+//   string guid = 2;
+//   string logic_id = 3;
+//
+//   // Operation timestamp
+//   google.protobuf.Timestamp purged_at = 4;
+// }
+
+// ========================================================================
+// MODIFIED MESSAGES
+// ========================================================================
+
+// --- ListStatesRequest (add field) ---
+
+// Add to existing ListStatesRequest:
+//   // Whether to include tombstoned states in results (default: false)
+//   optional bool include_tombstoned = 4;
+
+// --- StateInfo (add fields) ---
+
+// Add to existing StateInfo:
+//   // Lifecycle status (active or tombstoned)
+//   StateLifecycleStatus lifecycle_status = 13;
+//
+//   // Tombstone metadata (only populated if tombstoned)
+//   optional google.protobuf.Timestamp tombstoned_at = 14;
+//   optional string tombstoned_by = 15;
+//   optional int32 retention_days = 16;
+//   optional google.protobuf.Timestamp purge_eligible_at = 17;
+
+// --- GetStateInfoResponse (add fields) ---
+
+// Add to existing GetStateInfoResponse:
+//   // Lifecycle status
+//   StateLifecycleStatus lifecycle_status = 12;
+//
+//   // Tombstone metadata (only populated if tombstoned)
+//   optional google.protobuf.Timestamp tombstoned_at = 13;
+//   optional string tombstoned_by = 14;
+//   optional int32 retention_days = 15;
+//   optional google.protobuf.Timestamp purge_eligible_at = 16;
+
+// ========================================================================
+// AUTHORIZATION ACTIONS (cmd/gridapi/internal/auth/actions.go)
+// ========================================================================
+
+// Add to existing action constants:
+//
+// const (
+//     StateRename    = "state:rename"     // Rename logic_id
+//     StateTombstone = "state:tombstone"  // Soft delete
+//     StateRestore   = "state:restore"    // Recover from tombstone
+//     StatePurge     = "state:purge"      // Permanent delete
+// )
+//
+// Update ValidateAction() to include new actions
+// Update ExpandWildcard() to expand state:* to include lifecycle actions
+
+// ========================================================================
+// AUTHZ INTERCEPTOR CASES (cmd/gridapi/internal/middleware/authz_interceptor.go)
+// ========================================================================
+
+// Add switch cases for new procedures:
+//
+// case statev1connect.StateServiceRenameStateProcedure:
+//     obj = auth.ObjectTypeState
+//     action = auth.StateRename
+//     // Load state labels for dynamic check
+//
+// case statev1connect.StateServiceTombstoneStateProcedure:
+//     obj = auth.ObjectTypeState
+//     action = auth.StateTombstone
+//
+// case statev1connect.StateServiceRestoreStateProcedure:
+//     obj = auth.ObjectTypeState
+//     action = auth.StateRestore
+//
+// case statev1connect.StateServicePurgeStateProcedure:
+//     obj = auth.ObjectTypeState
+//     action = auth.StatePurge
+
+// ========================================================================
+// HTTP BACKEND MIDDLEWARE (cmd/gridapi/internal/middleware/authz.go)
+// ========================================================================
+
+// Add tombstone check before authorization:
+//
+// if state.Status == models.StateStatusTombstoned {
+//     http.Error(w, "state has been deleted", http.StatusGone)
+//     return
+// }
+
+// ========================================================================
+// PURGE DATA CLEANUP SCOPE
+// ========================================================================
+
+// Purge deletes all state-related data via CASCADE DELETE:
+//
+// | Table | FK Relationship | Cascade Behavior |
+// |-------|-----------------|------------------|
+// | states | (primary) | Deleted row |
+// | state_outputs | state_guid → states(guid) | ON DELETE CASCADE |
+// | edges (outgoing) | from_state → states(guid) | ON DELETE CASCADE |
+// | edges (incoming) | to_state → states(guid) | ON DELETE CASCADE |
+//
+// No custom cleanup code needed - database handles cascade.
+
+// ========================================================================
+// ERROR CODES
+// ========================================================================
+
+// The following Connect RPC error codes should be used:
+//
+// INVALID_ARGUMENT (3):
+//   - Invalid logic_id format
+//   - Empty new_logic_id in rename
+//
+// NOT_FOUND (5):
+//   - State with specified GUID/logic_id does not exist
+//
+// ALREADY_EXISTS (6):
+//   - Target logic_id already exists (rename)
+//
+// PERMISSION_DENIED (7):
+//   - User lacks state:rename, state:tombstone, state:restore, or state:purge action
+//   - State outside user's label scope
+//
+// FAILED_PRECONDITION (9):
+//   - Cannot rename locked state
+//   - Cannot tombstone locked state
+//   - Cannot tombstone state with active dependents
+//   - Cannot restore active state
+//   - Cannot restore state past retention period
+//   - Cannot purge active state
+//   - Cannot purge state within retention period (without force=true)
+//   - Cannot rename tombstoned state
+
+// ========================================================================
+// CONCURRENCY HANDLING
+// ========================================================================
+
+// Rename uses optimistic locking via updated_at timestamp:
+//
+// UPDATE states
+// SET logic_id = $new_logic_id,
+//     updated_at = NOW()
+// WHERE guid = $guid
+//   AND updated_at = $original_updated_at;  -- Optimistic lock
+//
+// If RowsAffected = 0, return "concurrent modification detected" error.
+// See Decision 6 in research.md for implementation pattern.

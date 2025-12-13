@@ -1,6 +1,15 @@
-- [ ] Add support for Garbage Collection and Renaming State LogicId
-  - [ ] Currently fogg>gridops creates States when PR is opened, but does not clean up if PR is closed without merging
-  - [ ] Currently fogg>gridops does not support renaming LogicIds when a State is renamed in fogg, this is due to missing RPC in proto/state/v1/state.proto
+- [x] Add support for Garbage Collection and Renaming State LogicId (spec: 011-state-lifecycle-ops)
+  - [x] Rename: Change logic_id while preserving GUID
+  - [x] Tombstone: Soft delete with retention period
+  - [x] Restore: Recover tombstoned states within retention
+  - [x] Purge: Permanently delete tombstoned states
+  - [ ] Webapp UI for deleted states
+  - [ ] fogg>gridops integration: Update to use lifecycle RPCs for cleanup/rename workflows
+- [ ] Compliance-Grade Audit Trail (deferred from 011-state-lifecycle-ops)
+  - [ ] Create `audit_events` table with: id, operation, actor, state_guid, old_value, new_value, timestamp
+  - [ ] Add queryable audit log API for compliance review
+  - [ ] Support "before/after state" capture for rename and tombstone operations
+  - [ ] Integrate with observability stack (OTEL) when available
 - [ ] Add support for sign in through GitHub OAuth2 as an ExternalIdP
   - [ ] When setting up request for a single org membership scope
   - [ ] Ensure requested user scopes include team membership and use existing ExternalIdP OIDC GroupToRole logic

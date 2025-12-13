@@ -69,6 +69,12 @@ func NewAuthzMiddleware(deps AuthzDependencies) (func(http.Handler) http.Handler
 					http.NotFound(w, r)
 					return
 				}
+				if errors.Is(err, errStateTombstoned) {
+					w.Header().Set("Content-Type", "application/json")
+					w.WriteHeader(http.StatusGone)
+					w.Write([]byte(`{"error": "state has been deleted", "code": "TOMBSTONED"}`))
+					return
+				}
 				http.Error(w, "authorization lookup failed", http.StatusInternalServerError)
 				return
 			}
@@ -146,6 +152,7 @@ func classifyTerraformRequest(r *http.Request) (action string, guid string, matc
 }
 
 var errStateNotFound = errors.New("state not found")
+var errStateTombstoned = errors.New("state has been deleted")
 
 func loadStateLabels(ctx context.Context, service *statepkg.Service, guid string) (map[string]any, *models.LockInfo, error) {
 	state, err := service.GetStateByGUID(ctx, guid)
@@ -154,6 +161,11 @@ func loadStateLabels(ctx context.Context, service *statepkg.Service, guid string
 			return nil, nil, errStateNotFound
 		}
 		return nil, nil, fmt.Errorf("load state: %w", err)
+	}
+
+	// Check if state has been tombstoned (soft deleted)
+	if state.IsTombstoned() {
+		return nil, nil, errStateTombstoned
 	}
 
 	labels := make(map[string]any, len(state.Labels))

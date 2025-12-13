@@ -2,9 +2,19 @@ package repository
 
 import (
 	"context"
+	"errors"
 	"time"
 
 	"github.com/terraconstructs/grid/cmd/gridapi/internal/db/models"
+)
+
+// Common repository errors
+var (
+	// ErrConcurrentModification is returned when an optimistic lock fails due to concurrent update.
+	ErrConcurrentModification = errors.New("concurrent modification detected")
+
+	// ErrNotFound is returned when a requested entity does not exist.
+	ErrNotFound = errors.New("entity not found")
 )
 
 // StateRepository exposes persistence operations for Terraform states.
@@ -23,7 +33,8 @@ type StateRepository interface {
 
 	// ListWithFilter returns states matching bexpr filter with pagination.
 	// T029: Added for label filtering support.
-	ListWithFilter(ctx context.Context, filter string, pageSize int, offset int) ([]models.State, error)
+	// status filtering: When includeAll is true, returns all states. Otherwise, filters by status.
+	ListWithFilter(ctx context.Context, filter string, pageSize int, offset int, status models.StateStatus, includeAll bool) ([]models.State, error)
 
 	// GetByGUIDs fetches multiple states by GUIDs in a single query (batch operation).
 	// Returns a map of GUID -> State for efficient lookup. Missing GUIDs are omitted from result.
@@ -36,6 +47,35 @@ type StateRepository interface {
 
 	// ListStatesWithOutputs returns all states with their outputs preloaded (avoids N+1).
 	ListStatesWithOutputs(ctx context.Context) ([]*models.State, error)
+
+	// === Lifecycle Operations ===
+
+	// ListWithStatus returns states filtered by lifecycle status.
+	// status can be "active", "tombstoned", or empty for all states.
+	// When status is empty, returns all states regardless of lifecycle status.
+	ListWithStatus(ctx context.Context, status models.StateStatus, includeAll bool) ([]models.State, error)
+
+	// UpdateLogicID atomically renames a state's logic_id with optimistic locking.
+	// Returns ErrConcurrentModification if the state was modified since originalUpdatedAt.
+	// This prevents concurrent renames from conflicting.
+	UpdateLogicID(ctx context.Context, guid, newLogicID string, originalUpdatedAt time.Time) error
+
+	// SetTombstoned marks a state as tombstoned (soft-deleted).
+	// Sets status='tombstoned', tombstoned_at=now, tombstoned_by=principalID, retention_days.
+	SetTombstoned(ctx context.Context, guid, principalID string, retentionDays int) error
+
+	// ClearTombstone restores a tombstoned state to active status.
+	// Sets status='active', clears tombstoned_at, tombstoned_by.
+	ClearTombstone(ctx context.Context, guid string) error
+
+	// Delete permanently removes a state from the database.
+	// CASCADE deletes handle related outputs and edges.
+	Delete(ctx context.Context, guid string) error
+
+	// HasActiveDependents checks if any active states depend on the given state.
+	// Returns true if there are incoming edges from states with status='active'.
+	// Used to block tombstoning states that have active dependents.
+	HasActiveDependents(ctx context.Context, guid string) (bool, error)
 }
 
 // EdgeWithValidation wraps an Edge with its producer output's validation status.

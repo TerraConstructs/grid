@@ -382,6 +382,11 @@ func up_20251203000000(ctx context.Context, db *bun.DB) error {
 		{Ptype: "p", V0: "role:product-engineer", V1: "state", V2: "state-output:schema-write", V3: `env == "dev"`, V4: "allow"},
 		{Ptype: "p", V0: "role:product-engineer", V1: "state", V2: "state-output:schema-read", V3: `env == "dev"`, V4: "allow"},
 		{Ptype: "p", V0: "role:product-engineer", V1: "policy", V2: "policy:read", V4: "allow"},
+		// Lifecycle actions (scoped to dev environment)
+		{Ptype: "p", V0: "role:product-engineer", V1: "state", V2: "state:rename", V3: `env == "dev"`, V4: "allow"},
+		{Ptype: "p", V0: "role:product-engineer", V1: "state", V2: "state:tombstone", V3: `env == "dev"`, V4: "allow"},
+		{Ptype: "p", V0: "role:product-engineer", V1: "state", V2: "state:restore", V3: `env == "dev"`, V4: "allow"},
+		{Ptype: "p", V0: "role:product-engineer", V1: "state", V2: "state:purge", V3: `env == "dev"`, V4: "allow"},
 	}
 	if _, err := db.NewInsert().Model(&defaultPolicies).On("CONFLICT (ptype, v0, v1, v2, v3, v4, v5) DO NOTHING").Exec(ctx); err != nil {
 		return fmt.Errorf("seed casbin policies: %w", err)

@@ -21,9 +21,10 @@ type Client struct {
 
 // ListStatesOptions configures optional parameters for ListStatesWithOptions.
 type ListStatesOptions struct {
-	Filter        string
-	IncludeLabels *bool
-	IncludeStatus *bool // Whether to compute status for each state (default: true, expensive N+1 operation)
+	Filter            string
+	IncludeLabels     *bool
+	IncludeStatus     *bool // Whether to compute status for each state (default: true, expensive N+1 operation)
+	IncludeTombstoned *bool // Whether to include tombstoned (soft-deleted) states (default: false)
 }
 
 // UpdateStateLabelsInput describes label mutations for UpdateStateLabels.
@@ -75,6 +76,7 @@ func (c *Client) CreateState(ctx context.Context, input CreateStateInput) (*Stat
 
 	guid := input.GUID
 	if guid == "" {
+		// TODO: Should be GUIDv7
 		guid = uuid.NewString()
 	}
 
@@ -104,6 +106,139 @@ func (c *Client) CreateState(ctx context.Context, input CreateStateInput) (*Stat
 	}, nil
 }
 
+// RenameState changes the logic ID of an existing state while preserving its GUID.
+// The state reference can specify either GUID or LogicID.
+// Returns an error if the state is locked (active states) or if the new logic ID already exists.
+func (c *Client) RenameState(ctx context.Context, input RenameStateInput) (*RenameStateResult, error) {
+	if input.NewLogicID == "" {
+		return nil, fmt.Errorf("new logic ID is required")
+	}
+	if input.State.GUID == "" && input.State.LogicID == "" {
+		return nil, fmt.Errorf("state reference requires guid or logic ID")
+	}
+
+	req := connect.NewRequest(&statev1.RenameStateRequest{
+		NewLogicId: input.NewLogicID,
+	})
+
+	// Set state reference (prefer GUID if both are provided)
+	if input.State.GUID != "" {
+		req.Msg.State = &statev1.RenameStateRequest_Guid{Guid: input.State.GUID}
+	} else {
+		req.Msg.State = &statev1.RenameStateRequest_LogicId{LogicId: input.State.LogicID}
+	}
+
+	resp, err := c.rpc.RenameState(ctx, req)
+	if err != nil {
+		return nil, err
+	}
+
+	return &RenameStateResult{
+		GUID:          resp.Msg.GetGuid(),
+		OldLogicID:    resp.Msg.GetOldLogicId(),
+		NewLogicID:    resp.Msg.GetNewLogicId(),
+		BackendConfig: backendConfigFromProto(resp.Msg.BackendConfig),
+		RenamedAt:     resp.Msg.GetRenamedAt().AsTime(),
+	}, nil
+}
+
+// TombstoneState soft-deletes a state, hiding it from default listings.
+// The state reference can specify either GUID or LogicID.
+// Returns an error if the state is locked or has active dependents.
+func (c *Client) TombstoneState(ctx context.Context, state StateReference) (*TombstoneStateResult, error) {
+	if state.GUID == "" && state.LogicID == "" {
+		return nil, fmt.Errorf("state reference requires guid or logic ID")
+	}
+
+	req := connect.NewRequest(&statev1.TombstoneStateRequest{})
+
+	// Set state reference (prefer GUID if both are provided)
+	if state.GUID != "" {
+		req.Msg.State = &statev1.TombstoneStateRequest_Guid{Guid: state.GUID}
+	} else {
+		req.Msg.State = &statev1.TombstoneStateRequest_LogicId{LogicId: state.LogicID}
+	}
+
+	resp, err := c.rpc.TombstoneState(ctx, req)
+	if err != nil {
+		return nil, err
+	}
+
+	return &TombstoneStateResult{
+		GUID:            resp.Msg.GetGuid(),
+		LogicID:         resp.Msg.GetLogicId(),
+		Status:          resp.Msg.GetStatus().String(),
+		TombstonedAt:    resp.Msg.GetTombstonedAt().AsTime(),
+		TombstonedBy:    resp.Msg.GetTombstonedBy(),
+		RetentionDays:   int(resp.Msg.GetRetentionDays()),
+		PurgeEligibleAt: resp.Msg.GetPurgeEligibleAt().AsTime(),
+	}, nil
+}
+
+// RestoreState recovers a tombstoned state to active status.
+// The state reference can specify either GUID or LogicID.
+// Returns an error if the state is not tombstoned or is past the retention period.
+func (c *Client) RestoreState(ctx context.Context, state StateReference) (*RestoreStateResult, error) {
+	if state.GUID == "" && state.LogicID == "" {
+		return nil, fmt.Errorf("state reference requires guid or logic ID")
+	}
+
+	req := connect.NewRequest(&statev1.RestoreStateRequest{})
+
+	// Set state reference (prefer GUID if both are provided)
+	if state.GUID != "" {
+		req.Msg.State = &statev1.RestoreStateRequest_Guid{Guid: state.GUID}
+	} else {
+		req.Msg.State = &statev1.RestoreStateRequest_LogicId{LogicId: state.LogicID}
+	}
+
+	resp, err := c.rpc.RestoreState(ctx, req)
+	if err != nil {
+		return nil, err
+	}
+
+	return &RestoreStateResult{
+		GUID:          resp.Msg.GetGuid(),
+		LogicID:       resp.Msg.GetLogicId(),
+		Status:        resp.Msg.GetStatus().String(),
+		BackendConfig: backendConfigFromProto(resp.Msg.BackendConfig),
+		RestoredAt:    resp.Msg.GetRestoredAt().AsTime(),
+	}, nil
+}
+
+// PurgeState permanently deletes a tombstoned state and all associated data.
+// The state reference can specify either GUID or LogicID.
+// Set force=true to bypass the retention period check.
+// Returns an error if the state is not tombstoned or (without force) still within retention period.
+func (c *Client) PurgeState(ctx context.Context, state StateReference, force bool) (*PurgeStateResult, error) {
+	if state.GUID == "" && state.LogicID == "" {
+		return nil, fmt.Errorf("state reference requires guid or logic ID")
+	}
+
+	req := connect.NewRequest(&statev1.PurgeStateRequest{
+		Force: force,
+	})
+
+	// Set state reference (prefer GUID if both are provided)
+	if state.GUID != "" {
+		req.Msg.State = &statev1.PurgeStateRequest_Guid{Guid: state.GUID}
+	} else {
+		req.Msg.State = &statev1.PurgeStateRequest_LogicId{LogicId: state.LogicID}
+	}
+
+	resp, err := c.rpc.PurgeState(ctx, req)
+	if err != nil {
+		return nil, err
+	}
+
+	return &PurgeStateResult{
+		Success:  resp.Msg.GetSuccess(),
+		GUID:     resp.Msg.GetGuid(),
+		LogicID:  resp.Msg.GetLogicId(),
+		PurgedAt: resp.Msg.GetPurgedAt().AsTime(),
+	}, nil
+}
+
 // ListStates returns summary information for all states managed by the server.
 func (c *Client) ListStates(ctx context.Context) ([]StateSummary, error) {
 	return c.ListStatesWithOptions(ctx, ListStatesOptions{})
@@ -120,6 +255,9 @@ func (c *Client) ListStatesWithOptions(ctx context.Context, opts ListStatesOptio
 	}
 	if opts.IncludeStatus != nil {
 		req.Msg.IncludeStatus = opts.IncludeStatus
+	}
+	if opts.IncludeTombstoned != nil {
+		req.Msg.IncludeTombstoned = opts.IncludeTombstoned
 	}
 
 	resp, err := c.rpc.ListStates(ctx, req)

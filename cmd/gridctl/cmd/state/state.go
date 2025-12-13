@@ -24,6 +24,9 @@ func init() {
 	StateCmd.AddCommand(initCmd)
 	StateCmd.AddCommand(setOutputSchemaCmd)
 	StateCmd.AddCommand(getOutputSchemaCmd)
+	StateCmd.AddCommand(renameCmd)
+	StateCmd.AddCommand(deleteCmd)
+	StateCmd.AddCommand(restoreCmd)
 }
 
 func sdkClient(ctx context.Context) (*sdk.Client, error) {
