@@ -206,6 +206,39 @@ func (c *Client) RestoreState(ctx context.Context, state StateReference) (*Resto
 	}, nil
 }
 
+// PurgeState permanently deletes a tombstoned state and all associated data.
+// The state reference can specify either GUID or LogicID.
+// Set force=true to bypass the retention period check.
+// Returns an error if the state is not tombstoned or (without force) still within retention period.
+func (c *Client) PurgeState(ctx context.Context, state StateReference, force bool) (*PurgeStateResult, error) {
+	if state.GUID == "" && state.LogicID == "" {
+		return nil, fmt.Errorf("state reference requires guid or logic ID")
+	}
+
+	req := connect.NewRequest(&statev1.PurgeStateRequest{
+		Force: force,
+	})
+
+	// Set state reference (prefer GUID if both are provided)
+	if state.GUID != "" {
+		req.Msg.State = &statev1.PurgeStateRequest_Guid{Guid: state.GUID}
+	} else {
+		req.Msg.State = &statev1.PurgeStateRequest_LogicId{LogicId: state.LogicID}
+	}
+
+	resp, err := c.rpc.PurgeState(ctx, req)
+	if err != nil {
+		return nil, err
+	}
+
+	return &PurgeStateResult{
+		Success:  resp.Msg.GetSuccess(),
+		GUID:     resp.Msg.GetGuid(),
+		LogicID:  resp.Msg.GetLogicId(),
+		PurgedAt: resp.Msg.GetPurgedAt().AsTime(),
+	}, nil
+}
+
 // ListStates returns summary information for all states managed by the server.
 func (c *Client) ListStates(ctx context.Context) ([]StateSummary, error) {
 	return c.ListStatesWithOptions(ctx, ListStatesOptions{})

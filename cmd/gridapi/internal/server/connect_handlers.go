@@ -652,6 +652,45 @@ func (h *StateServiceHandler) RestoreState(
 	return connect.NewResponse(resp), nil
 }
 
+// PurgeState permanently deletes a tombstoned state and all associated data.
+// State must be tombstoned. Retention period check can be bypassed with force=true.
+func (h *StateServiceHandler) PurgeState(
+	ctx context.Context,
+	req *connect.Request[statev1.PurgeStateRequest],
+) (*connect.Response[statev1.PurgeStateResponse], error) {
+	// Resolve state reference (logic_id or guid) to GUID
+	var stateID string
+	switch state := req.Msg.State.(type) {
+	case *statev1.PurgeStateRequest_LogicId:
+		// Resolve logic_id to GUID
+		guid, _, err := h.service.GetStateConfig(ctx, state.LogicId)
+		if err != nil {
+			return nil, mapServiceError(err)
+		}
+		stateID = guid
+	case *statev1.PurgeStateRequest_Guid:
+		stateID = state.Guid
+	default:
+		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("state reference required (logic_id or guid)"))
+	}
+
+	// Call service layer to perform purge
+	result, err := h.service.PurgeState(ctx, stateID, req.Msg.Force)
+	if err != nil {
+		return nil, mapServiceError(err)
+	}
+
+	// Build response
+	resp := &statev1.PurgeStateResponse{
+		Success:  result.Success,
+		Guid:     result.GUID,
+		LogicId:  result.LogicID,
+		PurgedAt: timestamppb.New(result.PurgedAt),
+	}
+
+	return connect.NewResponse(resp), nil
+}
+
 // Helper functions for label value conversion
 
 // protoLabelValueToGo converts proto LabelValue to Go value (string, float64, or bool).

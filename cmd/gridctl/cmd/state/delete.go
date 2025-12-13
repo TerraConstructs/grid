@@ -14,18 +14,26 @@ import (
 var (
 	deleteLogicID string
 	deleteGUID    string
+	deletePurge   bool
+	deleteForce   bool
 )
 
 var deleteCmd = &cobra.Command{
 	Use:   "delete [logic-id]",
-	Short: "Soft-delete (tombstone) a state",
+	Short: "Soft-delete (tombstone) or permanently purge a state",
 	Long: `Marks a state as deleted (tombstoned), hiding it from default listings.
 The state to delete is resolved from the .grid context by default, or can be specified
 explicitly using the optional positional argument or --logic-id/--guid flags.
 
-Soft-deleted states can be restored within the retention period. Data is preserved
-until the state is purged (either automatically after retention expires, or manually
-with --purge flag).
+By default, this performs a soft-delete (tombstone). Soft-deleted states can be restored
+within the retention period (default: 30 days). Data is preserved until the state is purged.
+
+Use --purge flag to permanently delete a tombstoned state. Purge removes the state and all
+associated data (outputs, schemas, dependencies) from the system. The logic_id becomes
+available for reuse after purge.
+
+Purge requires the state to be tombstoned first. By default, purge enforces the retention
+period. Use --force to bypass the retention check and purge immediately.
 
 State must not be locked and must not have active dependents.`,
 	Args: cobra.MaximumNArgs(1),
@@ -64,16 +72,39 @@ State must not be locked and must not have active dependents.`,
 		ctx, cancel := context.WithTimeout(cmd.Context(), 10*time.Second)
 		defer cancel()
 
-		// Call SDK TombstoneState
-		result, err := gridClient.TombstoneState(ctx, sdk.StateReference{
+		stateRef := sdk.StateReference{
 			GUID:    resolved.GUID,
 			LogicID: resolved.LogicID,
-		})
+		}
+
+		// Handle purge operation
+		if deletePurge {
+			result, err := gridClient.PurgeState(ctx, stateRef, deleteForce)
+			if err != nil {
+				return fmt.Errorf("failed to purge state: %w", err)
+			}
+
+			// Display purge results
+			pterm.Success.Printf("State permanently purged\n")
+			pterm.Info.Printf("GUID:       %s\n", result.GUID)
+			pterm.Info.Printf("Logic ID:   %s\n", result.LogicID)
+			pterm.Info.Printf("Purged at:  %s\n", result.PurgedAt.Format(time.RFC3339))
+
+			if deleteForce {
+				pterm.Warning.Printf("\nForce purge bypassed retention period check.\n")
+			}
+			pterm.Info.Printf("The logic_id '%s' is now available for reuse.\n", result.LogicID)
+
+			return nil
+		}
+
+		// Handle tombstone (soft-delete) operation
+		result, err := gridClient.TombstoneState(ctx, stateRef)
 		if err != nil {
 			return fmt.Errorf("failed to tombstone state: %w", err)
 		}
 
-		// Display results
+		// Display tombstone results
 		pterm.Success.Printf("State deleted (tombstoned) successfully\n")
 		pterm.Info.Printf("GUID:             %s\n", result.GUID)
 		pterm.Info.Printf("Logic ID:         %s\n", result.LogicID)
@@ -85,7 +116,10 @@ State must not be locked and must not have active dependents.`,
 
 		pterm.Warning.Printf("\nState is soft-deleted and can be restored within %d days.\n", result.RetentionDays)
 		pterm.Info.Printf("To restore: gridctl state restore --guid %s\n", result.GUID)
-		pterm.Info.Printf("To purge permanently after retention: gridctl state delete --purge --guid %s\n", result.GUID)
+		pterm.Info.Printf("To purge permanently: gridctl state delete --purge --guid %s\n", result.GUID)
+		if result.RetentionDays > 0 {
+			pterm.Info.Printf("Or wait until %s and purge will succeed without --force\n", result.PurgeEligibleAt.Format(time.RFC3339))
+		}
 
 		return nil
 	},
@@ -94,4 +128,6 @@ State must not be locked and must not have active dependents.`,
 func init() {
 	deleteCmd.Flags().StringVar(&deleteLogicID, "logic-id", "", "State logic ID (overrides context)")
 	deleteCmd.Flags().StringVar(&deleteGUID, "guid", "", "State GUID (overrides context)")
+	deleteCmd.Flags().BoolVar(&deletePurge, "purge", false, "Permanently delete tombstoned state (cannot be undone)")
+	deleteCmd.Flags().BoolVar(&deleteForce, "force", false, "Force purge within retention period (requires --purge)")
 }

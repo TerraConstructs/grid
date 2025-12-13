@@ -36,25 +36,29 @@ theme:
 # Board views - each view is a named collection of columns
 # Cycle through views with Shift+J (next) and Shift+K (previous)
 views:
+  - name: Epic
+    columns:
+      - name: State Lifecycle
+        type: tree
+        issue_id: grid-asc3
+        color: '#AABBCC'
+      - name: Ready
+        query: type = task and status = open and label in (spec:011-state-lifecycle-ops) order by priority
+        color: '#A3E635'
   - name: Default
     columns:
-      - name: Blocked
-        query: status = open and blocked = true
-        color: '#FF8787'
       - name: Ready
         query: status = open and ready = true
         color: '#73F59F'
+      - name: Blocked
+        query: status = open and blocked = true
+        color: '#FF8787'
       - name: In Progress
         query: status = in_progress
         color: '#54A0FF'
       - name: Closed
         query: status = closed
         color: '#BBBBBB'
-  - name: Epic
-    columns:
-      - name: Epic
-        query: status = open and type = epic
-        color: '#AABBCC'
 
 # View options:
 #   name: Display name for the view (required)

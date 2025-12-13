@@ -187,6 +187,14 @@ type RestoreStateResult struct {
 	RestoredAt    time.Time
 }
 
+// PurgeStateResult contains the result of a purge operation.
+type PurgeStateResult struct {
+	Success  bool
+	GUID     string
+	LogicID  string
+	PurgedAt time.Time
+}
+
 // TopologyDirection indicates the traversal direction for topological ordering.
 type TopologyDirection string
 

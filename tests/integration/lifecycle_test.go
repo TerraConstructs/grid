@@ -650,3 +650,143 @@ func TestRenameState_TombstonedToFreeName(t *testing.T) {
 	assert.True(t, foundTombstonedB, "Should find tombstoned state with logic_id B")
 	t.Logf("✓ Verified: Tombstoned state has logic_id B, new active state has logic_id A")
 }
+
+// TestPurgeState_ActiveFails validates FR-016: Cannot purge non-tombstoned (active) states.
+func TestPurgeState_ActiveFails(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping integration test")
+	}
+
+	client := newSDKClient()
+	ctx := context.Background()
+
+	// Create an active state
+	logicID := fmt.Sprintf("test-purge-active-%d", time.Now().Unix())
+	t.Logf("Creating active state: %s", logicID)
+	state, err := client.CreateState(ctx, sdk.CreateStateInput{
+		LogicID: logicID,
+		Labels:  sdk.LabelMap{"env": "test"},
+	})
+	require.NoError(t, err, "Create state should succeed")
+	t.Logf("Created state GUID: %s, LogicID: %s", state.GUID, state.LogicID)
+
+	// Attempt to purge the active state (should fail - FR-016)
+	t.Logf("Attempting to purge active state (should fail)")
+	_, err = client.PurgeState(ctx, sdk.StateReference{GUID: state.GUID}, false)
+	assert.Error(t, err, "Purge active state should fail")
+	assert.Contains(t, err.Error(), "tombstoned", "Error should mention tombstoned requirement")
+	t.Logf("✓ Purge active state failed as expected: %v", err)
+
+	// Verify state is still active
+	retrieved, err := client.GetState(ctx, sdk.StateReference{GUID: state.GUID})
+	require.NoError(t, err, "GetState should succeed")
+	assert.Equal(t, state.GUID, retrieved.GUID, "State should still exist")
+	t.Logf("✓ State remains active after failed purge attempt")
+}
+
+// TestPurgeState_WithinRetentionFails validates FR-014: Retention period enforced without force flag.
+func TestPurgeState_WithinRetentionFails(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping integration test")
+	}
+
+	client := newSDKClient()
+	ctx := context.Background()
+
+	// Create and tombstone a state
+	logicID := fmt.Sprintf("test-purge-retention-%d", time.Now().Unix())
+	t.Logf("Creating state: %s", logicID)
+	state, err := client.CreateState(ctx, sdk.CreateStateInput{
+		LogicID: logicID,
+		Labels:  sdk.LabelMap{"env": "test"},
+	})
+	require.NoError(t, err, "Create state should succeed")
+
+	t.Logf("Tombstoning state: %s", state.GUID)
+	tombstoneResult, err := client.TombstoneState(ctx, sdk.StateReference{GUID: state.GUID})
+	require.NoError(t, err, "Tombstone should succeed")
+	t.Logf("State tombstoned. Purge eligible at: %s", tombstoneResult.PurgeEligibleAt.Format(time.RFC3339))
+
+	// Attempt to purge without force (should fail - FR-014: retention period not expired)
+	t.Logf("Attempting to purge within retention period without force (should fail)")
+	_, err = client.PurgeState(ctx, sdk.StateReference{GUID: state.GUID}, false)
+	assert.Error(t, err, "Purge within retention without force should fail")
+	assert.Contains(t, err.Error(), "eligible", "Error should mention retention/eligibility")
+	t.Logf("✓ Purge within retention failed as expected: %v", err)
+
+	// Verify state is still tombstoned (not purged)
+	includeTombstoned := true
+	allStates, err := client.ListStatesWithOptions(ctx, sdk.ListStatesOptions{
+		IncludeTombstoned: &includeTombstoned,
+	})
+	require.NoError(t, err, "ListStatesWithOptions should succeed")
+	found := false
+	for _, s := range allStates {
+		if s.GUID == state.GUID {
+			found = true
+			assert.True(t, s.IsTombstoned, "State should still be tombstoned")
+			break
+		}
+	}
+	assert.True(t, found, "State should still exist (tombstoned)")
+	t.Logf("✓ State remains tombstoned after failed purge attempt")
+}
+
+// TestPurgeState_ForcePurgeSucceeds validates FR-015 and FR-017: Force purge bypasses retention, logic_id reusable.
+func TestPurgeState_ForcePurgeSucceeds(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping integration test")
+	}
+
+	client := newSDKClient()
+	ctx := context.Background()
+
+	// Create and tombstone a state
+	logicID := fmt.Sprintf("test-purge-force-%d", time.Now().Unix())
+	t.Logf("Creating state: %s", logicID)
+	state, err := client.CreateState(ctx, sdk.CreateStateInput{
+		LogicID: logicID,
+		Labels:  sdk.LabelMap{"env": "test"},
+	})
+	require.NoError(t, err, "Create state should succeed")
+	originalGUID := state.GUID
+
+	t.Logf("Tombstoning state: %s", state.GUID)
+	tombstoneResult, err := client.TombstoneState(ctx, sdk.StateReference{GUID: state.GUID})
+	require.NoError(t, err, "Tombstone should succeed")
+	t.Logf("State tombstoned. Purge eligible at: %s (retention: %d days)",
+		tombstoneResult.PurgeEligibleAt.Format(time.RFC3339), tombstoneResult.RetentionDays)
+
+	// Force purge within retention period (should succeed - FR-015)
+	t.Logf("Force purging state within retention period")
+	purgeResult, err := client.PurgeState(ctx, sdk.StateReference{GUID: state.GUID}, true)
+	require.NoError(t, err, "Force purge should succeed")
+	assert.True(t, purgeResult.Success, "Purge result should indicate success")
+	assert.Equal(t, originalGUID, purgeResult.GUID, "Purge result should return correct GUID")
+	assert.Equal(t, logicID, purgeResult.LogicID, "Purge result should return correct logic_id")
+	assert.WithinDuration(t, time.Now(), purgeResult.PurgedAt, 5*time.Second, "PurgedAt should be recent")
+	t.Logf("✓ Force purge succeeded: GUID=%s, LogicID=%s, PurgedAt=%s",
+		purgeResult.GUID, purgeResult.LogicID, purgeResult.PurgedAt.Format(time.RFC3339))
+
+	// Verify state is completely gone (not in tombstoned list either)
+	includeTombstoned := true
+	allStates, err := client.ListStatesWithOptions(ctx, sdk.ListStatesOptions{
+		IncludeTombstoned: &includeTombstoned,
+	})
+	require.NoError(t, err, "ListStatesWithOptions should succeed")
+	for _, s := range allStates {
+		assert.NotEqual(t, originalGUID, s.GUID, "Purged state should not appear in list")
+	}
+	t.Logf("✓ State completely removed from system")
+
+	// Verify logic_id is reusable (FR-017)
+	t.Logf("Creating new state with purged logic_id: %s", logicID)
+	newState, err := client.CreateState(ctx, sdk.CreateStateInput{
+		LogicID: logicID,
+		Labels:  sdk.LabelMap{"env": "test-reuse"},
+	})
+	require.NoError(t, err, "Create state with purged logic_id should succeed")
+	assert.NotEqual(t, originalGUID, newState.GUID, "New state should have different GUID")
+	assert.Equal(t, logicID, newState.LogicID, "New state should have same logic_id")
+	t.Logf("✓ Logic_id reused successfully: new GUID=%s", newState.GUID)
+}
