@@ -1,4 +1,5 @@
 [tools]
+buf = "latest"
 go = "1.24"
 node = "22"
 opentofu = "1.9.3"
